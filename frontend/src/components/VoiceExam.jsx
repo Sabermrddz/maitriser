@@ -1,14 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
+import { useTranslation } from '../context/LanguageContext';
 import { logger } from '../utils/logger';
 import '../styles/teal-theme.css';
 
 const Recorder = ({ onAudioReady, onTranscript }) => {
+  const { t, lang } = useTranslation();
   const [state, setState]       = useState('idle'); // idle | recording | done
   const [audioUrl, setAudioUrl] = useState(null);
   const [error, setError]       = useState('');
   const [transcribing, setTranscribing] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
+  const streamRef               = useRef(null);
   const mediaRecorderRef        = useRef(null);
   const chunksRef               = useRef([]);
   const recognitionRef          = useRef(null);
@@ -43,7 +46,7 @@ const Recorder = ({ onAudioReady, onTranscript }) => {
       };
 
       mediaRecorderRef.current.onerror = () => {
-        setError("Erreur d'enregistrement.");
+        setError(t('voiceExam.recorder.error.recording'));
         setState('idle');
       };
 
@@ -54,7 +57,7 @@ const Recorder = ({ onAudioReady, onTranscript }) => {
         const recognition = new SpeechRecognitionAPI();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.lang = 'fr-FR';
+        recognition.lang = lang === 'fr' ? 'fr-FR' : 'en-US';
 
         recognition.onresult = (event) => {
           let interim = '';
@@ -71,7 +74,7 @@ const Recorder = ({ onAudioReady, onTranscript }) => {
 
         recognition.onerror = (event) => {
           if (event.error === 'no-speech' || event.error === 'aborted') return;
-          setError('Erreur de reconnaissance vocale.');
+          setError(t('voiceExam.recorder.error.recognition'));
           setTranscribing(false);
         };
 
@@ -88,7 +91,7 @@ const Recorder = ({ onAudioReady, onTranscript }) => {
       }
     } catch (err) {
       logger.error({ err }, 'VoiceExam mic access denied');
-      setError('Accès au micro refusé.');
+      setError(t('voiceExam.recorder.error.mic'));
     }
   };
 
@@ -102,7 +105,11 @@ const Recorder = ({ onAudioReady, onTranscript }) => {
     }
   };
 
-  const streamRef = useRef(null);
+  useEffect(() => {
+    return () => {
+      if (audioUrl) URL.revokeObjectURL(audioUrl);
+    };
+  }, [audioUrl]);
 
   useEffect(() => {
     return () => {
@@ -124,27 +131,27 @@ const Recorder = ({ onAudioReady, onTranscript }) => {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
       {state === 'idle' && (
-        <button type="button" onClick={startRecording} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-          🎤 Enregistrer
+        <button type="button" onClick={startRecording} aria-label={t('voiceExam.recorder.record')} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+          🎤 {t('voiceExam.recorder.record')}
         </button>
       )}
       {state === 'recording' && (
         <>
-          <button type="button" onClick={stopRecording} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#e74c3c', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-            🔴 Arrêter
+          <button type="button" onClick={stopRecording} aria-label={t('voiceExam.recorder.stop')} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#e74c3c', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+            🔴 {t('voiceExam.recorder.stop')}
           </button>
           <span style={{ fontSize: 11, color: transcribing ? 'var(--teal-accent)' : 'var(--text-muted)' }}>
-            {transcribing ? '🎤 Transcription en cours...' : '⏳ En attente de voix'}
+            {transcribing ? <>🎤 {t('voiceExam.recorder.transcribing')}</> : <>⏳ {t('voiceExam.recorder.waiting')}</>}
           </span>
         </>
       )}
       {state === 'done' && audioUrl && (
         <>
           <audio src={audioUrl} controls style={{ height: 36 }} />
-          <button type="button" onClick={() => { setState('idle'); setAudioUrl(null); if (onAudioReady) onAudioReady(null, null); }} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontSize: 11 }}>
-            ✕ Supprimer
+          <button type="button" onClick={() => { setState('idle'); setAudioUrl(null); if (onAudioReady) onAudioReady(null, null); }} aria-label={t('voiceExam.recorder.delete')} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontSize: 11 }}>
+            ✕ {t('voiceExam.recorder.delete')}
           </button>
-          {unsupported && <span style={{ fontSize: 11, color: '#e67e22' }}>Saisie manuelle uniquement (Chrome recommandé)</span>}
+          {unsupported && <span style={{ fontSize: 11, color: '#e67e22' }}>{t('voiceExam.recorder.unsupported')}</span>}
         </>
       )}
       {error && <span style={{ color: '#e74c3c', fontSize: 12 }}>{error}</span>}
@@ -152,18 +159,26 @@ const Recorder = ({ onAudioReady, onTranscript }) => {
   );
 };
 
-const VoiceExam = ({ exam, onBack }) => {
-  if (!exam) return <div className="page-teal"><div className="card-teal" style={{ textAlign: 'center' }}>Examen introuvable.</div></div>;
+const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: externalSubmitting, duration }) => {
+  const { t } = useTranslation();
+  if (!exam) return <div className="page-teal"><div className="card-teal" style={{ textAlign: 'center' }}>{t('voiceExam.notFound')}</div></div>;
   const questions = exam.questions || [];
   const STORAGE_KEY = `voice-exam-${exam._id}`;
-  const [answers, setAnswers]     = useState(() => (questions).map(() => ({ text: '' })));
-  const [result, setResult]       = useState(null);
+  const [answers, setAnswers]       = useState(() => (questions).map(() => ({ text: '' })));
+  const [result, setResult]         = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError]         = useState('');
-  const [showModel, setShowModel] = useState({});
+  const [error, setError]           = useState('');
+  const [showModel, setShowModel]   = useState({});
+  const [timeLeft, setTimeLeft]     = useState(duration ? duration * 60 : 0);
+  const [timerActive, setTimerActive] = useState(!!duration);
+  const [timedOut, setTimedOut]     = useState(false);
+  const timerRef = useRef(null);
+  const handleSubmitRef = useRef(null);
   const restored = useRef(false);
+  const isSubmitting = externalSubmitting || submitting;
 
   useEffect(() => {
+    if (stationMode) return;
     try {
       const savedRaw = sessionStorage.getItem(STORAGE_KEY);
       if (savedRaw) {
@@ -173,7 +188,7 @@ const VoiceExam = ({ exam, onBack }) => {
           return;
         }
       }
-    } catch { /* ignore */ }
+    } catch { logger.error({ examId: exam?._id }, 'VoiceExam restoreSession failed') }
     setAnswers(questions.map(() => ({ text: '' })));
     setResult(null);
     setError('');
@@ -181,15 +196,43 @@ const VoiceExam = ({ exam, onBack }) => {
   }, [exam._id]);
 
   useEffect(() => {
-    if (result || !answers.length) return;
+    if (stationMode || result || !answers.length) return;
     try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ examId: exam._id, answers })); } catch { /* ignore */ }
   }, [answers, result]);
 
   useEffect(() => {
+    if (stationMode) return;
     const onLeave = (e) => { if (!result) { e.preventDefault(); e.returnValue = ''; } };
     window.addEventListener('beforeunload', onLeave);
     return () => window.removeEventListener('beforeunload', onLeave);
   }, [result]);
+
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (!duration) return;
+    const onVis = () => {
+      if (document.hidden) { clearTimeout(timerRef.current); }
+      else { setTick((t) => t + 1); }
+    };
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [duration]);
+
+  useEffect(() => {
+    if (!timerActive || timeLeft <= 0 || result) return;
+    timerRef.current = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
+    return () => clearTimeout(timerRef.current);
+  }, [timerActive, timeLeft, result, tick]);
+
+  useEffect(() => {
+    if (!timerActive || timeLeft > 0 || result) return;
+    setTimedOut(true);
+    if (stationMode && onStationSubmit) {
+      onStationSubmit(answers.map((a, i) => ({ questionIndex: i, text: a.text })), true);
+    } else if (handleSubmitRef.current) {
+      handleSubmitRef.current(true);
+    }
+  }, [timerActive, timeLeft, result]);
 
   const clearSaved = () => { try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ } };
 
@@ -201,10 +244,14 @@ const VoiceExam = ({ exam, onBack }) => {
     });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (isTimedOut) => {
     const filled = answers.every((a) => a.text.trim());
-    if (!filled) { setError('Veuillez répondre à toutes les questions.'); return; }
+    if (!filled && !isTimedOut) { setError(t('voiceExam.fillAll')); return; }
     setError('');
+    if (stationMode && onStationSubmit) {
+      await onStationSubmit(answers.map((a, i) => ({ questionIndex: i, text: a.text })), isTimedOut);
+      return;
+    }
     setSubmitting(true);
     try {
       const body = { answers: answers.map((a, i) => ({ questionIndex: i, text: a.text })) };
@@ -224,17 +271,39 @@ const VoiceExam = ({ exam, onBack }) => {
     }
   };
 
+  useEffect(() => { handleSubmitRef.current = handleSubmit; });
+
   const allPassed = result?.answers?.every((a) => a.allPassed);
 
   return (
     <div className="quiz-container-teal">
       <div style={{ marginBottom: 16 }}>
         <button type="button" onClick={onBack} style={{ background: 'none', border: '1px solid var(--border-light)', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--text-dark)' }}>
-          &larr; Retour
+          &larr; {t('voiceExam.back')}
         </button>
       </div>
 
-      <p style={{ fontSize: 12, color: '#f97316', fontWeight: 'bold', margin: '0 0 8px' }}>EXAMEN ORAL</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+        <p style={{ fontSize: 12, color: '#f97316', fontWeight: 'bold', margin: 0 }}>{t('voiceExam.title')}</p>
+        {duration && timerActive && (
+          <span style={{
+            fontSize: 13, fontWeight: 700, fontFamily: "'IBM Plex Mono', monospace", padding: '4px 12px', borderRadius: 6,
+            background: timeLeft <= 60 ? 'rgba(239,68,68,0.15)' : 'rgba(193,255,48,0.15)',
+            color: timeLeft <= 60 ? '#ef4444' : 'var(--color-success)',
+            transition: 'background 0.3s, color 0.3s',
+          }}>
+            {Math.floor(timeLeft / 60)}:{String(timeLeft % 60).padStart(2, '0')}
+            {timeLeft <= 60 && timeLeft > 0 && (
+              <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 400, animation: 'pulse 1s infinite' }}>{t('voiceExam.timerWarning')}</span>
+            )}
+          </span>
+        )}
+        {duration && !timerActive && (
+          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>
+            {t('voiceExam.timerDone')}
+          </span>
+        )}
+      </div>
       <h3 style={{ margin: '0 0 16px' }}>{exam.title}</h3>
 
       <div style={{ background: 'var(--color-bg)', padding: 14, borderRadius: 6, marginBottom: 20 }}>
@@ -242,7 +311,7 @@ const VoiceExam = ({ exam, onBack }) => {
         {exam.images && exam.images.length > 0 && (
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {exam.images.map((img, i) => (
-              <img key={i} src={`${API_BASE_URL}/api/voice-exam-images/${img}`} alt={`Image ${i + 1}`} loading="lazy"
+              <img key={i} src={`${API_BASE_URL}/api/voice-exam-images/${img}`} alt={t('voiceExam.imageAlt', { n: i + 1 })} loading="lazy"
                 style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8, objectFit: 'contain', border: '1px solid var(--border-light)' }}
               />
             ))}
@@ -255,7 +324,7 @@ const VoiceExam = ({ exam, onBack }) => {
           <p style={{ fontWeight: 600, margin: '0 0 8px' }}>Q{qi + 1}. {q.questionText}</p>
           <Recorder onTranscript={(text) => setAnswer(qi, text)} />
           <textarea
-            placeholder="Écrivez votre réponse ici..."
+            placeholder={t('voiceExam.placeholder')}
             value={answers[qi]?.text || ''}
             onChange={(e) => setAnswer(qi, e.target.value)}
             rows={4}
@@ -264,28 +333,47 @@ const VoiceExam = ({ exam, onBack }) => {
         </div>
       ))}
 
-      {!result && (
+      {!result && timedOut && (
+        <p style={{ color: '#ef4444', fontWeight: 700, fontSize: 14, marginBottom: 12, textAlign: 'center' }}>
+          {t('voiceExam.timeUp')}
+        </p>
+      )}
+
+      {!stationMode && !result && (
         <button
           type="button"
-          onClick={handleSubmit}
-          disabled={submitting}
-          style={{ padding: '10px 24px', borderRadius: 6, border: 'none', background: 'var(--teal-dark)', color: '#fff', fontWeight: 'bold', cursor: 'pointer', opacity: submitting ? 0.7 : 1 }}
+          onClick={() => handleSubmit(timedOut)}
+          disabled={isSubmitting || timedOut}
+          aria-label={t('voiceExam.submit')}
+          style={{ padding: '10px 24px', borderRadius: 6, border: 'none', background: 'var(--teal-dark)', color: '#fff', fontWeight: 'bold', cursor: 'pointer', opacity: isSubmitting ? 0.7 : 1 }}
         >
-          {submitting ? 'Soumission...' : 'Soumettre les réponses'}
+          {isSubmitting ? t('voiceExam.submitting') : t('voiceExam.submit')}
+        </button>
+      )}
+
+      {stationMode && !result && (
+        <button
+          type="button"
+          onClick={() => handleSubmit(timedOut)}
+          disabled={isSubmitting || timedOut}
+          aria-label={t('voiceExam.submitStation')}
+          style={{ padding: '10px 24px', borderRadius: 6, border: 'none', background: 'var(--teal-dark)', color: '#fff', fontWeight: 'bold', cursor: 'pointer', opacity: isSubmitting ? 0.7 : 1 }}
+        >
+          {isSubmitting ? t('voiceExam.submitting') : t('voiceExam.submitStation')}
         </button>
       )}
 
       {error && <p style={{ color: '#e74c3c', marginTop: 12 }}>{error}</p>}
 
-      {result && (
+      {result && !stationMode && (
         <div style={{ marginTop: 20 }}>
           <div className="voice-exam-result-box" style={{
             padding: 16, borderRadius: 8, marginBottom: 16, textAlign: 'center', fontSize: 18, fontWeight: 700,
             background: allPassed ? 'rgba(193,255,48,0.15)' : 'rgba(239,68,68,0.15)', color: allPassed ? 'var(--color-success)' : 'var(--color-danger)',
           }}>
-            {allPassed ? '✅ Réponse correcte !' : '❌ Réponse incorrecte'}
+            {allPassed ? <>✅ {t('voiceExam.result.allCorrect')}</> : <>❌ {t('voiceExam.result.allIncorrect')}</>}
             <span style={{ display: 'block', fontSize: 13, fontWeight: 400, marginTop: 4 }}>
-              {result.overallPassed}/{result.overallMax} questions correctes
+              {t('voiceExam.result.correct', { passed: result.overallPassed, total: result.overallMax })}
             </span>
           </div>
 
@@ -315,11 +403,11 @@ const VoiceExam = ({ exam, onBack }) => {
                   onClick={() => setShowModel((prev) => ({ ...prev, [qi]: !prev[qi] }))}
                   style={{ background: 'none', border: '1px solid var(--teal-dark)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: 12, color: 'var(--teal-dark)' }}
                 >
-                  {showModel[qi] ? 'Masquer' : 'Voir le modèle de réponse'}
+                  {showModel[qi] ? t('voiceExam.hideModel') : t('voiceExam.showModel')}
                 </button>
                 {showModel[qi] && (
                   <div style={{ marginTop: 8, padding: 10, background: 'var(--color-bg)', borderRadius: 6, fontSize: 13, color: 'var(--text-body)' }}>
-                    {q.idealAnswer || 'Aucune réponse modèle fournie.'}
+                    {q.idealAnswer || t('voiceExam.noModel')}
                   </div>
                 )}
               </div>
@@ -331,7 +419,7 @@ const VoiceExam = ({ exam, onBack }) => {
             onClick={() => { setResult(null); setAnswers(questions.map(() => ({ text: '' }))); setError(''); }}
             style={{ padding: '10px 24px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontWeight: 600 }}
           >
-            Réessayer
+            {t('voiceExam.retry')}
           </button>
         </div>
       )}

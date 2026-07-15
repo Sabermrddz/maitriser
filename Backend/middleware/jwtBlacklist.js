@@ -1,9 +1,14 @@
-export const blacklist = new Set();
+import TokenBlacklist from '../models/tokenBlacklistModel.js';
 
-export const addToBlacklist = (token, expiresAt) => {
-  blacklist.add(token);
-  const ttl = Math.max(0, expiresAt - Date.now());
-  if (ttl > 0) setTimeout(() => blacklist.delete(token), ttl);
+export const addToBlacklist = async (token, expiresAt) => {
+  try {
+    await TokenBlacklist.create({ token, expiresAt: new Date(expiresAt) });
+  } catch (err) {
+    if (err.code !== 11000) throw err;
+  }
 };
 
-export const isBlacklisted = (token) => blacklist.has(token);
+export const isBlacklisted = async (token) => {
+  const found = await TokenBlacklist.findOne({ token }).lean();
+  return !!found;
+};

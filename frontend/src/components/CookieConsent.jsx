@@ -1,16 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from '../context/LanguageContext';
 import '../styles/teal-theme.css';
 
 const CookieConsent = () => {
+  const { t } = useTranslation();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem('cookie-consent');
-    if (!consent) setVisible(true);
+    try { const consent = localStorage.getItem('cookie-consent'); if (!consent) setVisible(true); } catch { setVisible(true); }
   }, []);
 
   const accept = () => {
-    localStorage.setItem('cookie-consent', 'accepted');
+    try { localStorage.setItem('cookie-consent', 'accepted'); } catch { /* incognito */ }
+    setVisible(false);
+  };
+
+  const decline = () => {
+    try { localStorage.setItem('cookie-consent', 'declined'); } catch { /* incognito */ }
     setVisible(false);
   };
 
@@ -18,10 +24,11 @@ const CookieConsent = () => {
 
   return (
     <div className="cookie-consent" role="alert" aria-live="polite">
-      <p className="cookie-consent-text">
-        Ce site utilise des cookies essentiels à son fonctionnement. En continuant, vous acceptez leur utilisation.
-      </p>
-      <button className="btn-primary cookie-consent-btn" onClick={accept}>Accepter</button>
+      <p className="cookie-consent-text">{t('cookie.text')}</p>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button className="btn-primary cookie-consent-btn" onClick={accept}>{t('cookie.accept')}</button>
+        <button className="btn-secondary" onClick={decline} style={{ padding: '8px 16px', fontSize: '0.85rem' }}>{t('cookie.decline') || 'Decline'}</button>
+      </div>
     </div>
   );
 };

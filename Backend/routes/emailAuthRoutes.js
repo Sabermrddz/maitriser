@@ -38,7 +38,7 @@ router.post(
     try {
       const { email } = req.body;
       const user = await User.findOne({ email });
-      if (!user) return res.status(404).json({ message: 'User not found' });
+      if (!user) return res.json({ message: 'If that email exists, a verification link has been sent' });
       if (user.emailVerified) return res.json({ message: 'Email already verified' });
 
       const token = crypto.randomBytes(32).toString('hex');
@@ -47,9 +47,9 @@ router.post(
       await user.save();
 
       const sent = await sendEmail({ to: email, subject: 'Verify your email', html: verificationEmailHtml(token, safeBaseUrl(req)) });
-      if (!sent) return res.status(500).json({ message: 'Failed to send verification email. Check SMTP configuration.' });
+      if (!sent) return res.status(500).json({ message: 'Failed to send verification email.' });
 
-      res.json({ message: 'Verification email sent' });
+      res.json({ message: 'If that email exists, a verification link has been sent' });
     } catch (err) {
       logger.error({ err }, 'send-verification failed');
       res.status(500).json({ message: 'Server error' });
@@ -104,7 +104,7 @@ router.post(
 
       const sent = await sendEmail({ to: email, subject: 'Reset your password', html: resetPasswordHtml(token, safeBaseUrl(req)) });
       if (!sent) {
-        return res.status(500).json({ message: 'Failed to send reset email. Check SMTP configuration.' });
+        return res.status(500).json({ message: 'Failed to send reset email.' });
       }
 
       res.json({ message: 'If that email exists, a reset link has been sent' });
@@ -121,7 +121,12 @@ router.post(
   emailLimiter,
   [
     body('token').notEmpty(),
-    body('password').isLength({ min: 8 }).withMessage('Password must be at least 8 characters'),
+    body('password')
+      .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+      .matches(/[A-Z]/).withMessage('Must contain an uppercase letter')
+      .matches(/[a-z]/).withMessage('Must contain a lowercase letter')
+      .matches(/\d/).withMessage('Must contain a number')
+      .matches(/[^A-Za-z0-9]/).withMessage('Must contain a special character'),
   ],
   validate,
   async (req, res) => {

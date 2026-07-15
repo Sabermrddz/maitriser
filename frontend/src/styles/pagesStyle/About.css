@@ -1,101 +1,67 @@
-/* General styles */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Arial', sans-serif;
-}
-
-body {
-  background-color: #f7f7f7;
-  color: #333;
-  font-size: 16px;
-}
-
-/* About Page Styling */
-.about-container {
-  background-color: #fff;
-  max-width: 1200px;
-  margin: 40px auto;
-  padding: 40px;
-  border-radius: 10px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.about-content {
-  max-width: 900px;
-  margin: 0 auto;
-}
-
 .about-heading {
-  font-size: 2.5rem;
-  font-weight: 600;
-  color: rgb(56, 56, 232);
-  text-align: center;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--teal-dark);
   margin-bottom: 20px;
+  letter-spacing: -0.02em;
+  text-align: center;
 }
 
 .about-paragraph {
-  font-size: 1.1rem;
-  line-height: 1.6;
-  color: #555;
+  font-size: var(--text-base);
+  line-height: 1.7;
+  color: var(--text-body);
   margin-bottom: 20px;
-  text-align: justify;
 }
 
 .features-heading {
-  font-size: 1.5rem;
-  font-weight: 500;
-  margin-bottom: 10px;
-  color: rgb(56, 56, 232);
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--teal-dark);
 }
 
 .features-list {
-  list-style-type: none;
+  list-style: none;
   padding: 0;
   margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .features-list li {
-  font-size: 1.2rem;
-  margin-bottom: 10px;
-  line-height: 1.8;
-  transition: transform 0.3s ease;
-}
-
-.features-list li:hover {
-  transform: translateX(10px);
-}
-
-.features-list li svg {
-  margin-right: 10px;
-}
-
-/* Hover effect for the list items */
-.features-list li {
-  color: #666;
+  font-size: var(--text-base);
+  color: var(--text-body);
+  padding: 10px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-light);
+  border-left: 3px solid var(--teal-accent);
+  border-radius: 8px;
+  line-height: 1.5;
   display: flex;
   align-items: center;
+  gap: 10px;
+  transition: all 0.2s ease;
 }
 
 .features-list li:hover {
-  color: #4caf50;
+  transform: translateX(4px);
+  box-shadow: var(--shadow-sm);
 }
 
 @media (max-width: 768px) {
-  .about-container {
-    padding: 20px;
-  }
-
   .about-heading {
-    font-size: 2rem;
+    font-size: 1.35rem;
   }
-
   .about-paragraph {
+    font-size: 0.9rem;
+  }
+  .features-heading {
     font-size: 1rem;
   }
-
-  .features-heading {
-    font-size: 1.2rem;
+  .features-list li {
+    font-size: 0.88rem;
+    padding: 8px 12px;
   }
 }

@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, useCallback, Suspense, lazy, useMemo } from 'react';
 import { Routes, Route, useLocation, Navigate, Outlet } from 'react-router-dom';
-import { ClerkProvider, useAuth } from "@clerk/react";
+import { ClerkProvider, useAuth, useClerk } from "@clerk/react";
 import Home from './pages/Home';
 import Header from './components/Header';
 import FooterPage from './components/Footer.jsx';
 import ProtectedRoute from './components/protectedRoute';
-import AdminHeader from './components/adminHeader';
 import Sidebar from './components/adminSidebar';
-import SidebarUser from './components/sidebarUser';
+import NewSidebar from './components/NewSidebar';
 import AdminProtectedRoute from './components/AdminProtectedRoute';
 import { ToastProvider } from './components/Toast.jsx';
 import { LanguageProvider, useTranslation } from './context/LanguageContext';
 import { SoundProvider } from './context/SoundContext';
-import { ThemeProvider } from './context/ThemeContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import CookieConsent from './components/CookieConsent';
 import FeedbackButton from './components/FeedbackButton';
 import ProfileGuardModal from './components/ProfileGuardModal';
+import ErrorBoundary from './components/ErrorBoundary';
 import { logger } from './utils/logger';
 import { API_BASE_URL } from './config/api';
 import { setToken } from './utils/tokenStore';
@@ -31,7 +31,6 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'));
 const QuizPage = lazy(() => import('./pages/quizPage.jsx'));
 const MockExam = lazy(() => import('./pages/MockExam.jsx'));
 const CaseExam = lazy(() => import('./pages/CaseExam.jsx'));
-const BooksPage = lazy(() => import('./pages/BooksPage.jsx'));
 const VoiceExamPage = lazy(() => import('./pages/VoiceExamPage.jsx'));
 const QuizCard = lazy(() => import('./components/quizCard'));
 const ReviewPage = lazy(() => import('./pages/ReviewPage.jsx'));
@@ -50,55 +49,67 @@ const QuizManagement = lazy(() => import('./pages/QuizManagement'));
 const UserManagement = lazy(() => import('./pages/userManagement'));
 const ModuleManagement = lazy(() => import('./pages/ModuleManagement'));
 const AdminProfile = lazy(() => import('./pages/profile'));
-const BookManagement = lazy(() => import('./pages/BookManagement'));
 const VoiceExamManagement = lazy(() => import('./pages/VoiceExamManagement'));
-const Reports = lazy(() => import('./pages/Reports'));
 const AdminSetup = lazy(() => import('./pages/AdminSetup'));
 const FeedbackManagement = lazy(() => import('./pages/FeedbackManagement'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 const AdminPricingPage = lazy(() => import('./pages/AdminPricingPage'));
+const MockExamListPage = lazy(() => import('./pages/MockExamListPage'));
+const AdminMockExamPage = lazy(() => import('./pages/AdminMockExamPage'));
+const PdfManagement = lazy(() => import('./pages/PdfManagement'));
+const ImageManagement = lazy(() => import('./pages/ImageManagement'));
 
 const Fallback = () => {
   const { t } = useTranslation();
   return <div className="page-teal"><div className="card-teal" style={{ textAlign: 'center', padding: 40 }}>{t('loading')}</div></div>;
 };
 
-const LoadingPage = () => (
-  <div className="page-teal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-    <div className="card-teal" style={{ textAlign: 'center', padding: 40 }}>Chargement…</div>
-  </div>
-);
+const LoadingPage = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="page-teal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+      <div className="card-teal" style={{ textAlign: 'center', padding: 40 }}>{t('loading')}</div>
+    </div>
+  );
+};
 
-const UserLayout = ({ isDarkMode, toggleDarkMode }) => {
+const isMobile = () => window.innerWidth < 768;
+
+const UserLayout = () => {
   const location = useLocation();
   const isHome = location.pathname === '/';
   const { isSignedIn } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const { darkMode, toggleDarkMode } = useTheme();
+  const [sidebarOpen, setSidebarOpen] = useState(() => !isMobile());
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
-  const appPaths = ['/quizPage', '/quiz/', '/mock-exam', '/case-exam', '/review', '/voice-exams', '/books'];
+  useEffect(() => {
+    if (isMobile()) setSidebarOpen(false);
+  }, [location.pathname]);
+
+  const appPaths = ['/quizPage', '/quiz/', '/mock-exams', '/mock-exam/', '/case-exam', '/review', '/voice-exams'];
   const isAppPath = appPaths.some((p) => location.pathname.startsWith(p));
 
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', isDarkMode ? 'dark' : 'light');
-    try { localStorage.setItem('darkMode', isDarkMode); } catch { /* ignore */ }
-  }, [isDarkMode]);
-
   const showSidebar = isSignedIn && !isHome;
-  const sidebarWidth = showSidebar ? (sidebarOpen ? 230 : 60) : 0;
-  const needFlexWrap = showSidebar;
 
-  const content = (
-    <>
+  return (
+    <div style={isHome ? {} : { background: 'linear-gradient(135deg, var(--teal-dark, #04484F) 0%, var(--teal-deeper, #03383E) 100%)', minHeight: '100vh' }}>
       <CookieConsent />
-      {!isHome && !isSignedIn && <Header toggleDarkMode={toggleDarkMode} isDarkMode={isDarkMode} />}
+      {!isHome && !isSignedIn && <Header />}
+      {showSidebar && !sidebarOpen && (
+        <button className="dash-mobile-toggle" onClick={toggleSidebar} aria-label="Open sidebar">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      )}
+      {showSidebar && sidebarOpen && <div className="sidebar-overlay" onClick={toggleSidebar} />}
 
-      <div style={{ display: needFlexWrap ? 'flex' : 'block', position: 'relative' }}>
-        {showSidebar && <SidebarUser sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />}
-        <div style={{ flex: 1, marginLeft: sidebarWidth, transition: 'margin-left 0.3s ease', minHeight: '100vh' }}>
+      <div style={{ display: showSidebar ? 'flex' : 'block', position: 'relative' }}>
+        {showSidebar && <NewSidebar sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />}
+        <div style={{ flex: 1, minHeight: '100vh' }}>
           <Suspense fallback={<Fallback />}>
+          <ErrorBoundary>
           <Routes>
-            <Route path="/"         element={isSignedIn ? <Navigate to="/dashboard" replace /> : <Home toggleDarkMode={toggleDarkMode} isDarkMode={isDarkMode} />} />
+            <Route path="/"         element={isSignedIn ? <Navigate to="/dashboard" replace /> : <Home />} />
             <Route path="/about"    element={<About />} />
             <Route path="/help"     element={<Help />} />
             <Route path="/contact"  element={<Contact />} />
@@ -114,114 +125,140 @@ const UserLayout = ({ isDarkMode, toggleDarkMode }) => {
               <Route path="/dashboard"   element={<DashboardPage />} />
               <Route path="/discipline-picker" element={<DisciplinePicker />} />
               <Route path="/quizPage"    element={<ProfileGuardModal><QuizPage /></ProfileGuardModal>} />
-              <Route path="/mock-exam"   element={<ProfileGuardModal><MockExam /></ProfileGuardModal>} />
+              <Route path="/mock-exams"  element={<ProfileGuardModal><MockExamListPage /></ProfileGuardModal>} />
+              <Route path="/mock-exam/:attemptId" element={<ProfileGuardModal><MockExam /></ProfileGuardModal>} />
+
               <Route path="/case-exam/:caseId" element={<ProfileGuardModal><CaseExam /></ProfileGuardModal>} />
               <Route path="/voice-exams" element={<ProfileGuardModal><VoiceExamPage /></ProfileGuardModal>} />
               <Route path="/review"      element={<ProfileGuardModal><ReviewPage /></ProfileGuardModal>} />
               <Route path="/profile"     element={<ProfilePage />} />
               <Route path="/quiz/:id"    element={<ProfileGuardModal><QuizCard /></ProfileGuardModal>} />
-              <Route path="/books"       element={<ProfileGuardModal><BooksPage /></ProfileGuardModal>} />
               <Route path="/pricing"    element={<PricingPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </ErrorBoundary>
           <FeedbackButton />
           </Suspense>
 
           {!isAppPath && !isHome && <FooterPage />}
         </div>
       </div>
-    </>
-  );
-
-  return (
-    <LanguageProvider>
-    <SoundProvider>
-    <ToastProvider>
-      <div style={isHome ? {} : { background: 'linear-gradient(135deg, var(--teal-dark, #04484F) 0%, var(--teal-deeper, #03383E) 100%)', minHeight: '100vh' }}>
-        {content}
-      </div>
-    </ToastProvider>
-    </SoundProvider>
-    </LanguageProvider>
+    </div>
   );
 };
 
+import './styles/adminHeader.css';
 import './styles/adminTheme.css';
 import './styles/adminStyles.css';
 import './styles/sharedAdmin.css';
+import './styles/userDashboard.css';
 
 const AdminLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(() => !isMobile());
   const toggleSidebar = () => setSidebarOpen((prev) => !prev);
 
   return (
-    <LanguageProvider>
-    <SoundProvider>
-    <ToastProvider>
-    <ThemeProvider>
-      <div className="admin-app">
-        <AdminHeader toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
-        <div className="main-content">
-          <Sidebar sidebarOpen={sidebarOpen} />
-          <div className="page-content" style={{ marginLeft: sidebarOpen ? 230 : 60, transition: 'margin-left 0.3s ease' }}>
-            <Outlet />
-          </div>
+    <div className="admin-app">
+      {!sidebarOpen && (
+        <button className="admin-mobile-toggle" onClick={toggleSidebar} aria-label="Open sidebar">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      )}
+      {sidebarOpen && <div className="sidebar-overlay" onClick={toggleSidebar} />}
+      <div className="main-content">
+        <Sidebar sidebarOpen={sidebarOpen} toggleSidebar={toggleSidebar} />
+        <div className="page-content" style={{ marginLeft: sidebarOpen ? 230 : 60, transition: 'margin-left 0.3s ease' }}>
+          <Outlet />
         </div>
       </div>
-    </ThemeProvider>
-    </ToastProvider>
-    </SoundProvider>
-    </LanguageProvider>
+    </div>
+  );
+};
+
+const SyncErrorPage = ({ error, onRetry, onSignOut }) => {
+  const { t } = useTranslation();
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 24, textAlign: 'center' }}>
+      <h2 style={{ color: '#dc3545', marginBottom: 12 }}>{t('sync.title')}</h2>
+      <p style={{ color: '#666', marginBottom: 8, maxWidth: 400 }}>
+        {t('sync.description')}
+      </p>
+      <p style={{ color: '#999', marginBottom: 24, maxWidth: 400, fontSize: 13, fontFamily: 'monospace', wordBreak: 'break-word' }}>
+        {error}
+      </p>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <button onClick={onRetry} style={{ padding: '10px 24px', background: '#04484F', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 16 }}>
+          {t('sync.retry')}
+        </button>
+        <button onClick={onSignOut} style={{ padding: '10px 24px', background: '#dc3545', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 16 }}>
+          {t('sync.signOut')}
+        </button>
+      </div>
+    </div>
   );
 };
 
 const AppContent = () => {
   const ready = useClerkToken();
   const { isSignedIn, getToken } = useAuth();
+  const { signOut } = useClerk();
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin') || location.pathname === '/admin/setup';
-  const [isDarkMode, setIsDarkMode] = useState(() => { try { return localStorage.getItem('darkMode') !== 'false'; } catch { return true; } });
-  const toggleDarkMode = () => setIsDarkMode((prev) => !prev);
   const syncedRef = useRef(false);
+  const [syncError, setSyncError] = useState(null);
+
+  const syncRef = useRef(null);
+  const sync = useCallback(async () => {
+    setSyncError(null);
+    const abort = new AbortController();
+    syncRef.current = abort;
+    let token = await getToken();
+    if (!token) {
+      for (let i = 0; i < 30; i++) {
+        await new Promise((r) => setTimeout(r, 300));
+        if (abort.signal.aborted) return;
+        token = await getToken();
+        if (token) break;
+      }
+    }
+    if (!token || abort.signal.aborted) return;
+    setToken(token);
+    try {
+      const res = await axios.post(
+        `${API_BASE_URL}/api/auth/clerk-sync`,
+        {},
+        { signal: abort.signal, headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (abort.signal.aborted) return;
+      if (res.data.token) setToken(res.data.token);
+      try { localStorage.setItem('userId', res.data.userId); } catch {}
+      try { localStorage.setItem('userRole', res.data.role || 'user'); } catch {}
+      try { localStorage.setItem('userName', res.data.name || ''); } catch {}
+      try { localStorage.setItem('userDiscipline', res.data.discipline || ''); } catch {}
+      try { localStorage.setItem('userYear', res.data.year?.toString() || ''); } catch {}
+      syncedRef.current = true;
+    } catch (err) {
+      if (axios.isCancel(err)) return;
+      logger.error({ err }, 'AppContent sync failed');
+      const msg = err?.response?.data?.message || err?.message || 'Unknown error';
+      setSyncError(msg);
+    }
+  }, [getToken]);
 
   useEffect(() => {
     if (!ready || !isSignedIn || syncedRef.current) return;
-    let aborted = false;
-    (async () => {
-      try {
-        let token = await getToken();
-        if (!token) {
-          for (let i = 0; i < 30; i++) {
-            if (aborted) return;
-            await new Promise((r) => setTimeout(r, 300));
-            token = await getToken();
-            if (token) break;
-          }
-        }
-        if (aborted || !token) return;
-        setToken(token);
-        const res = await axios.post(
-          `${API_BASE_URL}/api/auth/clerk-sync`,
-          {},
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        if (aborted) return;
-        try { localStorage.setItem('userId', res.data.userId); } catch {}
-        try { localStorage.setItem('userRole', res.data.role || 'user'); } catch {}
-        syncedRef.current = true;
-      } catch (err) {
-        logger.error({ err }, 'AppContent sync failed');
-      }
-    })();
-    return () => { aborted = true; };
-  }, [ready, isSignedIn, getToken]);
+    sync();
+    return () => { syncRef.current?.abort(); };
+  }, [ready, isSignedIn, sync]);
 
   if (!ready) return <LoadingPage />;
+  if (syncError) return <SyncErrorPage error={syncError} onRetry={sync} onSignOut={() => signOut()} />;
 
   if (isAdminRoute) {
     return (
+      <ErrorBoundary>
       <Routes>
         <Route path="/admin/setup" element={<AdminSetup />} />
         <Route element={<AdminProtectedRoute />}>
@@ -230,53 +267,39 @@ const AppContent = () => {
             <Route path="/admin/module-management" element={<ModuleManagement />} />
             <Route path="/admin/quiz-management" element={<QuizManagement />} />
             <Route path="/admin/user-management" element={<UserManagement />} />
-            <Route path="/admin/reports" element={<Reports />} />
-            <Route path="/admin/book-management" element={<BookManagement />} />
             <Route path="/admin/voice-exam-management" element={<VoiceExamManagement />} />
+            <Route path="/admin/mock-exam-management" element={<AdminMockExamPage />} />
+
             <Route path="/admin/feedback" element={<FeedbackManagement />} />
             <Route path="/admin/pricing" element={<AdminPricingPage />} />
+            <Route path="/admin/pdfs" element={<PdfManagement />} />
+            <Route path="/admin/images" element={<ImageManagement />} />
             <Route path="/admin/profile" element={<AdminProfile />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Route>
       </Routes>
+      </ErrorBoundary>
     );
   }
 
-  return <UserLayout isDarkMode={isDarkMode} toggleDarkMode={toggleDarkMode} />;
+  return <UserLayout />;
 };
-
-class ErrorBoundary extends React.Component {
-  constructor(props) {
-    super(props);
-    this.state = { error: null };
-  }
-  static getDerivedStateFromError(error) { return { error }; }
-  componentDidCatch(error, info) {
-    logger.error({ err: error, info }, 'ErrorBoundary caught');
-  }
-  render() {
-    if (this.state.error) {
-      return (
-        <div className="page-teal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-          <div className="card-teal" style={{ textAlign: 'center', padding: 40 }}>
-            <h2>Une erreur est survenue</h2>
-            <p style={{ color: '#e74c3c', margin: '12px 0' }}>{this.state.error.message}</p>
-            <button className="btn-primary" onClick={() => window.location.reload()}>Recharger la page</button>
-          </div>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 const App = () => {
   return (
     <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
-      <ErrorBoundary>
-        <AppContent />
-      </ErrorBoundary>
+      <ThemeProvider>
+        <LanguageProvider>
+        <SoundProvider>
+        <ToastProvider>
+          <ErrorBoundary>
+            <AppContent />
+          </ErrorBoundary>
+        </ToastProvider>
+        </SoundProvider>
+        </LanguageProvider>
+      </ThemeProvider>
     </ClerkProvider>
   );
 };

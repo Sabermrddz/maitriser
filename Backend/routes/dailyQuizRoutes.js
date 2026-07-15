@@ -7,21 +7,14 @@ import User from '../models/userModel.js';
 import { verifyToken, requireAdmin } from '../controllers/authController.js';
 import { catchAsync } from '../utils/asyncHandler.js';
 import { validate } from '../middleware/validate.js';
+import { checkSubscription } from '../middleware/requireSubscription.js';
+import { shuffle } from '../utils/shuffle.js';
 
 const router = express.Router();
 
 function startOfDay() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
 }
 
 // ── Get today's daily quizzes ──────────────────────────────────────────────
@@ -35,6 +28,10 @@ router.get('/quizzes/daily', verifyToken, catchAsync(async (req, res) => {
   const user = await User.findById(req.user.id).select('discipline year');
   if (!user || !user.discipline || !user.year) {
     return res.json({ completed: false, quizzes: [], message: 'Set your discipline and year in your profile.' });
+  }
+
+  if (!await checkSubscription(req.user.id)) {
+    return res.json({ completed: false, quizzes: [], message: 'Subscription required' });
   }
 
   const config = await AppConfig.findOne({ key: 'dailyQuizCount' });
@@ -68,7 +65,7 @@ router.get('/quizzes/daily', verifyToken, catchAsync(async (req, res) => {
 
   const selected = shuffle(quizzes).slice(0, Math.min(count, quizzes.length));
 
-  res.json({ completed: false, quizzes: selected });
+  return res.json({ completed: false, quizzes: selected });
 }));
 
 // ── Submit daily quiz answers ──────────────────────────────────────────────
@@ -78,10 +75,6 @@ router.post('/quizzes/daily/submit', verifyToken, [
   body('answers.*.selectedAnswers').isArray({ min: 1 }),
 ], validate, catchAsync(async (req, res) => {
   const today = startOfDay();
-  const existing = await DailyActivity.findOne({ userId: req.user.id, date: today });
-  if (existing) {
-    return res.status(400).json({ message: 'Already completed today\'s quiz' });
-  }
 
   const quizIds = req.body.answers.map((a) => a.quizId);
   const quizzes = await Quiz.find({ _id: { $in: quizIds } }).select('question');
@@ -110,16 +103,26 @@ router.post('/quizzes/daily/submit', verifyToken, [
     if (correct) score++;
   }
 
-  const daily = await DailyActivity.create({
-    userId: req.user.id,
-    date: today,
-    quizIds,
-    answers: results,
-    score,
-    total: results.length,
-  });
+  const daily = await DailyActivity.findOneAndUpdate(
+    { userId: req.user.id, date: today },
+    {
+      $setOnInsert: {
+        userId: req.user.id,
+        date: today,
+        quizIds,
+        answers: results,
+        score,
+        total: results.length,
+      },
+    },
+    { upsert: true, new: true, rawResult: true }
+  );
 
-  res.json({ completed: true, results: daily });
+  if (daily.lastErrorObject?.updatedExisting) {
+    return res.status(400).json({ message: 'Already completed today\'s quiz' });
+  }
+
+  return res.json({ completed: true, results: daily.value });
 }));
 
 // ── Admin: get daily config ────────────────────────────────────────────────

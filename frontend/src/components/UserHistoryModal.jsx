@@ -1,12 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { authFetch } from '../config/authFetch';
 import { useTranslation } from '../context/LanguageContext';
+import { formatDateTime } from '../utils/formatDate';
 import Spinner from './Spinner';
 import Pagination from './Pagination';
 import { logger } from '../utils/logger';
 
 const UserHistoryModal = ({ user, onClose }) => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -110,7 +111,7 @@ const UserHistoryModal = ({ user, onClose }) => {
                         </span>
                       </td>
                       <td style={{ padding: '8px', borderBottom: '1px solid var(--dc-border)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                        {new Date(r.timestamp).toLocaleString('fr-FR')}
+                        {formatDateTime(r.timestamp, lang)}
                       </td>
                     </tr>
                   ))}

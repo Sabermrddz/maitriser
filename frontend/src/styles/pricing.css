@@ -7,7 +7,7 @@
 .pricing-redeem-section {
   text-align: center;
   padding: 32px 24px;
-  background: var(--card-bg);
+  background: light-dark(var(--card-bg), #1e2a3a);
   border-radius: var(--card-radius);
   box-shadow: var(--shadow-card);
   margin-bottom: 24px;
@@ -21,7 +21,7 @@
 .pricing-redeem-title {
   margin: 0 0 6px;
   font-size: 1.2rem;
-  color: var(--text-dark);
+  color: light-dark(var(--text-dark), #e0e0e0);
 }
 
 .pricing-redeem-desc {
@@ -40,13 +40,15 @@
 .pricing-redeem-input {
   flex: 1;
   padding: 10px 14px;
-  border: 2px solid var(--border-light);
+  border: 2px solid light-dark(var(--border-light), #444);
   border-radius: var(--radius-md);
   font-size: 0.9rem;
   font-family: monospace;
   letter-spacing: 1px;
   text-transform: uppercase;
   outline: none;
+  background: light-dark(transparent, #16213e);
+  color: light-dark(inherit, #e0e0e0);
   transition: border-color 0.2s;
 }
 
@@ -97,12 +99,12 @@
 }
 
 .pricing-card {
-  background: var(--card-bg);
+  background: light-dark(var(--card-bg), #1e2a3a);
   border-radius: var(--card-radius);
   box-shadow: var(--shadow-sm);
   padding: 24px;
   text-align: center;
-  border: 1px solid var(--border-light);
+  border: 1px solid light-dark(var(--border-light), #333);
   transition: box-shadow 0.2s, transform 0.2s;
 }
 
@@ -114,13 +116,20 @@
 .pricing-card-name {
   margin: 8px 0 4px;
   font-size: 1.1rem;
-  color: var(--text-dark);
+  color: light-dark(var(--text-dark), #e0e0e0);
 }
 
 .pricing-card-meta {
   font-size: 0.8rem;
   color: var(--text-muted);
   margin: 0 0 16px;
+}
+
+.pricing-card-price {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--teal-dark);
+  margin-bottom: 12px;
 }
 
 .pricing-card-features {
@@ -160,4 +169,60 @@
 
 .pricing-card-btn:hover {
   background: var(--teal-deeper);
+}
+
+@media (max-width: 480px) {
+  .pricing-page {
+    padding: 16px 8px;
+  }
+  .pricing-redeem-section {
+    padding: 20px 16px;
+  }
+  .pricing-redeem-input-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .pricing-redeem-input {
+    width: 100%;
+    padding: 12px 14px;
+    min-height: 44px;
+    font-size: 16px;
+  }
+  .pricing-redeem-btn {
+    width: 100%;
+    padding: 12px;
+    min-height: 44px;
+  }
+  .pricing-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .pricing-card {
+    padding: 20px 16px;
+  }
+  .pricing-card h3 {
+    font-size: 1.15rem;
+  }
+  .pricing-card .price {
+    font-size: 1.6rem;
+  }
+  .pricing-card-btn {
+    padding: 12px;
+    min-height: 44px;
+  }
+  .pricing-card-hint {
+    margin: 10px 0 0;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: center;
+  }
+}
+
+@media (max-width: 768px) {
+  .pricing-page {
+    padding: 24px 12px;
+  }
+  .pricing-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
 }

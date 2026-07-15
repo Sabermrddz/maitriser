@@ -5,12 +5,12 @@ const planSchema = new mongoose.Schema({
   slug: { type: String, unique: true },
   discipline: { type: String, enum: ['medicine', 'pharmacy'], required: true },
   year: { type: Number, required: true, min: 1, max: 7 },
+  price: { type: Number, default: 0, min: 0 },
   included: {
     quizzes: { type: Boolean, default: true },
     voiceExams: { type: Boolean, default: false },
-    books: { type: Boolean, default: true },
   },
-  interval: { type: String, enum: ['month', 'year'], default: 'month' },
+  interval: { type: String, enum: ['day', 'week', 'month', 'semester', 'year'], default: 'month' },
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
 }, { timestamps: true });

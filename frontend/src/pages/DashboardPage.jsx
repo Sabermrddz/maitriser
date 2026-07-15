@@ -1,406 +1,349 @@
-import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaLungs, FaBrain, FaHeart, FaVial, FaFileMedical, FaClipboardList, FaStethoscope, FaGraduationCap, FaChevronRight, FaUser, FaChevronDown } from "react-icons/fa";
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { useTranslation } from '../context/LanguageContext';
-import { useSound } from '../context/SoundContext';
+import { formatDate } from '../utils/formatDate';
 import { logger } from '../utils/logger';
-import DailyQuizModal from '../components/DailyQuizModal';
-import '../styles/teal-theme.css';
+import { ECOS_YEARS } from '../constants';
+import useDocumentTitle from '../utils/useDocumentTitle';
+import PageHeader from '../components/PageHeader';
+import "../styles/teal-theme.css";
+import "../styles/userDashboard.css";
+import "../styles/PageHeader.css";
 
-const CACHE_KEY = 'dashboardStats';
-const CACHE_TTL = 60 * 60 * 1000;
+const R = 50;
+const CIRCUMFERENCE = 2 * Math.PI * R;
 
-function getGreetingKey() {
-  const h = new Date().getHours();
-  if (h < 12) return 'dashboard.greeting.morning';
-  if (h < 18) return 'dashboard.greeting.afternoon';
-  return 'dashboard.greeting.evening';
-}
+const moduleIconMap = {
+  pneumologie: <FaLungs />, pneumo: <FaLungs />, poumon: <FaLungs />,
+  neurologie: <FaBrain />, neuro: <FaBrain />, cerveau: <FaBrain />,
+  cardiologie: <FaHeart />, cardio: <FaHeart />, coeur: <FaHeart />, cœur: <FaHeart />,
+  gastro: <FaVial />, gastroentérologie: <FaVial />, digestion: <FaVial />,
+};
 
-function getUserName() {
-  try {
-    const raw = localStorage.getItem('user');
-    if (raw) {
-      const u = JSON.parse(raw);
-      return u.name || u.email?.split('@')[0] || null;
-    }
-  } catch { /* ignore */ }
-  return null;
-}
-
-function calcStreak(results) {
-  if (!results.length) return 0;
-  const sorted = [...results].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  let streak = 0;
-  let prev = null;
-  for (const r of sorted) {
-    const day = new Date(r.timestamp).toDateString();
-    if (day === prev) continue;
-    if (r.score === 1) {
-      streak++;
-      prev = day;
-    } else {
-      break;
-    }
-  }
-  return streak;
-}
+const fallbackIcon = <FaFileMedical />;
 
 const DashboardPage = () => {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  useDocumentTitle(t('dashboard.title'));
   const navigate = useNavigate();
-  const play = useSound();
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [recentResults, setRecentResults] = useState([]);
-  const [dailyData, setDailyData]       = useState(null);
-  const [dailyLoading, setDailyLoading] = useState(true);
-  const [showDailyQuiz, setShowDailyQuiz] = useState(false);
+
+  const [profile, setProfile] = useState(null);
+  const [modules, setModules] = useState([]);
+  const [results, setResults] = useState([]);
+  const [voiceResults, setVoiceResults] = useState([]);
   const [subscription, setSubscription] = useState(null);
-  const [dismissedGuide, setDismissedGuide] = useState(() => {
-    try { return localStorage.getItem('guideDismissed') === 'true'; } catch { return false; }
-  });
-  const fetchedRef = useRef(false);
+  const [loading, setLoading] = useState(true);
+  const trackRef = useRef(null);
+  const scroll = useCallback((dir) => {
+    if (!trackRef.current) return;
+    trackRef.current.scrollBy({ left: dir * 280, behavior: 'smooth' });
+  }, []);
 
-  const greetingKey = useMemo(() => getGreetingKey(), []);
-  const userName = useMemo(() => getUserName(), []);
+  const userId = (() => { try { return localStorage.getItem('userId'); } catch { return null; } })();
+  const discipline = (() => { try { return localStorage.getItem('userDiscipline'); } catch { return null; } })();
+  const year = (() => { try { return localStorage.getItem('userYear'); } catch { return null; } })();
 
   useEffect(() => {
-    document.title = `${t('nav.dashboard') || 'Dashboard'} — MAITRISEZ`;
-  }, [t]);
-
-  useEffect(() => {
-    if (fetchedRef.current) return;
-    fetchedRef.current = true;
-
-    const cached = (() => {
-      try {
-        const raw = localStorage.getItem(CACHE_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (Date.now() - parsed.timestamp > CACHE_TTL) return null;
-        return parsed.data;
-      } catch { return null; }
-    })();
-
-    if (cached) {
-      setStats(cached.stats);
-      setRecentResults(cached.recentResults || []);
-      setLoading(false);
-      return;
-    }
-
-    const userId = (() => { try { return localStorage.getItem('userId'); } catch { return null; } })();
-    if (!userId) { setLoading(false); setDailyLoading(false); return; }
-
-    // Fetch daily quiz
+    if (!userId) { setLoading(false); return; }
+    let cancelled = false;
     (async () => {
       try {
-        const res = await fetchWithAuth(`${API_BASE_URL}/api/quizzes/daily`);
-        if (res.ok) setDailyData(await res.json());
-      } catch { /* ignore */ }
-      setDailyLoading(false);
-    })();
+        const [profileRes, modRes, resultsRes, subRes, vrRes] = await Promise.all([
+          fetchWithAuth(`${API_BASE_URL}/api/users/profile`),
+          fetchWithAuth(`${API_BASE_URL}/api/modules?discipline=${discipline || 'medicine'}&year=${year || ''}`),
+          fetchWithAuth(`${API_BASE_URL}/api/results/${userId}?limit=100`),
+          fetchWithAuth(`${API_BASE_URL}/api/payments/subscription`),
+          fetchWithAuth(`${API_BASE_URL}/api/voice-exam-results/${userId}?limit=100`).catch((err) => { logger.error({ err }, 'Failed to fetch voice results'); return null; }),
+        ]);
 
-    // Fetch subscription
-    (async () => {
-      try {
-        const res = await fetchWithAuth(`${API_BASE_URL}/api/payments/subscription`);
-        if (res.ok) {
-          const d = await res.json();
-          setSubscription(d.subscription);
+        if (cancelled) return;
+
+        if (profileRes?.ok) {
+          const data = await profileRes.json();
+          setProfile(data.user || data);
         }
-      } catch { /* ignore */ }
-    })();
 
-    (async () => {
-      try {
-        const res = await fetchWithAuth(`${API_BASE_URL}/api/results/${userId}?limit=200`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const d = await res.json();
-        const results = d.data || (Array.isArray(d) ? d : []);
-        const total = results.length;
-        const correct = results.filter((r) => r.score === 1).length;
-        const pct = total > 0 ? Math.round((correct / total) * 100) : 0;
-        const streak = calcStreak(results);
-        const computed = { total, correct, percentage: pct, streak };
-        const recent = results.slice(0, 5);
-        setStats(computed);
-        setRecentResults(recent);
-        try {
-          localStorage.setItem(CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: { stats: computed, recentResults: recent } }));
-        } catch { /* ignore */ }
+        if (modRes?.ok) {
+          const data = await modRes.json();
+          setModules(Array.isArray(data) ? data : (data.modules || []));
+        }
+
+        if (resultsRes?.ok) {
+          const data = await resultsRes.json();
+          setResults(Array.isArray(data) ? data : (data.results || []));
+        }
+
+        if (subRes?.ok) {
+          const data = await subRes.json();
+          setSubscription(data.subscription || null);
+        }
+
+        if (vrRes?.ok) {
+          const data = await vrRes.json();
+          setVoiceResults(Array.isArray(data) ? data : (data.results || []));
+        }
       } catch (err) {
-        logger.error({ err }, 'Dashboard fetch failed');
+        if (!cancelled) logger.error({ err }, 'Dashboard fetch error');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [userId, discipline, year]);
 
-  const handleDismissGuide = useCallback(() => {
-    setDismissedGuide(true);
-    try { localStorage.setItem('guideDismissed', 'true'); } catch { /* ignore */ }
-  }, []);
+  const passRate = useMemo(() => {
+    if (!results.length) return 0;
+    const passed = results.filter(r => r.score === 1).length;
+    return Math.round((passed / results.length) * 100);
+  }, [results]);
+
+  const offset = useMemo(() => CIRCUMFERENCE * (1 - passRate / 100), [passRate]);
+
+  const recentQcm = useMemo(() => {
+    if (!results.length) return [];
+    return [...results].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, 3);
+  }, [results]);
+
+  const recentEcos = useMemo(() => {
+    if (!voiceResults.length) return [];
+    return [...voiceResults].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 3);
+  }, [voiceResults]);
+
+  const moduleCards = useMemo(() => {
+    if (!modules.length) return [];
+    return modules.map(mod => {
+      const modName = (mod.name || '').toLowerCase();
+      let icon = fallbackIcon;
+      for (const [key, ico] of Object.entries(moduleIconMap)) {
+        if (modName.includes(key)) { icon = ico; break; }
+      }
+
+      const totalLessons = Array.isArray(mod.courses) ? mod.courses.length : 0;
+      let attempted = 0;
+      if (totalLessons > 0 && results.length > 0) {
+        const moduleResults = results.filter(r => {
+          const quiz = r.quizId;
+          if (!quiz) return false;
+          const quizModName = (quiz.moduleId?.name || quiz.moduleName || '').toLowerCase();
+          return quizModName.includes(modName) || modName.includes(quizModName);
+        });
+        attempted = Math.min(new Set(moduleResults.map(r => r.quizId?._id || r.quizId)).size, totalLessons);
+      }
+
+      const pct = totalLessons > 0 ? Math.round((attempted / totalLessons) * 100) : 0;
+
+      return { ...mod, icon, totalLessons, attempted, pct };
+    });
+  }, [modules, results]);
+
+  const userName = profile?.name || (() => { try { return localStorage.getItem('userName'); } catch { return ''; } })();
+  const userDiscipline = profile?.discipline || discipline || t('dashboard.fallbackDiscipline');
+  const userYear = profile?.year || year || '';
+  const subActive = subscription?.status === 'active';
+  const isPremium = subActive && new Date(subscription.endDate) > new Date();
+
+  const topBarRight = (
+    <div className="dash-top-profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
+      <div className="dash-top-avatar"><FaUser /></div>
+      <span>{userName || t('dashboard.fallbackUser')}</span>
+      <FaChevronDown style={{ fontSize: '0.65rem', color: 'var(--dash-text-muted)' }} />
+    </div>
+  );
 
   if (loading) {
     return (
-      <div className="page-teal">
-        <div className="dashboard-container">
-          <div className="dashboard-skeleton" />
+      <div className="dash-root">
+        <div className="dash-watermark" />
+        <div className="dash-main">
+          <PageHeader className="dash-topbar" right={topBarRight} />
+          <div className="dash-workspace">
+            <div className="dash-content-stream">
+              <div className="dash-skeleton" style={{ height: 140, borderRadius: 14 }} />
+              <div className="dash-skeleton" style={{ height: 180, borderRadius: 14 }} />
+              <div className="dash-skeleton" style={{ height: 200, borderRadius: 14 }} />
+            </div>
+            <div className="dash-skeleton" style={{ height: 300, borderRadius: 14 }} />
+          </div>
         </div>
       </div>
     );
   }
 
-  const isEmpty = !stats || stats.total === 0;
-  const accuracyColor = stats?.percentage >= 70 ? 'var(--color-success)' : stats?.percentage >= 50 ? 'var(--color-warning)' : 'var(--color-danger)';
-
   return (
-    <div className="page-teal">
-      <div className="dashboard-container">
-        {!dailyLoading && dailyData && (
-          <div className={`daily-hero ${dailyData.completed ? 'completed' : ''}`}>
-            {dailyData.completed ? (
-              <>
-                <div className="daily-hero-content">
-                  <div className="daily-hero-icon">&#10004;&#65039;</div>
-                  <div>
-                    <h3 className="daily-hero-title">Today's Quiz — Done!</h3>
-                    <p className="daily-hero-desc">
-                      {dailyData.results?.score ?? 0}/{dailyData.results?.total ?? 0}
-                      ({dailyData.results?.total > 0 ? Math.round(((dailyData.results?.score ?? 0) / dailyData.results.total) * 100) : 0}%)
-                    </p>
+    <div className="dash-root">
+      <div className="dash-watermark" />
+      <div className="dash-main">
+        <PageHeader className="dash-topbar" right={topBarRight} />
+
+        <div className="dash-workspace">
+          <div className="dash-content-stream">
+            {/* Hero */}
+            <section className="dash-hero">
+              <div className="dash-hero-welcome">
+                <h1>{t('dashboard.hero.greeting')}{userName ? <span className="dash-hero-accent"> {userName}</span> : ''}</h1>
+                <p className="dash-subtitle">{userYear ? t('dashboard.hero.subtitleYear', { year: userYear, discipline: userDiscipline }) : t('dashboard.hero.subtitleDiscipline', { discipline: userDiscipline })}</p>
+                <p className="dash-motivation">{t('dashboard.hero.motivation')}</p>
+              </div>
+              <div className="dash-hero-progress">
+                <div className="dash-progress-ring">
+                  <svg width="120" height="120">
+                    <circle className="dash-ring-bg" r={R} cx="60" cy="60" />
+                    <circle className="dash-ring-fill" strokeDasharray={CIRCUMFERENCE} strokeDashoffset={loading ? CIRCUMFERENCE : offset} r={R} cx="60" cy="60" />
+                  </svg>
+                  <div className="dash-ring-text">
+                    <span className="dash-ring-pct">{passRate}%</span>
+                    <span className="dash-ring-label">{t('dashboard.hero.accuracy')}</span>
                   </div>
                 </div>
-                <button className="daily-hero-btn secondary" onClick={() => setShowDailyQuiz(true)}>View Answers</button>
-              </>
-            ) : dailyData.quizzes?.length > 0 ? (
-              <>
-                <div className="daily-hero-content">
-                  <div className="daily-hero-icon">&#128197;</div>
-                  <div>
-                    <h3 className="daily-hero-title">Today's Quiz</h3>
-                    <p className="daily-hero-desc">{dailyData.quizzes.length} questions to test your knowledge</p>
-                  </div>
-                </div>
-                <button className="daily-hero-btn" onClick={() => setShowDailyQuiz(true)}>Start Quiz</button>
-              </>
-            ) : null}
-          </div>
-        )}
+              </div>
+            </section>
 
-        <div className="dashboard-header">
-          <div>
-            <h1 className="dashboard-greeting">
-              {t(greetingKey)}{userName ? `, ${userName}` : ''}
-            </h1>
-            <p className="dashboard-subtitle">{t('dashboard.subtitle')}</p>
-          </div>
-        </div>
-
-        {!dismissedGuide && (
-          <>
-            <h2 className="dashboard-section-title">{t('guide.title')}</h2>
-            <div className="dashboard-guide">
-              <div className="guide-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                <span className="guide-text">{t('guide.quiz')}</span>
-              </div>
-              <div className="guide-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
-                <span className="guide-text">{t('guide.mock')}</span>
-              </div>
-              <div className="guide-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-                <span className="guide-text">{t('guide.voice')}</span>
-              </div>
-              <div className="guide-item">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-                <span className="guide-text">{t('guide.results')}</span>
-              </div>
-              <button className="guide-dismiss" onClick={handleDismissGuide}>{t('guide.dismiss')}</button>
-            </div>
-          </>
-        )}
-
-        {isEmpty ? (
-          <div className="dashboard-empty">
-            <div className="dashboard-empty-icon">
-              <span className="icon-circle">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="4 17 10 11 4 5" />
-                  <line x1="12" y1="19" x2="20" y2="19" />
-                </svg>
-              </span>
-            </div>
-            <h2>{t('dashboard.empty.title')}</h2>
-            <p>{t('dashboard.empty.desc')}</p>
-            <button className="btn-primary" onClick={() => { play('navigate'); navigate('/quizPage'); }}>
-              {t('dashboard.empty.cta')}
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="dashboard-stats">
-              <div className="stat-card">
-                <div className="stat-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--teal-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                  </svg>
-                </div>
-                <div className="stat-value">{stats.total}</div>
-                <div className="stat-label">{t('dashboard.stats.total')}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-success)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <div className="stat-value" style={{ color: 'var(--color-success)' }}>{stats.correct}</div>
-                <div className="stat-label">{t('dashboard.stats.correct')}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="12" y1="8" x2="12" y2="12" />
-                    <line x1="12" y1="16" x2="12.01" y2="16" />
-                  </svg>
-                </div>
-                <div className="stat-value" style={{ color: accuracyColor }}>{stats.percentage}%</div>
-                <div className="stat-label">{t('dashboard.stats.accuracy')}</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--orange-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" />
-                  </svg>
-                </div>
-                <div className="stat-value" style={{ color: 'var(--orange-accent)' }}>{stats.streak}</div>
-                <div className="stat-label">{t('dashboard.stats.streak')}</div>
-              </div>
-            </div>
-
-            {subscription && subscription.status !== 'active' && (
-              <div className="upgrade-banner">
-                <span>&#11088; Upgrade to Premium — unlock all quizzes, oral exams &amp; books</span>
-                <button className="upgrade-banner-btn" onClick={() => navigate('/pricing')}>View Plans</button>
+            {/* Upgrade banner */}
+            {!isPremium && (
+              <div className="dash-upgrade">
+                <span>{t('dashboard.upgrade.text')}</span>
+                <button className="dash-upgrade-btn" onClick={() => navigate('/pricing')}>{t('dashboard.upgrade.cta')}</button>
               </div>
             )}
-            <h2 className="dashboard-section-title">{t('dashboard.quickActions')}</h2>
-            <div className="dashboard-actions">
-              <button className="action-card" onClick={() => { play('navigate'); navigate('/quizPage'); }}>
-                <span className="action-icon-wrap">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                  </svg>
-                </span>
-                <span className="action-name">{t('dashboard.quickActions.quiz')}</span>
-                <span className="action-desc">{t('dashboard.quickActions.quiz.desc')}</span>
-              </button>
-              <button className="action-card" onClick={() => { play('navigate'); navigate('/quizPage', { state: { mockExam: true } }); }}>
-                <span className="action-icon-wrap">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                  </svg>
-                </span>
-                <span className="action-name">{t('dashboard.quickActions.mock')}</span>
-                <span className="action-desc">{t('dashboard.quickActions.mock.desc')}</span>
-              </button>
-              <button className="action-card" onClick={() => { play('navigate'); navigate('/voice-exams'); }}>
-                <span className="action-icon-wrap">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                    <line x1="12" y1="19" x2="12" y2="23" />
-                    <line x1="8" y1="23" x2="16" y2="23" />
-                  </svg>
-                </span>
-                <span className="action-name">{t('dashboard.quickActions.voice')}</span>
-                <span className="action-desc">{t('dashboard.quickActions.voice.desc')}</span>
-              </button>
-              <button className="action-card" onClick={() => { play('navigate'); navigate('/books'); }}>
-                <span className="action-icon-wrap">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--teal-accent)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                  </svg>
-                </span>
-                <span className="action-name">{t('dashboard.quickActions.library')}</span>
-                <span className="action-desc">{t('dashboard.quickActions.library.desc')}</span>
-              </button>
 
-            </div>
-
-            <h2 className="dashboard-section-title">{t('dashboard.recent')}</h2>
-            {recentResults.length > 0 ? (
-              <div className="dashboard-recent">
-                {recentResults.map((r, i) => (
-                  <div key={r._id || i} className={`recent-item ${r.score === 1 ? 'correct' : 'incorrect'}`}>
-                    <div className="recent-dot" />
-                    <div className="recent-info">
-                      <div className="recent-question">
-                        {r.quizId?.question?.questionText?.substring(0, 80) || r.quizId?.quizId || 'Quiz'}
-                      </div>
-                      <div className="recent-meta">
-                        {new Date(r.timestamp).toLocaleDateString()} — {r.score === 1 ? t('mock.correct') : t('mock.incorrect')}
-                      </div>
+            {/* Modules */}
+            {!year ? (
+              <section className="dash-section">
+                <div className="dash-empty-state">
+                  <p>{t('dashboard.modules.noYear')}</p>
+                  <button className="dash-empty-cta" onClick={() => navigate('/profile')}>{t('dashboard.modules.goProfile')}</button>
+                </div>
+              </section>
+            ) : moduleCards.length > 0 ? (
+              <section className="dash-section dash-carousel-section">
+                <div className="dash-section-header">
+                  <h2>{t('dashboard.modules.title')}</h2>
+                  <button className="dash-view-all" onClick={() => navigate('/quizPage')}>
+                    {t('dashboard.viewAll')} <FaChevronRight style={{ fontSize: '0.65rem' }} />
+                  </button>
+                </div>
+                <button className="dash-carousel-arrow left" onClick={() => scroll(-1)} aria-label="Previous"><span>&#8592;</span></button>
+                <div className="dash-modules-track" ref={trackRef} role="region" aria-label={t('dashboard.modules.title')}>
+                  {moduleCards.map((mod, i) => (
+                    <div key={mod._id || i} className="dash-module-card" role="button" tabIndex={0} onClick={() => navigate('/quizPage', { state: { moduleId: mod._id } })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/quizPage', { state: { moduleId: mod._id } }); } }}>
+                      <div className="dash-module-icon">{mod.icon}</div>
+                      <h3>{mod.name}</h3>
+                      <p className="dash-module-stats">{mod.attempted} / {mod.totalLessons} {t('dashboard.modules.lessons', { count: mod.totalLessons })}</p>
+                      <div className="dash-module-bar"><div className="dash-bar-fill" style={{ width: `${mod.pct}%` }} /></div>
+                      <span className="dash-module-pct">{mod.pct}%</span>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="dashboard-recent-empty">{t('dashboard.recent.none')}</p>
-            )}
-          </>
-        )}
-      </div>
-
-      {showDailyQuiz && dailyData && !dailyData.completed && dailyData.quizzes && (
-        <DailyQuizModal
-          quizzes={dailyData.quizzes}
-          onComplete={(result) => setDailyData({ completed: true, results: result })}
-          onClose={() => setShowDailyQuiz(false)}
-        />
-      )}
-
-      {showDailyQuiz && dailyData && dailyData.completed && (
-        <div className="daily-quiz-overlay" onClick={() => setShowDailyQuiz(false)}>
-          <div className="daily-quiz-card" onClick={(e) => e.stopPropagation()}>
-            <div className="daily-quiz-header">
-              <span className="daily-quiz-title">&#128197; Today's Quiz Results</span>
-              <button className="daily-quiz-close-btn" onClick={() => setShowDailyQuiz(false)}>&times;</button>
-            </div>
-            <div className={`daily-summary-score ${
-              dailyData.results?.total > 0
-                ? ((dailyData.results?.score ?? 0) / dailyData.results.total >= 0.7 ? 'good' : (dailyData.results?.score ?? 0) / dailyData.results.total >= 0.5 ? 'ok' : 'bad')
-                : 'bad'
-            }`}>
-              {dailyData.results?.score ?? 0}/{dailyData.results?.total ?? 0}
-              ({dailyData.results?.total > 0 ? Math.round(((dailyData.results?.score ?? 0) / dailyData.results.total) * 100) : 0}%)
-            </div>
-            <div style={{ marginTop: 16 }}>
-              {(dailyData.results?.answers || []).map((ans, i) => (
-                <div key={i} className={`daily-summary-item ${ans.correct ? 'correct' : 'wrong'}`}>
-                  <span style={{ flex: 1, fontSize: '0.82rem' }}>Q{i + 1}: {ans.questionText?.substring(0, 60)}</span>
-                  <span style={{ fontWeight: 700, marginLeft: 8 }}>{ans.correct ? '&#10003;' : '&#10007;'}</span>
+                  ))}
                 </div>
-              ))}
-            </div>
-            <button className="daily-quiz-check-btn" style={{ marginTop: 20 }} onClick={() => setShowDailyQuiz(false)}>Close</button>
+                <button className="dash-carousel-arrow right" onClick={() => scroll(1)} aria-label="Next"><span>&#8594;</span></button>
+              </section>
+            ) : (
+              <section className="dash-section">
+                <div className="dash-empty-state">
+                  <p>{t('dashboard.modules.empty')}</p>
+                </div>
+              </section>
+            )}
+
+            {/* Activities split */}
+            <section className="dash-section dash-activity-split">
+              {/* Recent QCM */}
+              <div className="dash-activity-block">
+                <div className="dash-section-header">
+                  <h2>{t('dashboard.qcm.recent')}</h2>
+                  <button className="dash-view-all" onClick={() => navigate('/review')}>
+                    {t('dashboard.viewAll')} <FaChevronRight style={{ fontSize: '0.65rem' }} />
+                  </button>
+                </div>
+                <div className="dash-list">
+                  {recentQcm.length === 0 && <div className="dash-empty">{t('dashboard.empty.qcm')}</div>}
+                  {recentQcm.map((r, i) => {
+                    const quiz = r.quizId || {};
+                    return (
+                      <div key={r._id || i} className="dash-list-item" role="button" tabIndex={0} onClick={() => quiz.quizId && navigate(`/quiz/${quiz.quizId}`)} onKeyDown={(e) => { if ((e.key === 'Enter' || e.key === ' ') && quiz.quizId) { e.preventDefault(); navigate(`/quiz/${quiz.quizId}`); } }}>
+                        <div className="dash-item-icon green"><FaClipboardList /></div>
+                        <div className="dash-item-info">
+                          <h4>{quiz.question?.questionText?.substring(0, 50) || quiz.quizName || `Quiz #${quiz.quizId || ''}`}</h4>
+                          <p>{formatDate(r.timestamp, lang)} · {r.score === 1 ? t('dashboard.result.passed') : t('dashboard.result.review')}</p>
+                        </div>
+                        <FaChevronRight className="dash-item-arrow" />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {discipline === 'medicine' && ECOS_YEARS.includes(year) && (
+              <div className="dash-activity-block">
+                <div className="dash-section-header">
+                  <h2>{t('dashboard.ecos.recent')}</h2>
+                  <button className="dash-view-all" onClick={() => navigate('/voice-exams')}>
+                    {t('dashboard.viewAll')} <FaChevronRight style={{ fontSize: '0.65rem' }} />
+                  </button>
+                </div>
+                <div className="dash-list">
+                  {recentEcos.length === 0 && <div className="dash-empty">{t('dashboard.empty.ecos')}</div>}
+                  {recentEcos.map((r, i) => {
+                    const score = r.overallTotal > 0 ? Math.round((r.overallPassed / r.overallTotal) * 100) : 0;
+                    return (
+                      <div key={r._id || i} className="dash-list-item" role="button" tabIndex={0} onClick={() => navigate('/voice-exams')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/voice-exams'); } }}>
+                        <div className="dash-item-icon dark"><FaStethoscope /></div>
+                        <div className="dash-item-info">
+                          <h4>{r.examId?.title || t('dashboard.voiceExam.title')}</h4>
+                          <p>{formatDate(r.createdAt, lang)} · {t('dashboard.score')} : <span className="dash-score">{score}%</span></p>
+                        </div>
+                        <FaChevronRight className="dash-item-arrow" />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              )}
+            </section>
           </div>
+
+          {/* Right panel */}
+          <aside className="dash-right">
+            <h3 className="dash-right-title">{t('dashboard.actions.title')}</h3>
+
+            <div className="dash-action-card" role="button" tabIndex={0} onClick={() => navigate('/quizPage')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/quizPage'); } }}>
+              <div className="dash-action-header">
+                <div className="dash-action-badge green"><FaClipboardList /></div>
+                <div className="dash-action-info">
+                  <h3>{t('dashboard.actions.quickQcm')}</h3>
+                  <p>{t('dashboard.actions.quickQcm.desc')}</p>
+                </div>
+                <FaChevronRight className="dash-action-arrow" />
+              </div>
+            </div>
+
+            {discipline === 'medicine' && ECOS_YEARS.includes(year) && (
+            <div className="dash-action-card" role="button" tabIndex={0} onClick={() => navigate('/voice-exams')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/voice-exams'); } }}>
+              <div className="dash-action-header">
+                <div className="dash-action-badge dark"><FaStethoscope /></div>
+                <div className="dash-action-info">
+                  <h3>{t('dashboard.actions.ecos')}</h3>
+                  <p>{t('dashboard.actions.ecos.desc')}</p>
+                </div>
+                <FaChevronRight className="dash-action-arrow" />
+              </div>
+            </div>
+            )}
+
+            <div className="dash-action-card" role="button" tabIndex={0} onClick={() => navigate('/mock-exams')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/mock-exams'); } }}>
+              <div className="dash-action-header">
+                <div className="dash-action-badge blue"><FaGraduationCap /></div>
+                <div className="dash-action-info">
+                  <h3>{t('dashboard.actions.mock')}</h3>
+                  <p>{t('dashboard.actions.mock.desc')}</p>
+                </div>
+                <FaChevronRight className="dash-action-arrow" />
+              </div>
+            </div>
+          </aside>
         </div>
-      )}
+      </div>
     </div>
   );
 };

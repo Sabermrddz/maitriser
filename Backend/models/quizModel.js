@@ -4,11 +4,11 @@ const quizSchema = new mongoose.Schema({
   quizId:   { type: String, required: true, unique: true, trim: true }, // e.g. "Q001"
   quizName: { type: String, default: '' },
   moduleId: { type: mongoose.Schema.Types.ObjectId, ref: 'Module', required: true },
+  moduleName: { type: String, default: '' },
   year:     { type: Number, required: true, min: 1, max: 7 },
   discipline: { type: String, enum: ['medicine', 'pharmacy'], required: true },
   course:   { type: String, default: '' },
   published: { type: Boolean, default: false },
-  premium: { type: Boolean, default: false },
   explanation: { type: String, default: '' },
   timer:    { type: Number, default: null },
   caseId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Case', default: null },

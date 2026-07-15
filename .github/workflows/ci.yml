@@ -42,26 +42,14 @@ jobs:
           CLERK_SECRET_KEY: sk_test_dummy
           ADMIN_SECRET_CODE: test-code
 
-      - name: AdminFrontend — install
-        working-directory: AdminFrontend
+      - name: Frontend — install
+        working-directory: frontend
         run: npm ci
 
-      - name: AdminFrontend — lint
-        working-directory: AdminFrontend
-        run: npm run lint
+      - name: Frontend — lint
+        working-directory: frontend
+        run: npx eslint src
 
-      - name: AdminFrontend — build
-        working-directory: AdminFrontend
-        run: npm run build
-
-      - name: userFrontend — install
-        working-directory: userFrontend
-        run: npm ci
-
-      - name: userFrontend — lint
-        working-directory: userFrontend
-        run: npm run lint
-
-      - name: userFrontend — build
-        working-directory: userFrontend
+      - name: Frontend — build
+        working-directory: frontend
         run: npm run build

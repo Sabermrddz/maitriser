@@ -31,11 +31,11 @@ export const addContactMessage = catchAsync(async (req, res) => {
     });
 
     await newContactMessage.save();
-    res.status(201).json({ 
+    broadcast('contact:new', { name: newContactMessage.name, email: newContactMessage.email });
+    return res.status(201).json({ 
         message: 'Message submitted successfully', 
         contactMessage: newContactMessage 
     });
-    broadcast('contact:new', { name: newContactMessage.name, email: newContactMessage.email });
 });
 
 // Get all contact messages (for administrative purposes)

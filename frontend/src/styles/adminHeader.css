@@ -46,10 +46,12 @@
     padding: 4px 8px;
     display: flex;
     align-items: center;
+    transition: all 0.2s;
   }
 
   .hamburger-btn:hover {
     color: var(--dc-highlight);
+    text-shadow: 0 0 14px rgba(193, 255, 48, 0.6);
   }
 
   .admin-header .nav-links {
@@ -74,10 +76,6 @@
     margin-right: 50px;
   }
 
-  body {
-    margin-top: 80px;
-  }
-
   @media (max-width: 768px) {
     .admin-header .nav-links{
       gap: 1rem;
@@ -86,3 +84,5 @@
       font-size: 1.2rem;
     }
   }
+
+  /* scrollbar hiding removed — let page-content handle scrolling */

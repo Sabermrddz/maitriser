@@ -8,6 +8,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAdminWS } from '../hooks/useAdminWS';
 import { logger } from '../utils/logger';
 import '../styles/Dashboard.css';
+import useDocumentTitle from '../utils/useDocumentTitle';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -19,13 +20,14 @@ const StatCard = ({ label, value, color }) => (
 );
 
 const Dashboard = () => {
-  useEffect(() => { document.title = 'Dashboard — Admin'; }, []);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const { t } = useTranslation();
   const { darkMode } = useTheme();
   const { lastEvent, connected } = useAdminWS();
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useDocumentTitle(t('admin.dashboard.title'), 'Admin');
 
   const fetchDashboardStats = async () => {
     setLoading(true);
@@ -72,10 +74,10 @@ const Dashboard = () => {
   const chartBorders = chartColors.map(c => c.replace('0.7', '1').replace('0.6', '1').replace('0.4', '1').replace('0.3', '1'));
 
   const barData = {
-    labels: ['Users', 'Quizzes', 'Modules', 'Cases', 'Voice Exams', 'Books', 'Contacts'],
+    labels: [t('admin.dashboard.chartUsers'), t('admin.dashboard.chartQuizzes'), t('admin.dashboard.chartModules'), t('admin.dashboard.chartCases'), t('admin.dashboard.chartVoiceExams'), t('admin.dashboard.chartContacts')],
     datasets: [{
-      label: 'Count',
-      data: [stats?.users ?? 0, stats?.quizzes ?? 0, stats?.modules ?? 0, stats?.cases ?? 0, stats?.voiceExams ?? 0, stats?.books ?? 0, stats?.contacts ?? 0],
+      label: t('admin.dashboard.chartCount'),
+      data: [stats?.users ?? 0, stats?.quizzes ?? 0, stats?.modules ?? 0, stats?.cases ?? 0, stats?.voiceExams ?? 0, stats?.contacts ?? 0],
       backgroundColor: chartColors,
       borderColor: chartBorders,
       borderWidth: 1,
@@ -83,7 +85,7 @@ const Dashboard = () => {
   };
 
   const passData = {
-    labels: ['Pass Rate'],
+    labels: [t('admin.dashboard.chartPassRate')],
     datasets: [{
       label: '%',
       data: [stats?.passRate ?? 0],
@@ -120,17 +122,16 @@ const Dashboard = () => {
         <StatCard label={t('admin.dashboard.modules')} value={stats?.modules ?? 0} />
         <StatCard label={t('admin.dashboard.cases')} value={stats?.cases ?? 0} />
         <StatCard label={t('admin.dashboard.voiceExams')} value={stats?.voiceExams ?? 0} />
-        <StatCard label={t('admin.dashboard.books')} value={stats?.books ?? 0} />
         <StatCard label={t('admin.dashboard.messages')} value={stats?.contacts ?? 0} />
       </div>
 
       <div className="chart-section">
         <div className="chart">
-          <h3>Platform Content</h3>
+          <h3>{t('admin.dashboard.chartContent')}</h3>
           <Bar data={barData} options={{ responsive: true, plugins: { legend: { display: false } } }} />
         </div>
         <div className="chart">
-          <h3>Pass Rate</h3>
+          <h3>{t('admin.dashboard.chartPassRate')}</h3>
           <Bar data={passData} options={{ responsive: true, plugins: { legend: { display: false } }, scales: { y: { max: 100 } } }} />
         </div>
       </div>

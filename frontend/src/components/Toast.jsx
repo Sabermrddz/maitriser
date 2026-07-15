@@ -13,7 +13,7 @@ export const ToastProvider = ({ children }) => {
     else if (type === 'error') playSound('error');
     else if (type === 'warning') playSound('warning');
     const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, message, type }]);
+    setToasts((prev) => { const next = [...prev, { id, message, type }]; return next.length > 5 ? next.slice(-5) : next; });
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), duration);
   }, []);
 
@@ -29,12 +29,12 @@ export const ToastProvider = ({ children }) => {
   return (
     <ToastContext.Provider value={addToast}>
       {children}
-      <div style={{
+      <div role="region" aria-label="Notifications" aria-live="polite" style={{
         position: 'fixed', top: 20, right: 20, zIndex: 9999,
         display: 'flex', flexDirection: 'column', gap: 8,
       }}>
         {toasts.map((t) => (
-          <div key={t.id} style={{
+          <div key={t.id} role={t.type === 'error' ? 'alert' : 'status'} style={{
             background: colors[t.type] || colors.info,
             color: '#fff', padding: '10px 16px', borderRadius: 8,
             boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
@@ -43,7 +43,6 @@ export const ToastProvider = ({ children }) => {
             animation: 'slideIn 0.25s ease',
           }} onClick={() => removeToast(t.id)}>
             {t.message}
-            <style>{`@keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }`}</style>
           </div>
         ))}
       </div>

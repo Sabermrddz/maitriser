@@ -1,12 +1,14 @@
 import React from 'react';
 import { useTranslation } from '../context/LanguageContext';
+import useDocumentTitle from '../utils/useDocumentTitle';
 import '../styles/teal-theme.css';
 import '../styles/pagesStyle/legal.css';
 
 const TermsPage = () => {
   const { t } = useTranslation();
+  useDocumentTitle(t('terms.title'));
   return (
-    <div className="page-teal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="page-teal" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
       <div className="card-teal legal-page">
         <h1 className="legal-heading">{t('terms.title')}</h1>
         <p className="legal-updated">{t('terms.lastUpdated')}</p>

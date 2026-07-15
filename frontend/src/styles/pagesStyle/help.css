@@ -11,8 +11,8 @@
   padding: 20px;
   background: var(--card-bg);
   border: 1px solid var(--border-light);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-card);
 }
 
 .help-section h2 {

@@ -2,15 +2,16 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
+import cookieParser from 'cookie-parser';
 import { httpLogger, logger } from './utils/logger.js';
 import rateLimit from 'express-rate-limit';
+import * as Sentry from '@sentry/node';
 import userRoutes from './routes/userRoutes.js';
 import moduleRoutes from './routes/moduleRoutes.js';
 import quizRoutes from './routes/quizRoutes.js';
-import sinupRoute from './routes/sinupRoute.js';
+import signupRoute from './routes/signupRoute.js';
 import dashboardRoutes from './routes/dashboardRoutes.js';
 import quizResultRoutes from './routes/quizResultRoutes.js';
-import bookRoutes from './routes/bookRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import contactRoutes from './routes/contactRoutes.js';
 import voiceExamRoutes from './routes/voiceExamRoutes.js';
@@ -20,11 +21,26 @@ import emailAuthRoutes from './routes/emailAuthRoutes.js';
 import clerkRoutes from './routes/clerkRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import feedbackRoutes from './routes/feedbackRoutes.js';
+import pdfDocumentRoutes from './routes/pdfDocumentRoutes.js';
+import imageRoutes from './routes/imageRoutes.js';
 import planRoutes from './routes/planRoutes.js';
 import dailyQuizRoutes from './routes/dailyQuizRoutes.js';
+import quizMockExamRoutes from './routes/quizMockExamRoutes.js';
+
 import { verifyToken, requireAdmin } from './controllers/authController.js';
+import { auditMutations } from './utils/audit.js';
 
 const app = express();
+
+if (process.env.SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    environment: process.env.NODE_ENV || 'development',
+    tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.1'),
+  });
+  app.use(Sentry.Handlers.requestHandler());
+  app.use(Sentry.Handlers.tracingHandler());
+}
 
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:5174')
   .split(',').map((o) => o.trim());
@@ -73,6 +89,7 @@ app.use(cors({
 app.options('*', (req, res) => res.status(204).end());
 
 app.use(express.json({ limit: '1mb' }));
+app.use(cookieParser());
 
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000, max: 1000,
@@ -94,10 +111,15 @@ const contactLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, max: 5,
   message: { message: 'Too many messages, please try again later.' },
 });
+const feedbackLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, max: 10,
+  message: { message: 'Too many feedback submissions, please try again later.' },
+  standardHeaders: true, legacyHeaders: false,
+});
 
 app.use(['/api/users/login', '/api/users/register', '/api/user/logging', '/api/user/register', '/api/admin/claim'], authLimiter);
-app.use(['/api/quizzes', '/api/voice-exams'], (req, res, next) => {
-  if (req.method === 'POST' && /\/(submit|grade)$/.test(req.path)) return submitLimiter(req, res, next);
+app.use(['/api/quizzes', '/api/voice-exams', '/api/mock-exams'], (req, res, next) => {
+  if (req.method === 'POST' && /\/(submit|submit-station)$/.test(req.path)) return submitLimiter(req, res, next);
   next();
 });
 
@@ -111,7 +133,7 @@ const userLimiter = rateLimit({
   message: { message: 'Too many requests, slow down.' },
 });
 
-app.use('/api/user', sinupRoute);
+app.use('/api/user', signupRoute);
 app.use('/api/auth', authRoutes);
 app.use('/api/contact', contactLimiter, contactRoutes);
 app.use('/api', userAuthRoutes);
@@ -123,18 +145,30 @@ app.use('/api', adminRoutes);
 
 app.use('/api', verifyToken, userLimiter, quizRoutes);
 app.use('/api', verifyToken, userLimiter, quizResultRoutes);
-app.use('/api', verifyToken, userLimiter, bookRoutes);
 app.use('/api', verifyToken, userLimiter, voiceExamRoutes);
 app.use('/api', verifyToken, userLimiter, moduleRoutes);
 app.use('/api', verifyToken, userLimiter, bookmarkRoutes);
-app.use('/api/feedback', verifyToken, userLimiter, feedbackRoutes);
+app.use('/api', verifyToken, userLimiter, quizMockExamRoutes);
+app.use('/api/feedback', verifyToken, userLimiter, feedbackLimiter, feedbackRoutes);
 
-app.use('/api', verifyToken, requireAdmin, userRoutes);
-app.use('/api', verifyToken, requireAdmin, dashboardRoutes);
+app.use('/api', verifyToken, requireAdmin, auditMutations, userRoutes);
+app.use('/api', verifyToken, requireAdmin, auditMutations, dashboardRoutes);
+app.use('/api', pdfDocumentRoutes);
+app.use('/api', imageRoutes);
+
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
+if (process.env.SENTRY_DSN) {
+  app.use(Sentry.Handlers.errorHandler());
+}
 
 app.use((err, req, res, next) => {
   logger.error({ err, url: req.originalUrl, method: req.method }, 'Unhandled error');
-  res.status(err.status || 500).json({ message: 'Internal server error' });
+  const status = err.status || err.statusCode || 500;
+  const message = status >= 500 ? 'Internal server error' : err.message || 'Error';
+  res.status(status).json({ message });
 });
 
 export default app;

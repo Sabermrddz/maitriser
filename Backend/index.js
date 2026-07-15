@@ -5,7 +5,6 @@ import app from './app.js';
 import { initWS } from './ws.js';
 import { generateId } from './utils/idGenerator.js';
 import VoiceExam from './models/voiceExamModel.js';
-import Book from './models/bookModel.js';
 import Counter from './models/counterModel.js';
 
 dotenv.config();
@@ -32,15 +31,6 @@ const migrateIds = async () => {
     examCount++;
   }
   if (examCount) logger.info({ count: examCount }, 'Migrated voice exams with auto-generated examId');
-
-  const booksWithoutId = await Book.find({ bookId: { $exists: false } }).cursor();
-  let bookCount = 0;
-  for await (const book of booksWithoutId) {
-    book.bookId = await generateId('B');
-    await book.save();
-    bookCount++;
-  }
-  if (bookCount) logger.info({ count: bookCount }, 'Migrated books with auto-generated bookId');
 };
 
 mongoose.connect(process.env.MONGODB_URI, {

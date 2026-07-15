@@ -18,7 +18,7 @@ function generateCode(prefix) {
 // ── Public: list active plans ──────────────────────────────────────────────
 router.get('/plans', catchAsync(async (req, res) => {
   const filter = { isActive: true };
-  if (req.query.discipline) filter.discipline = req.query.discipline;
+  if (req.query.discipline) filter.discipline = String(req.query.discipline);
   if (req.query.year) filter.year = Number(req.query.year);
   const plans = await Plan.find(filter).sort({ sortOrder: 1, name: 1 });
   res.json(plans);
@@ -26,9 +26,21 @@ router.get('/plans', catchAsync(async (req, res) => {
 
 // ── Authenticated: check subscription ──────────────────────────────────────
 router.get('/payments/subscription', verifyToken, catchAsync(async (req, res) => {
-  const user = await User.findById(req.user.id).select('subscription');
+  const user = await User.findById(req.user.id).select('subscription discipline year');
   if (!user) return res.status(404).json({ message: 'User not found' });
-  res.json({ subscription: user.subscription || { status: 'none' } });
+  const sub = user.subscription || { status: 'none' };
+  if (sub.status === 'active' && sub.endDate && new Date(sub.endDate) < new Date()) {
+    sub.status = 'expired';
+    await User.findByIdAndUpdate(req.user.id, { 'subscription.status': 'expired' });
+  }
+  if (sub.status === 'active' && sub.planId) {
+    const plan = await Plan.findById(sub.planId);
+    if (!plan || plan.year !== user.year || plan.discipline !== user.discipline) {
+      sub.status = 'expired';
+      await User.findByIdAndUpdate(req.user.id, { 'subscription.status': 'expired' });
+    }
+  }
+  res.json({ subscription: { planId: sub.planId, planName: sub.planName, status: sub.status, startDate: sub.startDate, endDate: sub.endDate } });
 }));
 
 // ── Authenticated: redeem a subscription code ──────────────────────────────
@@ -36,22 +48,66 @@ router.post('/payments/redeem-code', verifyToken, [
   body('code').trim().notEmpty().withMessage('Code is required'),
 ], validate, catchAsync(async (req, res) => {
   const codeStr = req.body.code.toUpperCase().trim();
-  const doc = await SubscriptionCode.findOne({ code: codeStr });
-  if (!doc) return res.status(404).json({ message: 'Invalid code' });
-  if (doc.status !== 'active') return res.status(400).json({ message: 'Code already used or expired' });
-  if (doc.expiresAt && new Date(doc.expiresAt) < new Date()) {
-    doc.status = 'expired';
-    await doc.save();
-    return res.status(400).json({ message: 'Code expired' });
-  }
+  const doc = await SubscriptionCode.findOneAndUpdate(
+    { code: codeStr, status: 'active', $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] },
+    { $set: { status: 'used', usedBy: req.user.id, usedAt: new Date() } },
+    { new: true }
+  );
+  if (!doc) return res.status(400).json({ message: 'Invalid or expired code' });
 
   const plan = await Plan.findById(doc.planId);
-  if (!plan || !plan.isActive) return res.status(400).json({ message: 'Associated plan no longer available' });
+  if (!plan || !plan.isActive) {
+    await SubscriptionCode.findByIdAndUpdate(doc._id, { $set: { status: 'active', usedBy: null, usedAt: null } });
+    return res.status(400).json({ message: 'Associated plan no longer available' });
+  }
 
   const startDate = new Date();
   const endDate = new Date();
-  if (plan.interval === 'year') endDate.setFullYear(endDate.getFullYear() + 1);
-  else endDate.setMonth(endDate.getMonth() + 1);
+  switch (plan.interval) {
+    case 'day': endDate.setDate(endDate.getDate() + 1); break;
+    case 'week': endDate.setDate(endDate.getDate() + 7); break;
+    case 'month': endDate.setMonth(endDate.getMonth() + 1); break;
+    case 'semester': endDate.setMonth(endDate.getMonth() + 6); break;
+    case 'year': endDate.setFullYear(endDate.getFullYear() + 1); break;
+    default: endDate.setMonth(endDate.getMonth() + 1);
+  }
+
+  const updated = await User.findByIdAndUpdate(req.user.id, {
+    subscription: {
+      planId: plan._id,
+      planName: plan.name,
+      status: 'active',
+      startDate,
+      endDate,
+    },
+  });
+
+  if (!updated) {
+    await SubscriptionCode.findByIdAndUpdate(doc._id, { $set: { status: 'active', usedBy: null, usedAt: null } });
+    return res.status(404).json({ message: 'User not found, code restored' });
+  }
+
+  res.json({ message: 'Subscription activated', planName: plan.name, endDate });
+}));
+
+// ── Authenticated: subscribe to a free plan ────────────────────────────────
+router.post('/plans/:id/subscribe', verifyToken, [
+  param('id').isMongoId(),
+], validate, catchAsync(async (req, res) => {
+  const plan = await Plan.findById(req.params.id);
+  if (!plan || !plan.isActive) return res.status(404).json({ message: 'Plan not found' });
+  if (plan.price !== 0) return res.status(400).json({ message: 'This plan requires a payment code' });
+
+  const startDate = new Date();
+  const endDate = new Date();
+  switch (plan.interval) {
+    case 'day': endDate.setDate(endDate.getDate() + 1); break;
+    case 'week': endDate.setDate(endDate.getDate() + 7); break;
+    case 'month': endDate.setMonth(endDate.getMonth() + 1); break;
+    case 'semester': endDate.setMonth(endDate.getMonth() + 6); break;
+    case 'year': endDate.setFullYear(endDate.getFullYear() + 1); break;
+    default: endDate.setMonth(endDate.getMonth() + 1);
+  }
 
   await User.findByIdAndUpdate(req.user.id, {
     subscription: {
@@ -63,12 +119,7 @@ router.post('/payments/redeem-code', verifyToken, [
     },
   });
 
-  doc.status = 'used';
-  doc.usedBy = req.user.id;
-  doc.usedAt = new Date();
-  await doc.save();
-
-  res.json({ message: 'Subscription activated', planName: plan.name, endDate });
+  res.json({ message: 'Free subscription activated', planName: plan.name, endDate });
 }));
 
 // ── Admin: plan CRUD ───────────────────────────────────────────────────────
@@ -82,7 +133,8 @@ router.post('/admin/plans', verifyToken, requireAdmin, [
   body('discipline').isIn(['medicine', 'pharmacy']),
   body('year').isInt({ min: 1, max: 7 }),
   body('included').optional().isObject(),
-  body('interval').optional().isIn(['month', 'year']),
+  body('price').optional().isFloat({ min: 0 }),
+  body('interval').optional().isIn(['day', 'week', 'month', 'semester', 'year']),
   body('isActive').optional().isBoolean(),
   body('sortOrder').optional().isInt(),
 ], validate, catchAsync(async (req, res) => {
@@ -93,7 +145,12 @@ router.post('/admin/plans', verifyToken, requireAdmin, [
 router.put('/admin/plans/:id', verifyToken, requireAdmin, [
   param('id').isMongoId(),
 ], validate, catchAsync(async (req, res) => {
-  const plan = await Plan.findByIdAndUpdate(req.params.id, req.body, { new: true });
+  const allowed = ['name', 'discipline', 'year', 'price', 'included', 'interval', 'isActive', 'sortOrder'];
+  const updates = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) updates[key] = req.body[key];
+  }
+  const plan = await Plan.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
   if (!plan) return res.status(404).json({ message: 'Plan not found' });
   res.json(plan);
 }));
@@ -109,8 +166,8 @@ router.delete('/admin/plans/:id', verifyToken, requireAdmin, [
 // ── Admin: subscription code management ────────────────────────────────────
 router.get('/admin/subscription-codes', verifyToken, requireAdmin, catchAsync(async (req, res) => {
   const filter = {};
-  if (req.query.status) filter.status = req.query.status;
-  if (req.query.planId) filter.planId = req.query.planId;
+  if (req.query.status) filter.status = String(req.query.status);
+  if (req.query.planId) filter.planId = String(req.query.planId);
   const codes = await SubscriptionCode.find(filter)
     .populate('planId', 'name discipline year')
     .populate('usedBy', 'name email')

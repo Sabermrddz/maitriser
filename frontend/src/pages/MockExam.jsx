@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { useToast } from '../components/Toast.jsx';
 import { useTranslation } from '../context/LanguageContext';
-import { shuffle } from '../utils/shuffle';
 import { logger } from '../utils/logger';
 import { useSound } from '../context/SoundContext';
 import '../styles/teal-theme.css';
 
 const MockExam = () => {
+  const { attemptId: urlAttemptId } = useParams();
   const { state } = useLocation();
   const navigate = useNavigate();
   const notify = useToast();
@@ -17,22 +17,17 @@ const MockExam = () => {
   let userId;
   try { userId = localStorage.getItem('userId') || 'anonymous'; } catch { userId = 'anonymous'; }
 
-  useEffect(() => { document.title = 'Examen Blanc — MAITRISEZ'; }, []);
-
   const questions = useMemo(() => {
-    if (!state?.quizzes?.length) return [];
-    let list = state.quizzes;
-    if (!state.casesExpanded) list = shuffle(list);
-    return list.slice(0, Math.min(state.count || 10, list.length)).map((q) => ({
-      ...q,
-      _shuffledOptions: q.question?.options ? shuffle(q.question.options) : [],
-    }));
+    if (!state?.questions?.length) return [];
+    return state.questions;
   }, [state]);
 
-  const totalSeconds = (state?.examTimer || 30) * 60;
+  const attemptId = state?.attemptId || urlAttemptId;
+  const mockExamId = state?.mockExamId;
+
+  const totalSeconds = (state?.duration || 30) * 60;
   const STORAGE_KEY = 'mock-exam-state';
 
-  // Restore saved exam state from sessionStorage
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [flagged, setFlagged] = useState(() => {
@@ -48,7 +43,6 @@ const MockExam = () => {
   const [timeLeft, setTimeLeft] = useState(totalSeconds);
   const timerRef = useRef(null);
   const mountedRef = useRef(true);
-  const restored = useRef(false);
   const submittingRef = useRef(false);
 
   useEffect(() => {
@@ -56,17 +50,15 @@ const MockExam = () => {
       const savedRaw = sessionStorage.getItem(STORAGE_KEY);
       if (savedRaw && state?.restore !== false) {
         const saved = JSON.parse(savedRaw);
-        if (saved.questions?.length && saved.questions[0]._id === state?.quizzes?.[0]?._id) {
+        if (saved.questions?.length && saved.questions[0]._id === state?.questions?.[0]?._id) {
           setCurrentIndex(saved.currentIndex || 0);
           setAnswers(saved.answers || {});
           setTimeLeft(saved.timeLeft ?? totalSeconds);
-          restored.current = true;
         }
       }
-    } catch { /* ignore */ }
+    } catch { logger.error({}, 'MockExam restoreSession failed') }
   }, []);
 
-  // Save exam state to sessionStorage on changes
   useEffect(() => {
     if (submitted || !questions.length) return;
     const toSave = { questions, answers, currentIndex, timeLeft };
@@ -107,62 +99,65 @@ const MockExam = () => {
   }, [submitted]);
 
   const handleSubmit = useCallback(async () => {
-    if (submitted || submittingRef.current) return;
+    if (submitted || submittingRef.current || !attemptId || !mockExamId) return;
     submittingRef.current = true;
     play('submit');
     setSubmitting(true);
     clearTimeout(timerRef.current);
     try {
-      const submissionResults = [];
-      const settledResults = await Promise.allSettled(
-        questions.map(async (q) => {
-          const selected = answers[q._id] || [];
-          const res = await fetchWithAuth(`${API_BASE_URL}/api/quizzes/${q._id}/submit`, {
-            method: 'POST',
-            body: { selectedAnswers: selected },
-          });
-          if (!res.ok) throw new Error('Submission failed');
-          const data = await res.json();
-          return { quiz: q, ...data };
-        })
-      );
-      for (const r of settledResults) {
-        if (r.status === 'fulfilled') submissionResults.push(r.value);
-      }
+      const body = {
+        attemptId,
+        answers: questions.map((q) => ({
+          quizId: q._id,
+          selectedAnswers: answers[q._id] || [],
+        })),
+      };
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/mock-exams/${mockExamId}/submit`, { method: 'POST', body });
+      if (!res.ok) throw new Error('Submission failed');
+      const data = await res.json();
       if (mountedRef.current) {
         clearSaved();
-        setResults(submissionResults);
+        const qMap = {};
+        questions.forEach((q) => { qMap[q._id] = q; });
+        const merged = (data.results || []).map((r) => ({
+          ...r,
+          quiz: qMap[r.quizId] || { _id: r.quizId, question: { questionText: '' } },
+        }));
+        setResults({ totalScore: data.totalScore, totalPossible: data.totalPossible, percentage: data.percentage, items: merged });
         setSubmitted(true);
       }
     } catch (err) {
       logger.error({ err }, 'MockExam handleSubmit failed');
-      if (mountedRef.current) notify('Erreur lors de la soumission. Veuillez réessayer.', 'error');
+      if (mountedRef.current) notify(t('mockExam.submitError'), 'error');
     } finally {
       submittingRef.current = false;
       if (mountedRef.current) setSubmitting(false);
     }
-  }, [submitted, questions, answers, notify, t]);
+  }, [submitted, questions, answers, attemptId, mockExamId, notify, play, clearSaved]);
 
-  // Pause timer when tab is hidden
   const hiddenRef = useRef(false);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     const onVis = () => {
       if (document.hidden) { hiddenRef.current = true; clearTimeout(timerRef.current); }
-      else { hiddenRef.current = false; setTimeLeft((t) => t); } // re-trigger timer
+      else { hiddenRef.current = false; setTick((t) => t + 1); }
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
   }, []);
+
+  const handleSubmitRef = useRef(handleSubmit);
+  useEffect(() => { handleSubmitRef.current = handleSubmit; }, [handleSubmit]);
 
   useEffect(() => {
     if (hiddenRef.current) return;
     if (!submitted && timeLeft > 0) {
       timerRef.current = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
     } else if (timeLeft === 0 && !submitted && mountedRef.current) {
-      handleSubmit().catch(() => {});
+      handleSubmitRef.current().catch((err) => logger.error({ err }, 'MockExam auto-submit failed'));
     }
     return () => clearTimeout(timerRef.current);
-  }, [timeLeft, submitted, handleSubmit]);
+  }, [timeLeft, submitted, tick]);
 
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
@@ -175,31 +170,28 @@ const MockExam = () => {
       <div className="page-teal">
         <div className="card-teal" style={{ textAlign: 'center' }}>
           <p>{t('mock.noQuestions')}</p>
-            <button className="btn-dark" onClick={() => { play('prev'); navigate('/quizPage'); }}>{t('mock.back')}</button>
+          <button className="btn-dark" onClick={() => { play('prev'); navigate('/mock-exams'); }}>{t('mock.back')}</button>
         </div>
       </div>
     );
   }
 
   if (submitted && results) {
-    const total = results.length;
-    const correct = results.filter((r) => r.correct).length;
-    const percentage = Math.round((correct / total) * 100);
-
+    const { totalScore, totalPossible, percentage, items } = results;
     return (
       <div className="page-teal">
         <div className="card-teal" style={{ maxWidth: '800px' }}>
           <div style={{ textAlign: 'center', marginBottom: '32px' }}>
             <h2 className="mock-result-title" style={{ margin: '0 0 8px' }}>📊 {t('mock.result')}</h2>
             <div className={`mock-result-score ${percentage >= 60 ? 'passing' : 'failing'}`}>{percentage}%</div>
-            <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-base)' }}>{correct} / {total} {t('mock.correct').toLowerCase()}</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-base)' }}>{totalScore} / {totalPossible} {t('mock.correct').toLowerCase()}</p>
           </div>
 
           <div className="exam-results-list">
-            {results.map((r, i) => (
-              <div key={r.quiz._id} className={`exam-result-item ${r.correct ? 'correct' : 'incorrect'}`}>
+            {items.map((r, i) => (
+              <div key={r.quiz?._id || i} className={`exam-result-item ${r.correct ? 'correct' : 'incorrect'}`}>
                 <div className="exam-result-qnum">{t('mock.question')} {i + 1}</div>
-                <div className="exam-result-text">{r.quiz.question?.questionText}</div>
+                <div className="exam-result-text">{r.quiz?.question?.questionText || ''}</div>
                 <div className="exam-result-status">
                   {r.correct ? `✅ ${t('mock.correct')}` : `❌ ${t('mock.incorrect')}`}
                 </div>
@@ -219,7 +211,7 @@ const MockExam = () => {
           </div>
 
           <div style={{ textAlign: 'center', marginTop: '24px' }}>
-          <button className="btn-dark" onClick={() => { play('prev'); navigate('/quizPage'); }}>{t('mock.back')}</button>
+            <button className="btn-dark" onClick={() => { play('prev'); navigate('/mock-exams'); }}>{t('mock.back')}</button>
           </div>
         </div>
       </div>
@@ -235,9 +227,9 @@ const MockExam = () => {
     return (
       <div className="page-teal">
         <div className="card-teal" style={{ maxWidth: '800px' }}>
-          <h2 style={{ marginBottom: '8px' }}>Review Your Answers</h2>
+          <h2 style={{ marginBottom: '8px' }}>{t('mock.reviewAnswers')}</h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '16px' }}>
-            {answeredCount} of {totalQuestions} answered{unanswered.length > 0 ? ` (${unanswered.length} skipped)` : ''}
+            {unanswered.length > 0 ? t('mock.answeredCountSkipped', { answered: answeredCount, total: totalQuestions, skipped: unanswered.length }) : t('mock.answeredCount', { answered: answeredCount, total: totalQuestions })}
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
             {questions.map((q, i) => {
@@ -261,12 +253,10 @@ const MockExam = () => {
             })}
           </div>
           <div className="mock-nav" style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
-            <button className="btn-dark" onClick={() => setReviewing(false)}>
-              ← Back to Question
-            </button>
+            <button className="btn-dark" onClick={() => setReviewing(false)}>← {t('mock.backToQuestion')}</button>
             <button className="btn-primary exam-submit-btn" onClick={handleSubmit} disabled={submitting}
               style={{ background: unanswered.length > 0 ? '#e67e22' : undefined }}>
-              {submitting ? t('mock.submitting') : `Submit${unanswered.length > 0 ? ` (${unanswered.length} skipped)` : ''}`}
+              {submitting ? t('mock.submitting') : unanswered.length > 0 ? t('mock.submitSkipped', { n: unanswered.length }) : t('mock.submit')}
             </button>
           </div>
         </div>
@@ -317,15 +307,6 @@ const MockExam = () => {
           </div>
         </div>
 
-        {current._blockType === 'case' && (
-          <div className="case-box" style={{
-            background: 'var(--color-info-bg)', border: '1px solid var(--border-light)', borderRadius: '10px',
-            padding: '16px', marginBottom: '16px',
-          }}>
-            <p style={{ margin: 0, fontWeight: 600, fontSize: '15px', color: '#04484F', marginBottom: '4px' }}>📋 {t('mock.case', { title: current._caseTitle })}</p>
-            <p style={{ margin: 0, fontSize: '13px', color: '#1a237e', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{current._caseDescription}</p>
-          </div>
-        )}
         <h3 style={{ fontSize: '18px', marginBottom: '8px', color: 'var(--text-dark)' }}>
           {current.question?.questionText}
         </h3>
@@ -344,6 +325,8 @@ const MockExam = () => {
             return (
               <label key={i} className="option-label"
                 onClick={() => toggleOption(current._id, opt)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleOption(current._id, opt); } }}
+                tabIndex={0}
                 style={{
                   background: selected ? 'var(--color-info-bg)' : 'var(--color-bg)',
                   borderColor: selected ? '#04484F' : 'var(--border-light)',
@@ -369,16 +352,13 @@ const MockExam = () => {
                 background: flagged.includes(current._id) ? 'var(--color-warning-bg)' : 'var(--color-bg)',
                 cursor: 'pointer', fontWeight: 600, fontSize: '13px', color: flagged.includes(current._id) ? '#856404' : 'var(--text-muted)',
               }}>
-              ⚑ {flagged.includes(current._id) ? 'Flagged' : 'Flag'}
+              ⚑ {flagged.includes(current._id) ? t('mock.flagged') : t('mock.flag')}
             </button>
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button className="btn-review" onClick={() => setReviewing(true)}
-              style={{
-                padding: '8px 16px', borderRadius: '8px',                 border: '1px solid #04484F',
-                background: 'var(--card-bg)', cursor: 'pointer', fontWeight: 600, fontSize: '13px', color: '#04484F',
-              }}>
-              Review all
+              style={{ padding: '8px 16px', borderRadius: '8px', border: '1px solid #04484F', background: 'var(--card-bg)', cursor: 'pointer', fontWeight: 600, fontSize: '13px', color: '#04484F' }}>
+              {t('mock.reviewAll')}
             </button>
             {currentIndex < totalQuestions - 1 ? (
               <button className="btn-primary" onClick={() => { play('next'); setCurrentIndex((i) => i + 1); }}>
@@ -386,7 +366,7 @@ const MockExam = () => {
               </button>
             ) : (
               <button className="btn-primary exam-submit-btn" onClick={() => setReviewing(true)}>
-                Review & Submit
+                {t('mock.reviewSubmit')}
               </button>
             )}
           </div>

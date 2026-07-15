@@ -5,14 +5,16 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
 import '../styles/adminLogin.css';
 import { useTranslation } from '../context/LanguageContext';
+import useDocumentTitle from '../utils/useDocumentTitle';
 
 const AdminSetup = () => {
+  const { t } = useTranslation();
+  useDocumentTitle(t('admin.setup.title'));
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [tokenReady, setTokenReady] = useState(false);
   const { getToken, isSignedIn, isLoaded } = useAuth();
-  const { t } = useTranslation();
   const navigate = useNavigate();
   const mountedRef = useRef(true);
 
@@ -46,7 +48,7 @@ const AdminSetup = () => {
       const token = await getToken();
       if (!token) { setError(t('admin.setup.sessionExpired')); setLoading(false); return; }
       await axios.post(`${API_BASE_URL}/api/admin/claim`, { code });
-      localStorage.setItem('adminRole', 'admin');
+      try { localStorage.setItem('adminRole', 'admin'); } catch { /* incognito */ }
       navigate('/admin/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || (err.message === 'Network Error' ? t('admin.setup.networkError') : t('admin.setup.error')));

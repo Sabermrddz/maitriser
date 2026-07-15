@@ -12,8 +12,8 @@ export default function Footer() {
           <p>{t('footer.copyright', { year: new Date().getFullYear() })}</p>
         </div>
         <div className="footer-links">
-          <Link to="/terms" className="footer-link">Conditions</Link>
-          <Link to="/privacy" className="footer-link">Confidentialité</Link>
+          <Link to="/terms" className="footer-link">{t('footer.terms')}</Link>
+          <Link to="/privacy" className="footer-link">{t('footer.privacy')}</Link>
         </div>
       </div>
     </div>

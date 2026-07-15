@@ -71,12 +71,9 @@ const FeedbackModal = ({ onClose }) => {
                 padding: '8px 20px', borderRadius: 8, border: '1px solid var(--dc-border)',
                 background: 'var(--dc-cream)', cursor: 'pointer', fontSize: '0.9rem', color: 'var(--dc-text)',
               }}>{t('cancel')}</button>
-              <button type="submit" disabled={sending} style={{
-                padding: '8px 20px', borderRadius: 8, border: 'none',
-                background: sending ? 'var(--dc-text-muted)' : 'linear-gradient(135deg, var(--dc-dark), var(--dc-accent))',
-                color: 'var(--dc-white)',
-                cursor: sending ? 'not-allowed' : 'pointer', fontSize: '0.9rem',
-              }}>{sending ? t('feedback.sending') : t('feedback.send')}</button>
+              <button type="submit" disabled={sending} className="feedback-send-btn"
+                style={{ opacity: sending ? 0.5 : 1, cursor: sending ? 'not-allowed' : 'pointer' }}
+              >{sending ? t('feedback.sending') : t('feedback.send')}</button>
             </div>
           </div>
         </form>

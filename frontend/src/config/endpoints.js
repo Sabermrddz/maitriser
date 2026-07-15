@@ -4,7 +4,6 @@ export const ENDPOINTS = {
   MODULES:           `${API_BASE_URL}/api/modules`,
   QUIZZES:           `${API_BASE_URL}/api/quizzes`,
   ADMIN_QUIZZES:     `${API_BASE_URL}/api/admin/quizzes`,
-  BOOKS:             `${API_BASE_URL}/api/books`,
   CASES:             `${API_BASE_URL}/api/cases`,
   VOICE_EXAMS:       `${API_BASE_URL}/api/voice-exams`,
   USERS:             `${API_BASE_URL}/api/users`,

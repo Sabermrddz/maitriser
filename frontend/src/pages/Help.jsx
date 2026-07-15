@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from '../context/LanguageContext';
+import useDocumentTitle from '../utils/useDocumentTitle';
 import '../styles/pagesStyle/help.css';
 import '../styles/teal-theme.css';
 
@@ -11,9 +12,10 @@ const Icon = ({ children }) => (
 
 const HelpPage = () => {
   const { t } = useTranslation();
+  useDocumentTitle(t('help.title'));
 
   return (
-    <div className="page-teal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="page-teal" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
       <div className="card-teal" style={{ maxWidth: '720px', width: '100%' }}>
         <h1 className="help-heading">{t('help.title')}</h1>
 
@@ -37,10 +39,6 @@ const HelpPage = () => {
           <p>{t('help.oralExam.text')}</p>
         </div>
 
-        <div className="help-section">
-          <h2><Icon><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></Icon>{t('help.library')}</h2>
-          <p>{t('help.library.text')}</p>
-        </div>
 
         <div className="help-section">
           <h2><Icon><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></Icon>{t('help.feedback')}</h2>

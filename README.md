@@ -36,10 +36,11 @@ Application MERN full-stack avec authentification Clerk, dédiée à la créatio
 
 - Authentification hybride **Clerk** (principal) + **JWT** (legacy email/mot de passe)
 - Synchronisation automatique des utilisateurs Clerk vers MongoDB
+- Gestion d'erreur du sync avec classification (token expiré → 401, API Clerk → 502, autres → 500)
 - Contrôle d'accès par rôle (`admin` / `user`)
 - Cache mémoire sur les endpoints GET fréquents
 - Pagination, validation (`express-validator`)
-- Journalisation structurée (Pino)
+- Journalisation structurée (Pino) — logs ajoutés sur toutes les routes clés
 - Upload sécurisé de fichiers (PDF)
 - Rate limiting global et par utilisateur
 - Blacklist JWT in-memory avec TTL
@@ -367,7 +368,7 @@ Toutes les routes sous `/api/` (sauf health, auth legacy) nécessitent un token 
 | `PORT` | Non | 4000 | Port du serveur |
 | `JWT_SECRET` | Oui | — | ≥ 32 caractères, pour tokens legacy |
 | `CLERK_SECRET_KEY` | Oui | — | Clé secrète Clerk (staging/prod) |
-| `ADMIN_SECRET_CODE` | Oui | — | ≥ 16 caractères, pour activer admin |
+| `ADMIN_SECRET_CODE` | Oui | — | **≥ 16 caractères obligatoire**, pour activer admin |
 | `CORS_ORIGIN` | Non | `http://localhost:5173` | Origines autorisées (séparées par des virgules) |
 | `SMTP_*` | Non | — | Configuration email (notifications) |
 

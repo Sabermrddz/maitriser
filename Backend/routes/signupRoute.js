@@ -9,6 +9,7 @@ import { broadcast } from '../ws.js';
 import { validatePassword } from '../middleware/passwordValidator.js';
 import { validate } from '../middleware/validate.js';
 import { genUserId } from '../utils/idGenerator.js';
+import { setTokenCookie } from '../controllers/authController.js';
 
 const router = express.Router();
 
@@ -39,8 +40,8 @@ router.post(
       const user = new User({ userId, name, email, password, role: 'admin' });
       await user.save();
 
-      res.status(201).json({ message: 'Admin registered successfully!' });
       broadcast('user:signedUp', { userId, email });
+      return res.status(201).json({ message: 'Admin registered successfully!' });
     } catch (err) {
       logger.error({ err }, 'Admin registration failed');
       if (err.code === 11000) return res.status(409).json({ message: 'Email already exists' });
@@ -77,6 +78,7 @@ router.post(
         { expiresIn: '24h' }
       );
 
+      setTokenCookie(res, token);
       return res.status(200).json({ token, message: 'Login successful!' });
     } catch (err) {
       logger.error({ err }, 'Admin login failed');

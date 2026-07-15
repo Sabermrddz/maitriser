@@ -1,8 +1,10 @@
+import mongoose from 'mongoose';
 import express from 'express';
-import { param } from 'express-validator';
+import { body, param } from 'express-validator';
 import multer from 'multer';
 import path from 'path';
-import fs from 'fs';
+import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import VoiceExam from '../models/voiceExamModel.js';
 import VoiceExamResult from '../models/voiceExamResultModel.js';
 import Module from '../models/moduleModel.js';
@@ -14,38 +16,54 @@ import { getPagination, paginatedResponse } from '../utils/paginate.js';
 import { validate } from '../middleware/validate.js';
 import { genExamId } from '../utils/idGenerator.js';
 import { checkSubscription } from '../middleware/requireSubscription.js';
+import { getR2Client, getBucket, getPresignedExpiry } from '../config/r2.js';
 import User from '../models/userModel.js';
 
 const router = express.Router();
 
-const UPLOAD_DIR = path.resolve('uploads/voice-exam-images');
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    const unique = `${Date.now()}-${Math.round(Math.random() * 1e6)}`;
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `${unique}${ext}`);
-  },
-});
-
+const allowedMime = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter: (_req, file, cb) => {
     const allowed = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (allowed.includes(ext)) cb(null, true);
-    else cb(new Error('Only image files are allowed (png, jpg, jpeg, gif, webp, svg)'));
+    const ext = '.' + file.originalname.toLowerCase().split('.').pop();
+    if (allowed.includes(ext) && allowedMime.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only image files are allowed (png, jpg, jpeg, gif, webp)'));
   },
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+const uploadImagesToR2 = async (files) => {
+  const s3 = getR2Client();
+  if (!s3 || !files || files.length === 0) return [];
+  const keys = [];
+  for (const file of files) {
+    const ext = file.originalname.toLowerCase().split('.').pop();
+    const key = `voice-exam-images/${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
+    await s3.send(new PutObjectCommand({
+      Bucket: getBucket(),
+      Key: key,
+      Body: file.buffer,
+      ContentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
+    }));
+    keys.push(key);
+  }
+  return keys;
+};
+
 router.get('/voice-exams', verifyToken, cacheMiddleware(), catchAsync(async (req, res) => {
   if (!req.query.year) return res.json([]);
   if (!await checkSubscription(req.user?.id)) return res.json([]);
-  const filter = { year: Number(req.query.year) };
-  if (req.query.moduleId)   filter.moduleId   = String(req.query.moduleId);
+
+  const user = await User.findById(req.user.id || req.user._id).select('discipline').lean();
+  const allowedDisciplines = ['medicine'];
+  const allowedYears = ['5','6','7'];
+  if (!allowedDisciplines.includes(user?.discipline) || !allowedYears.includes(req.query.year)) {
+    return res.json([]);
+  }
+
+  const filter = { year: Number(req.query.year), discipline: 'medicine' };
+  if (req.query.moduleId && mongoose.Types.ObjectId.isValid(String(req.query.moduleId))) filter.moduleId = String(req.query.moduleId);
   const exams = await VoiceExam.find(filter).populate('moduleId', 'name year').sort({ createdAt: -1 });
   res.json(exams);
 }));
@@ -54,30 +72,16 @@ router.get('/voice-exams/:id', verifyToken, [
   param('id').isMongoId(),
 ], validate, catchAsync(async (req, res) => {
   if (!await checkSubscription(req.user?.id)) return res.status(403).json({ message: 'Subscription required' });
+
+  const user = await User.findById(req.user.id || req.user._id).select('discipline').lean();
+  const allowedDisciplines = ['medicine'];
+  if (!allowedDisciplines.includes(user?.discipline)) {
+    return res.status(403).json({ message: 'Access denied' });
+  }
+
   const exam = await VoiceExam.findById(req.params.id).populate('moduleId', 'name year');
   if (!exam) return res.status(404).json({ message: 'Voice exam not found' });
   res.json(exam);
-}));
-
-// POST /api/voice-exams/start-free-trial — start a random premium exam for free (once per user)
-router.post('/voice-exams/start-free-trial', verifyToken, catchAsync(async (req, res) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return res.status(404).json({ message: 'User not found' });
-  if (user.freeTrialUsed) return res.status(400).json({ message: 'Free trial already used' });
-
-  const filter = { premium: true };
-  if (user.year && user.discipline) {
-    filter.year = user.year;
-    filter.discipline = user.discipline;
-  }
-  const exams = await VoiceExam.find(filter).populate('moduleId', 'name year');
-  if (exams.length === 0) return res.status(400).json({ message: 'No premium exams available for your level' });
-
-  const exam = exams[Math.floor(Math.random() * exams.length)];
-  user.freeTrialUsed = true;
-  await user.save();
-
-  res.json({ message: 'Free trial started', exam });
 }));
 
 router.post('/voice-exams', requireAdmin, upload.array('images', 10), catchAsync(async (req, res) => {
@@ -92,7 +96,7 @@ router.post('/voice-exams', requireAdmin, upload.array('images', 10), catchAsync
   const module = await Module.findById(moduleId);
   if (!module) return res.status(404).json({ message: 'Module not found' });
 
-  const images = req.files ? req.files.map((f) => f.filename) : [];
+  const images = await uploadImagesToR2(req.files);
 
   const examId = await genExamId();
   const exam = await VoiceExam.create({
@@ -119,7 +123,8 @@ router.put('/voice-exams/:id', requireAdmin, upload.array('images', 10), [
     ? (Array.isArray(existingImages) ? existingImages : (() => { try { return JSON.parse(existingImages); } catch { return []; } })())
     : [];
   if (req.files && req.files.length > 0) {
-    images = [...images, ...req.files.map((f) => f.filename)];
+    const newKeys = await uploadImagesToR2(req.files);
+    images = [...images, ...newKeys];
   }
 
   const updateFields = {};
@@ -131,7 +136,7 @@ router.put('/voice-exams/:id', requireAdmin, upload.array('images', 10), [
   if (questions)          updateFields.questions = questions;
   updateFields.images = images;
 
-  const updated = await VoiceExam.findByIdAndUpdate(req.params.id, updateFields, { new: true });
+  const updated = await VoiceExam.findByIdAndUpdate(req.params.id, updateFields, { new: true, runValidators: true });
   if (!updated) return res.status(404).json({ message: 'Voice exam not found' });
   delPattern('GET:/api/voice-exams');
   res.json({ message: 'Voice exam updated successfully', exam: updated });
@@ -140,34 +145,38 @@ router.put('/voice-exams/:id', requireAdmin, upload.array('images', 10), [
 router.delete('/voice-exams/:id', requireAdmin, [
   param('id').isMongoId(),
 ], validate, catchAsync(async (req, res) => {
-  const exam = await VoiceExam.findById(req.params.id);
+  const exam = await VoiceExam.findByIdAndDelete(req.params.id);
   if (!exam) return res.status(404).json({ message: 'Voice exam not found' });
 
-  if (exam.images && exam.images.length > 0) {
-    exam.images.forEach((img) => {
-      const p = path.join(UPLOAD_DIR, img);
-      if (fs.existsSync(p)) fs.unlinkSync(p);
-    });
+  const s3 = getR2Client();
+  if (s3 && exam.images && exam.images.length > 0) {
+    for (const img of exam.images) {
+      try { await s3.send(new DeleteObjectCommand({ Bucket: getBucket(), Key: img })); }
+      catch { /* may not exist */ }
+    }
   }
 
-  await VoiceExam.findByIdAndDelete(req.params.id);
   delPattern('GET:/api/voice-exams');
   res.json({ message: 'Voice exam deleted successfully' });
 }));
 
 router.get('/voice-exam-images/:filename', catchAsync(async (req, res) => {
-  const filename = path.basename(req.params.filename);
-  const filepath = path.join(UPLOAD_DIR, filename);
-  if (!fs.existsSync(filepath)) return res.status(404).json({ message: 'Image not found' });
-  await res.sendFile(filepath);
+  const s3 = getR2Client();
+  if (!s3) return res.status(500).json({ message: 'Storage not configured' });
+  const key = `voice-exam-images/${path.basename(req.params.filename)}`;
+  const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
+    expiresIn: getPresignedExpiry(),
+  });
+  res.redirect(url);
 }));
 
 router.post('/voice-exams/:id/submit', verifyToken, [
   param('id').isMongoId(),
+  body('answers').isArray({ min: 1 }).withMessage('answers array is required'),
+  body('answers.*.questionIndex').isInt({ min: 0 }),
+  body('answers.*.text').isString(),
 ], validate, catchAsync(async (req, res) => {
   const { answers } = req.body;
-  if (!Array.isArray(answers))
-    return res.status(400).json({ message: 'answers array is required' });
 
   const exam = await VoiceExam.findById(req.params.id);
   if (!exam) return res.status(404).json({ message: 'Voice exam not found' });
@@ -225,6 +234,8 @@ router.get('/voice-exam-results/:userId', verifyToken, catchAsync(async (req, re
 }));
 
 router.get('/voice-exam-results/:userId/:resultId', verifyToken, catchAsync(async (req, res) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.resultId))
+    return res.status(400).json({ message: 'Invalid result ID' });
   const result = await VoiceExamResult.findById(req.params.resultId).populate('examId');
   if (!result) return res.status(404).json({ message: 'Result not found' });
   if (req.user.role !== 'admin' && result.userId !== req.params.userId)

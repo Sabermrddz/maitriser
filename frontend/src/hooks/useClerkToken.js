@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from "@clerk/react";
 import axios from 'axios';
-import { setToken, setTokenGetter } from '../utils/tokenStore';
+import { setToken, setTokenGetter, refreshToken } from '../utils/tokenStore';
 import { logger } from '../utils/logger';
 
 const useClerkToken = () => {
@@ -40,10 +40,9 @@ const useClerkToken = () => {
     init();
 
     const interceptor = axios.interceptors.request.use(async (config) => {
-      const token = await getTokenRef.current();
+      const token = await refreshToken();
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-        setToken(token);
       }
       return config;
     });

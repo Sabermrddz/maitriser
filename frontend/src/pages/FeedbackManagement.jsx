@@ -3,7 +3,9 @@ import { authFetch } from '../config/authFetch';
 import Spinner from '../components/Spinner';
 import { useToast } from '../components/Toast';
 import { useTranslation } from '../context/LanguageContext';
+import { formatDate } from '../utils/formatDate';
 import { logger } from '../utils/logger';
+import useDocumentTitle from '../utils/useDocumentTitle';
 
 const statusColors = {
   unread: { bg: 'rgba(169, 66, 66, 0.1)', color: 'var(--color-danger)' },
@@ -12,9 +14,9 @@ const statusColors = {
 };
 
 const FeedbackManagement = () => {
-  useEffect(() => { document.title = 'Feedback — Admin'; }, []);
   const addToast = useToast();
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
+  useDocumentTitle(t('admin.feedback.title'), 'Admin');
   const [list, setList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -73,7 +75,7 @@ const FeedbackManagement = () => {
         </select>
       </div>
 
-      {error && <div className="error-banner">{error}<button onClick={() => setError('')}>&times;</button></div>}
+      {error && <div className="error-banner" role="alert">{error}<button onClick={() => setError('')}>&times;</button></div>}
 
       {list.length === 0 ? (
         <div className="admin-empty">{t('admin.feedback.empty')}</div>
@@ -123,15 +125,15 @@ const FeedbackManagement = () => {
                     </span>
                   </td>
                   <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
-                    {new Date(fb.createdAt).toLocaleDateString()}
+                    {formatDate(fb.createdAt, lang)}
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 4 }}>
                       {fb.status !== 'read' && (
-                        <button onClick={() => updateStatus(fb._id, 'read')} disabled={processing[fb._id]} style={{ ...btnSmall, opacity: processing[fb._id] ? 0.5 : 1, cursor: processing[fb._id] ? 'not-allowed' : 'pointer' }}>{t('admin.feedback.markRead')}</button>
+                        <button onClick={() => updateStatus(fb._id, 'read')} disabled={processing[fb._id]} className="feedback-action-btn" style={{ opacity: processing[fb._id] ? 0.5 : 1 }}>{t('admin.feedback.markRead')}</button>
                       )}
                       {fb.status !== 'resolved' && (
-                        <button onClick={() => updateStatus(fb._id, 'resolved')} disabled={processing[fb._id]} style={{ ...btnSmall, opacity: processing[fb._id] ? 0.5 : 1, cursor: processing[fb._id] ? 'not-allowed' : 'pointer' }}>{t('admin.feedback.resolve')}</button>
+                        <button onClick={() => updateStatus(fb._id, 'resolved')} disabled={processing[fb._id]} className="feedback-action-btn" style={{ opacity: processing[fb._id] ? 0.5 : 1 }}>{t('admin.feedback.resolve')}</button>
                       )}
                     </div>
                   </td>
@@ -143,11 +145,6 @@ const FeedbackManagement = () => {
       )}
     </div>
   );
-};
-
-const btnSmall = {
-  padding: '4px 10px', borderRadius: 6, border: '1px solid var(--dc-border)',
-  background: 'var(--dc-white)', cursor: 'pointer', fontSize: '0.75rem', whiteSpace: 'nowrap',
 };
 
 export default FeedbackManagement;

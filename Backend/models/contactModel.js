@@ -21,7 +21,7 @@ const contactSchema = new mongoose.Schema({
 });
 
 contactSchema.index({ createdAt: -1 });
-contactSchema.index({ status: 1 });
+contactSchema.index({ status: 1, createdAt: -1 });
 
 const ContactMessage = mongoose.model('ContactMessage', contactSchema);
 export default ContactMessage;

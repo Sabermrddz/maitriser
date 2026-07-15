@@ -1,5 +1,5 @@
 import express from 'express';
-import { param } from 'express-validator';
+import { body, param } from 'express-validator';
 import Quiz from '../models/quizModel.js';
 import QuizResult from '../models/quizResultModel.js';
 import logger from '../utils/logger.js';
@@ -13,7 +13,10 @@ const router = express.Router();
 
 // POST /api/quizzes/:quizId/submit
 // Body: { selectedAnswers: [] }
-router.post('/quizzes/:quizId/submit', [param('quizId').isMongoId()], validate, catchAsync(async (req, res) => {
+router.post('/quizzes/:quizId/submit', [
+  param('quizId').isMongoId(),
+  body('selectedAnswers').isArray({ min: 1 }),
+], validate, catchAsync(async (req, res) => {
   const { quizId } = req.params;
   const { selectedAnswers } = req.body;
   const userId = req.user?.userId;
@@ -24,7 +27,7 @@ router.post('/quizzes/:quizId/submit', [param('quizId').isMongoId()], validate, 
   if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
   if (!quiz.published) return res.status(404).json({ message: 'Quiz not found' });
 
-  const correct = quiz.question.correctAnswers;
+  const correct = quiz.question?.correctAnswers || [];
 
   const isCorrect =
     Array.isArray(selectedAnswers) &&
@@ -41,28 +44,35 @@ router.post('/quizzes/:quizId/submit', [param('quizId').isMongoId()], validate, 
     answers: { [quizId]: selectedAnswers },
   });
 
-  res.status(200).json({
+  logger.info({ userId, quizId, correct: isCorrect, score }, 'Quiz submitted');
+  broadcast('quiz:submitted', { userId, quizId, correct: isCorrect, score });
+
+  return res.status(200).json({
     correct: isCorrect,
     score,
     correctAnswers: correct,
     selectedAnswers,
     explanation: quiz.explanation || '',
   });
-  broadcast('quiz:submitted', { userId, quizId, correct: isCorrect, score });
 }));
 
 // GET /api/results/:userId — fetch attempt history
 router.get('/results/:userId', verifyToken, catchAsync(async (req, res) => {
   if (req.user.role !== 'admin' && req.user.userId !== req.params.userId)
     return res.status(403).json({ message: 'Access denied' });
+
+  const { userId } = req.params;
+  if (!userId || typeof userId !== 'string')
+    return res.status(400).json({ message: 'Invalid userId parameter' });
+
   const { skip, limit, page } = getPagination(req.query);
   const [results, total] = await Promise.all([
-    QuizResult.find({ userId: req.params.userId })
+    QuizResult.find({ userId })
       .populate({ path: 'quizId', select: 'question.questionText quizId explanation year course moduleId', populate: { path: 'moduleId', select: 'name year' } })
       .sort({ timestamp: -1 }).skip(skip).limit(limit),
-    QuizResult.countDocuments({ userId: req.params.userId }),
+    QuizResult.countDocuments({ userId }),
   ]);
-  res.json(paginatedResponse(results, total, page, limit));
+  return res.json(paginatedResponse(results, total, page, limit));
 }));
 
 export default router;

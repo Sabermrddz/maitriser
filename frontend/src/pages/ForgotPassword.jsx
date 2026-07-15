@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
+import useDocumentTitle from '../utils/useDocumentTitle';
 import { API_BASE_URL } from '../config/api';
 import '../styles/teal-theme.css';
 
 const ForgotPassword = () => {
   const { t } = useTranslation();
+  useDocumentTitle(t('forgotPassword.title'));
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,15 +28,15 @@ const ForgotPassword = () => {
   };
 
   return (
-    <div className="page-teal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
+    <div className="page-teal" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: '10vh' }}>
       <div className="card-teal" style={{ maxWidth: 400, padding: '2rem' }}>
         <h2>{t('forgot.title')}</h2>
         <p style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: 16 }}>
           {t('forgot.subtitle')}
         </p>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <input type="email" className="form-input" value={email} onChange={(e) => setEmail(e.target.value)}
-            placeholder={t('forgot.email')} required style={{ width: '100%', marginBottom: 12 }} />
+            placeholder={t('forgot.email')} required />
           <button className="btn-primary" disabled={loading} style={{ width: '100%' }}>
             {loading ? t('forgot.loading') : t('forgot.button')}
           </button>

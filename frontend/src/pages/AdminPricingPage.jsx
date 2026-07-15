@@ -2,22 +2,25 @@ import React, { useState, useEffect, useRef } from 'react';
 import { authFetch } from '../config/authFetch';
 import { useToast } from '../components/Toast';
 import { useSound } from '../context/SoundContext';
+import { useTranslation } from '../context/LanguageContext';
+import { formatDate } from '../utils/formatDate';
 import ConfirmModal from '../components/ConfirmModal';
 import Spinner from '../components/Spinner';
-import { logger } from '../utils/logger';
+import useDocumentTitle from '../utils/useDocumentTitle';
 import '../styles/adminPricing.css';
 
 const YEARS = [1, 2, 3, 4, 5, 6, 7];
 
 const emptyPlan = () => ({
-  name: '', discipline: 'medicine', year: 1,
-  included: { quizzes: true, voiceExams: false, books: true },
+  name: '', discipline: 'medicine', year: 1, price: 0,
+  included: { quizzes: true, voiceExams: false },
   interval: 'month', isActive: true, sortOrder: 0,
 });
 
 const AdminPricingPage = () => {
   const notify = useToast();
   const play = useSound();
+  const { t, lang } = useTranslation();
   const [tab, setTab] = useState('plans');
   const [plans, setPlans] = useState([]);
   const [codes, setCodes] = useState([]);
@@ -38,7 +41,8 @@ const AdminPricingPage = () => {
   const [dailySaving, setDailySaving] = useState(false);
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null });
 
-  useEffect(() => { document.title = 'Pricing — Admin'; fetchPlans(); }, []);
+  useDocumentTitle(t('admin.pricing.title'), 'Admin');
+  useEffect(() => { fetchPlans(); }, []);
 
   const genTimer = useRef(null);
   useEffect(() => {
@@ -54,14 +58,14 @@ const AdminPricingPage = () => {
     try {
       const res = await authFetch('/api/admin/subscription-codes/generate', {
         method: 'POST',
-        body: JSON.stringify({ planId: genPlanId, count: genCount, expiresAt: genExpiry || null, notes: genNotes }),
+        body: { planId: genPlanId, count: genCount, expiresAt: genExpiry || null, notes: genNotes },
       });
       if (res.ok) {
         const data = await res.json();
         setGenResult(data.codes || []);
         fetchCodes();
-      } else { const d = await res.json(); notify(d.message || 'Error', 'error'); }
-    } catch { notify('Network error', 'error'); }
+      }       else { const d = await res.json(); notify(d.message || t('admin.pricing.error'), 'error'); }
+    } catch { notify(t('admin.pricing.networkError'), 'error'); }
     finally { setGenerating(false); }
   };
 
@@ -69,7 +73,7 @@ const AdminPricingPage = () => {
     try {
       const res = await authFetch('/api/admin/plans');
       if (res.ok) setPlans(await res.json());
-    } catch { notify('Failed to load plans', 'error'); }
+    } catch { notify(t('admin.pricing.loadPlansFailed'), 'error'); }
     setLoading(false);
   };
 
@@ -77,7 +81,7 @@ const AdminPricingPage = () => {
     try {
       const res = await authFetch('/api/admin/subscription-codes');
       if (res.ok) setCodes(await res.json());
-    } catch { notify('Failed to load codes', 'error'); }
+    } catch { notify(t('admin.pricing.loadCodesFailed'), 'error'); }
   };
 
   useEffect(() => { if (tab === 'codes') fetchCodes(); }, [tab]);
@@ -87,7 +91,7 @@ const AdminPricingPage = () => {
     try {
       const res = await authFetch('/api/admin/daily-config');
       if (res.ok) { const data = await res.json(); setDailyCount(Number(data.value) || 5); }
-    } catch { notify('Failed to load daily config', 'error'); }
+    } catch { notify(t('admin.pricing.loadDailyFailed'), 'error'); }
     finally { setDailyLoading(false); }
   };
 
@@ -95,10 +99,10 @@ const AdminPricingPage = () => {
     setDailySaving(true);
     play('submit');
     try {
-      const res = await authFetch('/api/admin/daily-config', { method: 'PUT', body: JSON.stringify({ value: dailyCount }) });
-      if (res.ok) { notify('Daily quiz count updated', 'success'); }
-      else { const d = await res.json(); notify(d.message || 'Error', 'error'); }
-    } catch { notify('Network error', 'error'); }
+      const res = await authFetch('/api/admin/daily-config', { method: 'PUT', body: { value: dailyCount } });
+      if (res.ok) { notify(t('admin.pricing.dailyUpdated'), 'success'); }
+      else { const d = await res.json(); notify(d.message || t('admin.pricing.error'), 'error'); }
+    } catch { notify(t('admin.pricing.networkError'), 'error'); }
     finally { setDailySaving(false); }
   };
 
@@ -108,7 +112,8 @@ const AdminPricingPage = () => {
       name: plan.name || '',
       discipline: plan.discipline || 'medicine',
       year: plan.year || 1,
-      included: { ...{ quizzes: true, voiceExams: false, books: true }, ...plan.included },
+      price: plan.price ?? 0,
+      included: { ...{ quizzes: true, voiceExams: false }, ...plan.included },
       interval: plan.interval || 'month',
       isActive: plan.isActive !== false,
       sortOrder: plan.sortOrder || 0,
@@ -117,81 +122,82 @@ const AdminPricingPage = () => {
   };
 
   const handleSavePlan = async () => {
-    if (!planForm.name.trim()) return notify('Name is required', 'warning');
+    if (!planForm.name.trim()) return notify(t('admin.pricing.nameRequired'), 'warning');
     setSaving(true);
     play('submit');
     try {
       const url = editPlanId ? `/api/admin/plans/${editPlanId}` : '/api/admin/plans';
       const method = editPlanId ? 'PUT' : 'POST';
-      const res = await authFetch(url, { method, body: JSON.stringify(planForm) });
-      if (res.ok) { notify(editPlanId ? 'Plan updated' : 'Plan created', 'success'); setShowPlanModal(false); fetchPlans(); }
-      else { const d = await res.json(); notify(d.message || 'Error', 'error'); }
-    } catch { notify('Network error', 'error'); }
+      const res = await authFetch(url, { method, body: planForm });
+      if (res.ok) { notify(editPlanId ? t('admin.pricing.planUpdated') : t('admin.pricing.planCreated'), 'success'); setShowPlanModal(false); fetchPlans(); }
+      else { const d = await res.json(); notify(d.message || t('admin.pricing.error'), 'error'); }
+    } catch { notify(t('admin.pricing.networkError'), 'error'); }
     finally { setSaving(false); }
   };
 
   const handleDeletePlan = async (id) => {
-    setConfirm({ open: true, title: 'Delete Plan', message: 'Delete this plan?', onConfirm: async () => {
+    setConfirm({ open: true, title: t('admin.pricing.deletePlanConfirm'), message: t('admin.pricing.deletePlanMsg'), onConfirm: async () => {
       setConfirm(c => ({ ...c, open: false }));
       play('delete');
       try {
         const res = await authFetch(`/api/admin/plans/${id}`, { method: 'DELETE' });
-        if (res.ok) { notify('Plan deleted', 'success'); fetchPlans(); }
-        else notify('Failed to delete', 'error');
-      } catch { notify('Network error', 'error'); }
+        if (res.ok) { notify(t('admin.pricing.planDeleted'), 'success'); fetchPlans(); }
+        else notify(t('admin.pricing.deleteFailed'), 'error');
+      } catch { notify(t('admin.pricing.networkError'), 'error'); }
     }});
   };
 
   const handleRevokeCode = async (id) => {
-    setConfirm({ open: true, title: 'Revoke Code', message: 'Revoke this code?', onConfirm: async () => {
+    setConfirm({ open: true, title: t('admin.pricing.revokeCodeConfirm'), message: t('admin.pricing.revokeCodeMsg'), onConfirm: async () => {
       setConfirm(c => ({ ...c, open: false }));
       play('delete');
       try {
         const res = await authFetch(`/api/admin/subscription-codes/${id}`, { method: 'DELETE' });
-        if (res.ok) { notify('Code revoked', 'success'); fetchCodes(); }
-        else notify('Failed to revoke', 'error');
-      } catch { notify('Network error', 'error'); }
+        if (res.ok) { notify(t('admin.pricing.codeRevoked'), 'success'); fetchCodes(); }
+        else notify(t('admin.pricing.revokeFailed'), 'error');
+      } catch { notify(t('admin.pricing.networkError'), 'error'); }
     }});
   };
 
   const copyCode = (code) => {
     if (typeof navigator !== 'undefined') {
       navigator.clipboard?.writeText(code);
-      notify('Copied!', 'success');
+      notify(t('admin.pricing.copied'), 'success');
     }
   };
 
   return (
     <div className="admin-page">
-      <h2>Pricing Management</h2>
+      <h2>{t('admin.pricing.title')}</h2>
 
       <div className="admin-tabs">
-        <button className={`admin-tab ${tab === 'plans' ? 'active' : ''}`} onClick={() => setTab('plans')}>Plans</button>
-        <button className={`admin-tab ${tab === 'codes' ? 'active' : ''}`} onClick={() => setTab('codes')}>Subscription Codes</button>
-        <button className={`admin-tab ${tab === 'daily' ? 'active' : ''}`} onClick={() => setTab('daily')}>Daily Quiz Config</button>
+        <button className={`admin-tab ${tab === 'plans' ? 'active' : ''}`} onClick={() => setTab('plans')}>{t('admin.pricing.tabPlans')}</button>
+        <button className={`admin-tab ${tab === 'codes' ? 'active' : ''}`} onClick={() => setTab('codes')}>{t('admin.pricing.tabCodes')}</button>
+        <button className={`admin-tab ${tab === 'daily' ? 'active' : ''}`} onClick={() => setTab('daily')}>{t('admin.pricing.tabDaily')}</button>
       </div>
 
       {tab === 'plans' && (
         <>
           <button className="btn-primary" style={{ marginBottom: 16 }} onClick={() => { setEditPlanId(null); setPlanForm(emptyPlan()); setShowPlanModal(true); }}>
-            + Create Plan
+            {t('admin.pricing.createPlan')}
           </button>
 
-          {loading ? <Spinner text="Loading plans..." /> : plans.length === 0 ? (
-            <div className="admin-empty">No plans yet.</div>
+          {loading ? <Spinner text={t('admin.pricing.loadPlans')} /> : plans.length === 0 ? (
+            <div className="admin-empty">{t('admin.pricing.noPlans')}</div>
           ) : (
             <div className="admin-table-wrapper">
               <table className="admin-table">
                 <thead>
                   <tr>
-                    <th>Name</th>
-                    <th>Discipline</th>
-                    <th>Year</th>
-                    <th>Included</th>
-                    <th>Interval</th>
-                    <th>Active</th>
-                    <th>Sort</th>
-                    <th>Actions</th>
+                    <th>{t('admin.pricing.colName')}</th>
+                    <th>{t('admin.pricing.colDiscipline')}</th>
+                    <th>{t('admin.pricing.colYear')}</th>
+                    <th>{t('admin.pricing.colPrice')}</th>
+                    <th>{t('admin.pricing.colIncluded')}</th>
+                    <th>{t('admin.pricing.colInterval')}</th>
+                    <th>{t('admin.pricing.colActive')}</th>
+                    <th>{t('admin.pricing.colSort')}</th>
+                    <th>{t('admin.pricing.colActions')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -200,8 +206,9 @@ const AdminPricingPage = () => {
                       <td>{p.name}</td>
                       <td style={{ textTransform: 'capitalize' }}>{p.discipline}</td>
                       <td>Y{p.year}</td>
+                      <td>{p.price === 0 ? t('admin.pricing.free') : p.price}</td>
                       <td style={{ fontSize: '0.78rem' }}>
-                        Q:{p.included?.quizzes ? '&#10003;' : '&#8212;'} V:{p.included?.voiceExams ? '&#10003;' : '&#8212;'} B:{p.included?.books ? '&#10003;' : '&#8212;'}
+                        Q:{p.included?.quizzes ? '&#10003;' : '&#8212;'} V:{p.included?.voiceExams ? '&#10003;' : '&#8212;'}
                       </td>
                       <td style={{ textTransform: 'capitalize' }}>{p.interval}</td>
                       <td>{p.isActive ? '&#10003;' : '&#8212;'}</td>
@@ -220,60 +227,62 @@ const AdminPricingPage = () => {
           {showPlanModal && (
             <div className="modal-overlay" onClick={() => !saving && setShowPlanModal(false)}>
               <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 500 }}>
-                <h3>{editPlanId ? 'Edit Plan' : 'Create Plan'}</h3>
+                <h3>{editPlanId ? t('admin.pricing.editPlan') : t('admin.pricing.createPlanTitle')}</h3>
 
-                <label>Name</label>
+                <label>{t('admin.pricing.labelName')}</label>
                 <input type="text" value={planForm.name} onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })} disabled={saving} />
 
-                <label>Discipline</label>
+                <label>{t('admin.pricing.labelDiscipline')}</label>
                 <select value={planForm.discipline} onChange={(e) => setPlanForm({ ...planForm, discipline: e.target.value })} disabled={saving}>
-                  <option value="medicine">Medicine</option>
-                  <option value="pharmacy">Pharmacy</option>
+                  <option value="medicine">{t('admin.pricing.labelDiscipline') === 'Discipline' ? 'Medicine' : 'Médecine'}</option>
+                  <option value="pharmacy">{t('admin.pricing.labelDiscipline') === 'Discipline' ? 'Pharmacy' : 'Pharmacie'}</option>
                 </select>
 
-                <label>Year</label>
+                <label>{t('admin.pricing.labelYear')}</label>
                 <select value={planForm.year} onChange={(e) => setPlanForm({ ...planForm, year: Number(e.target.value) })} disabled={saving}>
-                  {YEARS.map((y) => <option key={y} value={y}>Year {y}</option>)}
+                  {YEARS.map((y) => <option key={y} value={y}>{t('pricing.year', { n: y })}</option>)}
                 </select>
 
-                <label style={{ marginTop: 12, display: 'block', fontWeight: 600, fontSize: '0.85rem' }}>Included Content</label>
+                <label style={{ marginTop: 12, display: 'block', fontWeight: 600, fontSize: '0.85rem' }}>{t('admin.pricing.labelIncluded')}</label>
                 <div style={{ display: 'flex', gap: 16, margin: '6px 0 12px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: '0.85rem' }}>
                     <input type="checkbox" checked={planForm.included.quizzes} onChange={(e) => setPlanForm({ ...planForm, included: { ...planForm.included, quizzes: e.target.checked } })} disabled={saving} />
-                    Quizzes
+                    {t('admin.pricing.includedQuizzes')}
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: '0.85rem' }}>
                     <input type="checkbox" checked={planForm.included.voiceExams} onChange={(e) => setPlanForm({ ...planForm, included: { ...planForm.included, voiceExams: e.target.checked } })} disabled={saving} />
-                    Oral Exams
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: '0.85rem' }}>
-                    <input type="checkbox" checked={planForm.included.books} onChange={(e) => setPlanForm({ ...planForm, included: { ...planForm.included, books: e.target.checked } })} disabled={saving} />
-                    Books
+                    {t('admin.pricing.includedOral')}
                   </label>
                 </div>
 
-                <label>Interval</label>
+                <label>{t('admin.pricing.labelPrice')}</label>
+                <input type="number" min="0" step="0.01" value={planForm.price} onChange={(e) => setPlanForm({ ...planForm, price: Number(e.target.value) })} disabled={saving} />
+
+                <label>{t('admin.pricing.labelInterval')}</label>
                 <select value={planForm.interval} onChange={(e) => setPlanForm({ ...planForm, interval: e.target.value })} disabled={saving}>
-                  <option value="month">Monthly</option>
-                  <option value="year">Yearly</option>
+                  <option value="day">{t('admin.pricing.intervalDay')}</option>
+                  <option value="week">{t('admin.pricing.intervalWeek')}</option>
+                  <option value="month">{t('admin.pricing.intervalMonth')}</option>
+                  <option value="semester">{t('admin.pricing.intervalSemester')}</option>
+                  <option value="year">{t('admin.pricing.intervalYear')}</option>
                 </select>
 
                 <div style={{ display: 'flex', gap: 12, marginTop: 8 }}>
                   <div style={{ flex: 1 }}>
-                    <label>Sort Order</label>
+                    <label>{t('admin.pricing.labelSortOrder')}</label>
                     <input type="number" value={planForm.sortOrder} onChange={(e) => setPlanForm({ ...planForm, sortOrder: Number(e.target.value) })} disabled={saving} />
                   </div>
                   <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end', paddingBottom: 8 }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer', fontSize: '0.85rem' }}>
                       <input type="checkbox" checked={planForm.isActive} onChange={(e) => setPlanForm({ ...planForm, isActive: e.target.checked })} disabled={saving} />
-                      Active
+                      {t('admin.pricing.labelActive')}
                     </label>
                   </div>
                 </div>
 
                 <div className="modal-buttons">
-                  <button onClick={() => setShowPlanModal(false)} disabled={saving}>Cancel</button>
-                  <button onClick={handleSavePlan} disabled={saving}>{saving ? 'Saving...' : (editPlanId ? 'Update' : 'Create')}</button>
+                  <button onClick={() => setShowPlanModal(false)} disabled={saving}>{t('cancel')}</button>
+                  <button onClick={handleSavePlan} disabled={saving}>{saving ? t('loading') : (editPlanId ? t('admin.mockExam.update') : t('admin.quiz.createCaseBtn'))}</button>
                 </div>
               </div>
             </div>
@@ -284,35 +293,35 @@ const AdminPricingPage = () => {
       {tab === 'codes' && (
         <>
           <button className="btn-primary" style={{ marginBottom: 16 }} onClick={() => { setGenPlanId(''); setGenCount(5); setGenExpiry(''); setGenNotes(''); setGenResult(null); setShowGenModal(true); }}>
-            + Generate Codes
+            {t('admin.pricing.generateCodes')}
           </button>
 
           <div className="admin-table-wrapper">
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Code</th>
-                  <th>Plan</th>
-                  <th>Status</th>
-                  <th>Used By</th>
-                  <th>Used At</th>
-                  <th>Expires</th>
-                  <th>Actions</th>
+                  <th>{t('admin.pricing.colCode')}</th>
+                  <th>{t('admin.pricing.colName')}</th>
+                  <th>{t('admin.pricing.colStatus')}</th>
+                  <th>{t('admin.pricing.colUsedBy')}</th>
+                  <th>{t('admin.pricing.colUsedAt')}</th>
+                  <th>{t('admin.pricing.colExpires')}</th>
+                  <th>{t('admin.pricing.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
                 {codes.length === 0 ? (
-                  <tr><td colSpan="7" className="admin-empty">No codes yet.</td></tr>
+                  <tr><td colSpan="7" className="admin-empty">{t('admin.pricing.noCodes')}</td></tr>
                 ) : codes.map((c) => (
                   <tr key={c._id}>
                     <td style={{ fontFamily: 'monospace', fontWeight: 600, letterSpacing: '0.5px' }}>{c.code}</td>
                     <td>{c.planId?.name || '—'}</td>
                     <td>
-                      <span className={`code-status code-status-${c.status}`}>{c.status}</span>
+                      <span className={`code-status ${c.status ? `code-status-${c.status}` : ''}`}>{c.status || '—'}</span>
                     </td>
                     <td>{c.usedBy?.name || c.usedBy?.email || '—'}</td>
-                    <td>{c.usedAt ? new Date(c.usedAt).toLocaleDateString() : '—'}</td>
-                    <td>{c.expiresAt ? new Date(c.expiresAt).toLocaleDateString() : '—'}</td>
+                    <td>{c.usedAt ? formatDate(c.usedAt, lang) : '—'}</td>
+                    <td>{c.expiresAt ? formatDate(c.expiresAt, lang) : '—'}</td>
                     <td>
                       {c.status === 'active' && <button onClick={() => handleRevokeCode(c._id)}>&#128465;</button>}
                     </td>
@@ -325,20 +334,20 @@ const AdminPricingPage = () => {
           {showGenModal && (
             <div className="modal-overlay" onClick={() => !generating && setShowGenModal(false)}>
               <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 480 }}>
-                <h3>Generate Subscription Codes</h3>
-                <label>Plan</label>
+                <h3>{t('admin.pricing.genTitle')}</h3>
+                <label>{t('admin.pricing.genPlan')}</label>
                 <select value={genPlanId} onChange={(e) => { setGenPlanId(e.target.value); setGenResult(null); }} disabled={generating}>
-                  <option value="">— Select Plan —</option>
+                  <option value="">{t('admin.pricing.genSelectPlan')}</option>
                   {plans.map((p) => <option key={p._id} value={p._id}>{p.name} — {p.discipline} Y{p.year}</option>)}
                 </select>
-                <label>Number of Codes</label>
+                <label>{t('admin.pricing.genCount')}</label>
                 <input type="number" min="1" max="100" value={genCount} onChange={(e) => { setGenCount(Number(e.target.value)); setGenResult(null); }} disabled={generating} />
-                <label>Expires (optional)</label>
+                <label>{t('admin.pricing.genExpiry')}</label>
                 <input type="date" value={genExpiry} onChange={(e) => setGenExpiry(e.target.value)} disabled={generating} />
-                <label>Notes (optional)</label>
-                <input type="text" value={genNotes} onChange={(e) => setGenNotes(e.target.value)} placeholder="Internal notes" disabled={generating} />
+                <label>{t('admin.pricing.genNotes')}</label>
+                <input type="text" value={genNotes} onChange={(e) => setGenNotes(e.target.value)} placeholder={t('admin.pricing.genNotesPlaceholder')} disabled={generating} />
 
-                {generating && <p style={{ textAlign: 'center', color: '#888', margin: '12px 0' }}>Generating codes...</p>}
+                {generating && <p style={{ textAlign: 'center', color: 'var(--dc-text-muted)', margin: '12px 0' }}>{t('admin.pricing.genGenerating')}</p>}
 
                 {genResult && genResult.length > 0 && (
                   <>
@@ -347,17 +356,10 @@ const AdminPricingPage = () => {
                         <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 10px', background: '#f8f8f8', borderRadius: 6, marginBottom: 4, fontFamily: 'monospace', fontSize: '0.85rem' }}>
                           <span>&#128196; {code}</span>
                           <button onClick={() => copyCode(code)} style={{ padding: '4px 10px', border: '1px solid #ccc', borderRadius: 4, background: '#fff', cursor: 'pointer', fontSize: '0.75rem' }}>Copy</button>
-      <ConfirmModal
-        open={confirm.open}
-        title={confirm.title}
-        message={confirm.message}
-        onConfirm={confirm.onConfirm}
-        onCancel={() => setConfirm(c => ({ ...c, open: false }))}
-      />
     </div>
                       ))}
                     </div>
-                    <p style={{ fontSize: '0.75rem', color: '#888', textAlign: 'center' }}>Codes auto-generated. Change plan or count to regenerate.</p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--dc-text-muted)', textAlign: 'center' }}>{t('admin.pricing.genAutoNote')}</p>
                   </>
                 )}
 
@@ -372,15 +374,15 @@ const AdminPricingPage = () => {
 
       {tab === 'daily' && (
         <div className="admin-card" style={{ maxWidth: 500, marginTop: 16 }}>
-          <h3 style={{ marginBottom: 12 }}>Daily Quiz Configuration</h3>
+          <h3 style={{ marginBottom: 12 }}>{t('admin.pricing.dailyTitle')}</h3>
           {dailyLoading ? (
-            <Spinner text="Loading config..." />
+            <Spinner text={t('admin.pricing.loadPlans')} />
           ) : (
             <>
-              <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: 12 }}>
-                Set the number of quiz questions shown to each user in their daily quiz.
+              <p style={{ fontSize: '0.85rem', color: 'var(--dc-text-muted)', marginBottom: 12 }}>
+                {t('admin.pricing.dailyDesc')}
               </p>
-              <label>Questions per day</label>
+              <label>{t('admin.pricing.dailyLabel')}</label>
               <input
                 type="number" min="1" max="50"
                 value={dailyCount}
@@ -395,6 +397,14 @@ const AdminPricingPage = () => {
           )}
         </div>
       )}
+
+      <ConfirmModal
+        open={confirm.open}
+        title={confirm.title}
+        message={confirm.message}
+        onConfirm={confirm.onConfirm}
+        onCancel={() => setConfirm(c => ({ ...c, open: false }))}
+      />
     </div>
   );
 };

@@ -1,25 +1,29 @@
 import React from 'react';
+import useDocumentTitle from '../utils/useDocumentTitle';
+import { useTranslation } from '../context/LanguageContext';
 import '../styles/pagesStyle/About.css';
 import '../styles/teal-theme.css';
 
 const AboutPage = () => {
+  const { t } = useTranslation();
+  useDocumentTitle(t('about.title'));
   return (
-    <div className="page-teal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="page-teal" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center' }}>
       <div className="card-teal" style={{ maxWidth: '720px' }}>
-        <h1 className="about-heading">À propos de MAITRISEZ</h1>
+        <h1 className="about-heading">{t('about.title')}</h1>
         <p className="about-paragraph">
-          Bienvenue sur MAITRISEZ ! Cette plateforme est conçue pour rendre l'apprentissage amusant et engageant en testant vos connaissances sur divers sujets. Que vous soyez un étudiant préparant des examens, un passionné de culture générale ou quelqu'un qui aime les défis, MAITRISEZ offre une façon interactive d'apprendre et de progresser.
+          {t('about.intro')}
         </p>
-        <h3 className="features-heading">Fonctionnalités principales :</h3>
+        <h3 className="features-heading">{t('about.featuresTitle')}</h3>
         <ul className="features-list">
-          <li>🎯 Plusieurs catégories au choix</li>
-          <li>⏱️ QCM chronométrés pour plus de défi</li>
-          <li>📈 Suivez vos scores et vos progrès</li>
-          <li>🧠 Questions de différents niveaux de difficulté</li>
-          <li>🔗 Option de partager vos résultats avec vos amis</li>
+          <li>🎯 {t('about.feature1')}</li>
+          <li>⏱️ {t('about.feature2')}</li>
+          <li>📈 {t('about.feature3')}</li>
+          <li>🧠 {t('about.feature4')}</li>
+          <li>🔗 {t('about.feature5')}</li>
         </ul>
         <p className="about-paragraph">
-          Notre mission est de fournir une plateforme où l'apprentissage rencontre le divertissement, garantissant aux utilisateurs de profiter de leur parcours tout en acquérant de nouvelles connaissances. Restez curieux, continuez à vous entraîner et voyez comment vous vous comparez aux autres !
+          {t('about.mission')}
         </p>
       </div>
     </div>

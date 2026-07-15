@@ -2,10 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { SkeletonQuizItem } from '../components/LoadingSkeleton';
+import { useTranslation } from '../context/LanguageContext';
+import { formatDate } from '../utils/formatDate';
 import { logger } from '../utils/logger';
+import useDocumentTitle from '../utils/useDocumentTitle';
 import '../styles/teal-theme.css';
 
 const ReviewPage = () => {
+  const { t, lang } = useTranslation();
+  useDocumentTitle(t('review.title'));
   const [wrongAnswers, setWrongAnswers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -51,21 +56,21 @@ const ReviewPage = () => {
   return (
     <div className="page-teal">
       <div className="card-teal">
-        <h2>🔄 Spaced Repetition — Review Failed Questions</h2>
+        <h2>🔄 {t('review.title')}</h2>
         {error ? (
           <div className="empty-state" style={{ color: 'var(--color-danger)' }}>
-                <p>Error loading: {error}</p>
-                <button type="button" className="btn-primary" onClick={fetchResults} style={{ marginTop: '12px' }}>Retry</button>
+                <p>{t('review.errorLoading', { error })}</p>
+                <button type="button" className="btn-primary" onClick={fetchResults} style={{ marginTop: '12px' }}>{t('review.retry')}</button>
           </div>
         ) : wrongAnswers.length === 0 ? (
           <div className="empty-state">
-            <p style={{ fontSize: '16px', marginBottom: '8px' }}>No questions to review!</p>
-            <p style={{ color: 'var(--text-muted)' }}>All previously failed questions have been retried successfully, or you haven't attempted any quizzes yet.</p>
+            <p style={{ fontSize: '16px', marginBottom: '8px' }}>{t('review.emptyTitle')}</p>
+            <p style={{ color: 'var(--text-muted)' }}>{t('review.emptyDesc')}</p>
           </div>
         ) : (
           <>
             <p style={{ color: 'var(--text-muted)', marginBottom: '16px' }}>
-              {wrongAnswers.length} question{wrongAnswers.length > 1 ? 's' : ''} to review. Questions you answered incorrectly are shown here for spaced repetition — retry them to strengthen your memory before the exam.
+              {t('review.count', { count: wrongAnswers.length })}
             </p>
             {wrongAnswers.map((r) => {
               const quiz = r.quizId;
@@ -77,10 +82,10 @@ const ReviewPage = () => {
                     <img src={`${API_BASE_URL}/api/quiz-images/${quiz.question.questionImage}`} alt="Question" style={{ maxWidth: '100%', maxHeight: 150, borderRadius: 6, marginTop: 6, marginBottom: 6 }} />
                   )}
                   <div className="qmeta">
-                    Last attempt: {new Date(r.timestamp).toLocaleDateString('en-US')}
+                    {t('review.lastAttempt', { date: formatDate(r.timestamp, lang) })}
                   </div>
                   <button className="btn-primary" onClick={() => navigate(`/quiz/${quiz._id}`, { state: { quizId: quiz._id, quizName: quiz.question?.questionText || quiz.quizId, question: quiz.question, caseId: quiz.caseId || null } })}>
-                    Retry
+                    {t('review.retryBtn')}
                   </button>
                 </div>
               );

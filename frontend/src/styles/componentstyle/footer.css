@@ -41,8 +41,9 @@
   text-decoration: underline;
 }
 
-[data-theme="dark"] .footer-link:hover {
-  color: var(--accent-amber, #FF5205);
+.footer-link:hover {
+  color: light-dark(var(--teal-dark, #04484F), var(--accent-amber, #FF5205));
+  text-decoration: underline;
 }
 
 .footer-social {

@@ -20,14 +20,14 @@ export const submitFeedback = catchAsync(async (req, res) => {
     pageUrl: pageUrl ? stripHtml(pageUrl.slice(0, 500)) : '',
   });
 
-  res.status(201).json({ message: 'Feedback submitted', feedback });
   broadcast('feedback:new', { feedbackId: feedback._id });
+  return res.status(201).json({ message: 'Feedback submitted', feedback });
 });
 
 export const getAllFeedback = catchAsync(async (req, res) => {
   const { skip, limit, page } = req.pagination || {};
   const filter = {};
-  if (req.query.status) filter.status = req.query.status;
+  if (req.query.status) filter.status = String(req.query.status);
 
   const [feedbackList, total] = await Promise.all([
     Feedback.find(filter)

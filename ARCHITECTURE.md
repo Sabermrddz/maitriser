@@ -154,6 +154,21 @@ Authorization: Bearer <JWT Clerk>
 4. Retourner { userId, role }
 ```
 
+**Gestion des erreurs :**
+- `TokenVerificationError` → 401 avec message explicite (token expiré, signature invalide)
+- `ClerkAPIResponseError` → statut approprié avec le message de Clerk
+- Autres erreurs → 500 avec le message d'erreur pour diagnostic
+- Log structuré incluant `message`, `reason`, `status`
+- Succès → `logger.info({ userId, role }, 'Account synced via Clerk')`
+
+### 2.6 Synchronisation échouée — UX
+
+Si `/api/auth/clerk-sync` échoue, le frontend affiche une page d'erreur dédiée (`SyncErrorPage`) :
+1. Message d'erreur technique affiché (format monospace)
+2. Bouton **Retry** — appelle `getToken()` pour un token Clerk frais puis réessaye
+3. Bouton **Sign Out** — déconnecte l'utilisateur de Clerk
+4. Utilise `AbortController` pour le nettoyage au démontage du composant
+
 ### 2.6 WebSocket (admin)
 
 - Point de montage : `/ws/admin`
@@ -226,10 +241,23 @@ Authorization: Bearer <JWT Clerk>
 5. fetchWithAuth appelle refreshToken() avant chaque tentative,
    qui appelle Clerk getToken() pour un token frais
        │
-6. Backend verifyToken :
+6. AppContent (effet global) :
+   ├── Appelle getToken() (retry 30×300ms si null)
+   ├── POST /api/auth/clerk-sync avec Bearer token
+   ├── Succès → setToken(appJWT), stocke userId/role dans localStorage
+   └── Échec → SyncErrorPage avec message + Retry/SignOut
+       │
+7. Backend verifyToken :
    - Tente clerkVerify(token) → payload.sub → User.findOne({clerkId})
    - Échec → fallback JWT legacy
 ```
+
+**Gestion d'échec du sync :**
+- Le token Clerk est utilisé pour `clerk-sync` ; si ce endpoint échoue, aucun JWT applicatif n'est émis
+- Toutes les requêtes API suivantes utilisent le token Clerk (via l'intercepteur axios)
+- Le middleware `verifyToken` tente Clerk → échec → fallback JWT → échec → 401
+- L'utilisateur voit une page d'erreur avec possibilité de réessayer ou se déconnecter
+- Au retry, `getToken()` est rappelé pour obtenir un token Clerk frais
 
 ### 3.4 Les 4 patterns d'appels API
 
@@ -433,6 +461,28 @@ Les deux applications React (userFrontend + AdminFrontend) sont fusionnées en u
 ### Commit 12 — `92e636d` — Fix sync login
 **Problème :** Le sync Clerk → MongoDB s'exécutait dans login.jsx avec une race condition (le statut dans les dépendances useEffect l'annulait). Si Clerk redirigeait ailleurs qu'à `/login`, le sync ne s'exécutait pas du tout.
 **Solution :** Déplacement du sync dans AppContent (global). Login.jsx simplifié : affiche `<SignIn />` et attend `userId` dans localStorage. Ajout de `afterSignInUrl="/login"`.
+
+### Commit 13 — (non commité) — Robustesse sync & logs
+
+**Améliorations :**
+
+1. **Gestion d'erreur du `clerk-sync` :**
+   - Classification des erreurs : `TokenVerificationError` → 401, `ClerkAPIResponseError` → statut Clerk, autres → 500
+   - Message d'erreur détaillé retourné au client (plus de "Failed to sync account" générique)
+   - Log enrichi avec `message`, `reason`, `status` pour diagnostic
+
+2. **UX de l'échec de synchronisation :**
+   - Page d'erreur dédiée (`SyncErrorPage`) avec le message technique et les boutons Retry / Sign Out
+   - `useCallback` pour la fonction de sync avec `AbortController` pour le nettoyage
+   - Au retry, un token Clerk frais est obtenu via `getToken()`
+
+3. **Logs ajoutés :**
+   - `clerkRoutes.js` — log de succès après sync réussi
+   - `authController.js` — log de succès après vérification Clerk et JWT
+   - `userAuthRoutes.js` — logs d'inscription, connexion, mise à jour de profil
+   - `quizResultRoutes.js` — log de soumission de quiz + correction du `broadcast` après `return` (dead code)
+
+4. **Correction :** `broadcast('quiz:submitted', ...)` dans `quizResultRoutes.js` était placé après `return`, rendant l'appel WebSocket mort. Déplacé avant le `return`.
 
 ---
 

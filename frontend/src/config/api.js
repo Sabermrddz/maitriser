@@ -6,9 +6,10 @@ export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 export const authHeaders = () => {
   const token = getToken();
   if (!token) logger.warn('No token in store');
-  else logger.info('Token present, length=' + token.length);
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 export const fetchWithAuth = async (url, options = {}) => {
   const doFetch = async (token) => {
@@ -22,20 +23,48 @@ export const fetchWithAuth = async (url, options = {}) => {
   };
 
   const maxAttempts = 3;
+  let lastErr;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    let token = await refreshToken();
+    const token = await refreshToken();
     if (!token) {
-      logger.error('No token available at all');
+      logger.error('No auth token available');
       throw new Error('No auth token');
     }
-    const res = await doFetch(token);
-    if (res.status !== 401) return res;
-    const body = await res.clone().text();
-    logger.warn(`Attempt ${attempt}/${maxAttempts} got 401:`, body);
-    if (attempt < maxAttempts) {
-      await new Promise((r) => setTimeout(r, 300 * attempt));
+
+    let res;
+    try {
+      res = await doFetch(token);
+    } catch (networkErr) {
+      lastErr = networkErr;
+      logger.warn(`Attempt ${attempt}/${maxAttempts} network error:`, networkErr.message);
+      if (attempt < maxAttempts) {
+        await sleep(300 * attempt);
+        continue;
+      }
+      throw networkErr;
     }
+
+    if (res.status === 401) {
+      const body = await res.clone().text();
+      logger.warn(`Attempt ${attempt}/${maxAttempts} got 401:`, body);
+      if (attempt < maxAttempts) {
+        await sleep(300 * attempt);
+        continue;
+      }
+      throw new Error('Token rejected after 3 retries');
+    }
+
+    if (res.status >= 500 && res.status < 600) {
+      lastErr = new Error(`Server error ${res.status}`);
+      logger.warn(`Attempt ${attempt}/${maxAttempts} got ${res.status}`);
+      if (attempt < maxAttempts) {
+        await sleep(500 * attempt);
+        continue;
+      }
+      return res;
+    }
+
+    return res;
   }
-  logger.error('All attempts exhausted');
-  throw new Error('Token rejected after 3 retries');
+  throw lastErr || new Error('Request failed');
 };

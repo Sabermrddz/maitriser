@@ -1,9 +1,14 @@
 import mongoose from 'mongoose';
 
+const courseSubdoc = new mongoose.Schema({
+  name: { type: String, required: true },
+  pdfId: { type: String, default: '' },
+}, { _id: false });
+
 const moduleSchema = new mongoose.Schema({
   name: { type: String, required: true },
   year: { type: Number, required: true, min: 1, max: 7 },
-  courses: [{ type: String }],
+  courses: [courseSubdoc],
   discipline: { type: String, enum: ['medicine', 'pharmacy'], default: 'medicine' },
 }, { timestamps: true });
 

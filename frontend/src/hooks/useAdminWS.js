@@ -20,7 +20,7 @@ export const useAdminWS = () => {
 
     refreshToken().then((token) => {
       if (cancelledRef.current || !token) return;
-      const ws = new WebSocket(`${wsUrl}?token=${token}`);
+      const ws = new WebSocket(wsUrl, [token]);
       wsRef.current = ws;
 
       ws.onopen = () => {

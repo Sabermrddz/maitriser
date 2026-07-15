@@ -10,7 +10,6 @@ const userSchema = new mongoose.Schema({
   role:     { type: String, enum: ['user', 'admin'], default: 'user' },
   discipline: { type: String, enum: ['medicine', 'pharmacy', ''], default: '' },
   year:   { type: Number, default: null },
-  freeTrialUsed: { type: Boolean, default: false },
   subscription: {
     planId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Plan', default: null },
     planName: { type: String, default: '' },
@@ -18,6 +17,7 @@ const userSchema = new mongoose.Schema({
     startDate: { type: Date, default: null },
     endDate:   { type: Date, default: null },
   },
+  deletedAt:          { type: Date, default: null },
   emailVerified:      { type: Boolean, default: false },
   verificationToken:  { type: String, default: null },
   verificationExpiry: { type: Date, default: null },
@@ -39,6 +39,7 @@ userSchema.methods.comparePassword = async function (inputPassword) {
 
 userSchema.index({ role: 1, createdAt: -1 });
 userSchema.index({ createdAt: -1 });
+userSchema.index({ discipline: 1, year: 1 });
 userSchema.index({ verificationToken: 1 }, { sparse: true });
 userSchema.index({ resetToken: 1 }, { sparse: true });
 

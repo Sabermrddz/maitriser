@@ -1,63 +1,52 @@
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import useDocumentTitle from '../utils/useDocumentTitle';
+import LandingNav from '../components/LandingNav';
+import HomeHero from '../components/HomeHero';
+import FeatureStrip from '../components/FeatureStrip';
+import EcosSection from '../components/EcosSection';
+import PricingSection from '../components/PricingSection';
+import FaqSection from '../components/FaqSection';
+import FinalCtaSection from '../components/FinalCtaSection';
 import { useTranslation } from '../context/LanguageContext';
-import '../styles/teal-theme.css';
 import '../styles/pagesStyle/Home.css';
 
-const features = [
-  { icon: '🧠', key: 'quiz', to: '/quizPage' },
-  { icon: '📖', key: 'library', to: '/books' },
-  { icon: '🎤', key: 'oral', to: '/voice-exams' },
-];
-
-export default function Home({ toggleDarkMode, isDarkMode }) {
-  const navigate = useNavigate();
+export default function Home() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  useDocumentTitle(t('landing.title'));
+
+  useEffect(() => {
+    const reveals = document.querySelectorAll('.reveal');
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) {
+          e.target.classList.add('is-visible');
+          io.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.15 });
+    reveals.forEach(el => io.observe(el));
+    return () => io.disconnect();
+  }, []);
+
   return (
-    <div className="landing">
-      <nav className="landing-nav">
-        <div className="nav-left">
-          <img src="/logo.png" alt="MAITRISEZ" className="nav-logo-img" />
-        </div>
-        <div className="nav-center">
-          <a href="#features">{t('home.nav.features')}</a>
-          <a href="#pricing">{t('home.nav.pricing')}</a>
-          <a href="#contact">{t('home.nav.contact')}</a>
-          <Link to="/login">{t('home.nav.studentLogin')}</Link>
-          <button onClick={toggleDarkMode} className="nav-dark-toggle" title={isDarkMode ? t('nav.lightMode') : t('nav.darkMode')}>
-            {isDarkMode ? '☀️' : '🌙'}
-          </button>
-        </div>
-        <div className="nav-right">
-          <Link to="/signup" className="nav-cta">{t('home.hero.cta')}</Link>
-        </div>
-      </nav>
-
-      <section className="hero">
-        <div className="hero-card">
-          <h1>{t('home.hero.title')}</h1>
-          <p>{t('home.hero.subtitle')}</p>
-          <Link to="/signup" className="hero-cta">{t('home.hero.cta')}</Link>
-        </div>
-      </section>
-
-      <section className="features" id="features">
-        {features.map((f, i) => (
-          <div key={i} className="feature-card" onClick={() => navigate(f.to)}>
-            <div className="feature-icon-circle">
-              <span className="feature-emoji">{f.icon}</span>
-            </div>
-            <h3>{t(`home.features.${f.key}`)}</h3>
-            <p className="feature-desc">{t(`home.features.${f.key}.desc`)}</p>
-          </div>
-        ))}
-      </section>
+    <div className="landing-root">
+      <LandingNav />
+      <HomeHero />
+      <FeatureStrip />
+      <EcosSection />
+      <PricingSection />
+      <FaqSection />
+      <FinalCtaSection />
 
       <footer className="landing-footer">
-        <img src="/logo.png" alt="MAITRISEZ" className="footer-logo-img" />
+        <div className="landing-footer-links">
+          <a href="/terms" onClick={(e) => { e.preventDefault(); navigate('/terms'); }}>{t('landing.footer.terms')}</a>
+          <a href="/privacy" onClick={(e) => { e.preventDefault(); navigate('/privacy'); }}>{t('landing.footer.privacy')}</a>
+        </div>
+        <span>{t('landing.footer.copyright')}</span>
       </footer>
-
-      <button className="fab" onClick={() => navigate('/help')} title="Aide">?</button>
     </div>
   );
 }

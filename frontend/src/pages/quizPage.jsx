@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { SkeletonQuizItem, SkeletonFilters } from '../components/LoadingSkeleton';
-import { useToast } from '../components/Toast.jsx';
 import { useTranslation } from '../context/LanguageContext';
 import Pagination from '../components/Pagination';
-import { shuffle } from '../utils/shuffle';
-import { useSound } from '../context/SoundContext';
 import '../styles/teal-theme.css';
+import { logger } from '../utils/logger';
+import useDocumentTitle from '../utils/useDocumentTitle';
 
 const QuizPage = () => {
   const [modules, setModules]                     = useState([]);
@@ -16,43 +15,50 @@ const QuizPage = () => {
   const [selectedCourse, setSelectedCourse]       = useState('');
   const [moduleCourses, setModuleCourses]         = useState([]);
   const [quizzes, setQuizzes]                     = useState([]);
-  const [examCount, setExamCount]                 = useState(10);
-  const [examTimer, setExamTimer]                 = useState(30);
   const [studyMode, setStudyMode]                 = useState(false);
-  const [selectionCriteria, setSelectionCriteria] = useState('random');
   const [loadingModules, setLoadingModules]       = useState(true);
   const [loadingQuizzes, setLoadingQuizzes]       = useState(true);
   const [modulesError, setModulesError]           = useState(null);
   const [quizzesError, setQuizzesError]           = useState(null);
   const [searchQuery, setSearchQuery]             = useState('');
+  const [debouncedSearch, setDebouncedSearch]     = useState('');
   const [page, setPage]                           = useState(1);
   const [totalPages, setTotalPages]               = useState(1);
-  const [starting, setStarting]                   = useState(false);
   const [subscription, setSubscription]           = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
+  const [subError, setSubError]                   = useState(false);
   const navigate = useNavigate();
-  const notify = useToast();
+  const location = useLocation();
   const { t } = useTranslation();
-  const play = useSound();
 
-  useEffect(() => { document.title = 'QCM — MAITRISEZ'; }, []);
+  useDocumentTitle(t('nav.qcm'));
 
   useEffect(() => {
     const controller = new AbortController();
     fetchModules(controller.signal);
     return () => controller.abort();
   }, []);
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetchWithAuth(`${API_BASE_URL}/api/payments/subscription`);
-        if (res.ok) { const d = await res.json(); setSubscription(d.subscription); }
-      } catch { /* ignore */ }
-    })();
+  const loadSubscription = useCallback(async () => {
+    setSubscriptionLoading(true);
+    setSubError(false);
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/payments/subscription`);
+      if (res.ok) { const d = await res.json(); setSubscription(d.subscription); }
+    } catch (err) { logger.error({ err }, 'quizPage fetchSubscription failed'); setSubError(true); }
+    finally { setSubscriptionLoading(false); }
   }, []);
+  useEffect(() => { loadSubscription(); }, [loadSubscription]);
   useEffect(() => {
-    const userYear = localStorage.getItem('userYear') || '';
-    setFilteredModules(userYear ? modules.filter((m) => m.year === Number(userYear)) : modules);
-    setSelectedModuleId('');
+    let userYear = ''; try { userYear = localStorage.getItem('userYear') || ''; } catch { /* incognito */ }
+    const filtered = userYear ? modules.filter((m) => m.year === Number(userYear)) : modules;
+    setFilteredModules(filtered);
+    const pendingModuleId = location.state?.moduleId;
+    if (pendingModuleId && filtered.some((m) => m._id === pendingModuleId)) {
+      setSelectedModuleId(pendingModuleId);
+      window.history.replaceState({}, '');
+    } else {
+      setSelectedModuleId('');
+    }
     setSelectedCourse('');
   }, [modules]);
 
@@ -64,8 +70,13 @@ const QuizPage = () => {
   }, [selectedModuleId, modules]);
 
   useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchQuery), 400);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
     fetchQuizzes(1);
-  }, [selectedModuleId, selectedCourse]);
+  }, [selectedModuleId, selectedCourse, debouncedSearch]);
 
   const fetchModules = async (signal) => {
     setLoadingModules(true);
@@ -92,14 +103,13 @@ const QuizPage = () => {
     setLoadingQuizzes(true);
     setQuizzesError(null);
     try {
-      const discipline = localStorage.getItem('userDiscipline') || '';
-      const year = localStorage.getItem('userYear') || '';
+      let discipline = '', year = ''; try { discipline = localStorage.getItem('userDiscipline') || ''; year = localStorage.getItem('userYear') || ''; } catch { /* incognito */ }
       let url = `${API_BASE_URL}/api/quizzes?page=${pageNum}&limit=50`;
       if (discipline)    url += `&discipline=${discipline}`;
       if (year)          url += `&year=${year}`;
       if (selectedModuleId)      url += `&moduleId=${selectedModuleId}`;
       if (selectedCourse)        url += `&course=${encodeURIComponent(selectedCourse)}`;
-      if (searchQuery.trim())    url += `&search=${encodeURIComponent(searchQuery.trim())}`;
+      if (debouncedSearch.trim())    url += `&search=${encodeURIComponent(debouncedSearch.trim())}`;
       const res = await fetchWithAuth(url);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json();
@@ -112,7 +122,7 @@ const QuizPage = () => {
     } finally {
       if (mountedRef.current) setLoadingQuizzes(false);
     }
-  }, [selectedModuleId, selectedCourse, searchQuery]);
+  }, [selectedModuleId, selectedCourse, debouncedSearch]);
 
   const filteredQuizzes = quizzes;
 
@@ -124,71 +134,10 @@ const QuizPage = () => {
         question: quiz.question,
         studyMode,
         caseId:   quiz.caseId || null,
+        course:   quiz.course || '',
+        moduleId: quiz.moduleId || null,
       },
     });
-  };
-
-  const distributeQuizzes = (quizzes, count, criteria) => {
-    if (count <= 0) return [];
-    if (criteria === 'random') return shuffle(quizzes).slice(0, count);
-
-    const groups = {};
-    for (const q of quizzes) {
-      const key = criteria === 'per-module' ? (q.moduleId?._id || q.moduleId) : String(q.year);
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(q);
-    }
-    const keys = Object.keys(groups);
-    const perGroup = Math.ceil(count / keys.length);
-    const selected = [];
-    for (const key of keys) {
-      const pool = shuffle(groups[key]);
-      selected.push(...pool.slice(0, perGroup));
-    }
-    return shuffle(selected).slice(0, count);
-  };
-
-  const handleStartMockExam = async () => {
-    if (starting) return;
-    setStarting(true);
-    try {
-      const caseIds = [...new Set(filteredQuizzes.filter((q) => q.caseId).map((q) => q.caseId._id || q.caseId))];
-      const caseMap = {};
-      const caseResults = await Promise.allSettled(
-        caseIds.map((cid) =>
-          fetchWithAuth(`${API_BASE_URL}/api/cases/${cid}`).then((res) =>
-            res.ok ? res.json().then((d) => ({ cid, d })) : null
-          )
-        )
-      );
-      caseResults.forEach((r) => { if (r.status === 'fulfilled' && r.value) caseMap[r.value.cid] = r.value.d; });
-      const blocks = [];
-      const seen = new Set();
-      for (const quiz of filteredQuizzes) {
-        if (quiz.caseId) {
-          const cid = quiz.caseId._id || quiz.caseId;
-          if (!seen.has(cid)) {
-            seen.add(cid);
-            const d = caseMap[cid];
-            if (d && d.quizzes) blocks.push({ type: 'case', caseTitle: d.case.title, caseDescription: d.case.description, quizzes: d.quizzes.filter((q) => q.question?.questionText) });
-          }
-        } else {
-          blocks.push({ type: 'single', quiz });
-        }
-      }
-      const shuffled = shuffle(blocks);
-      const expanded = [];
-      for (const b of shuffled) {
-        if (b.type === 'single') expanded.push({ ...b.quiz, _blockType: 'single' });
-        else b.quizzes.forEach((cq, i) => expanded.push({ ...cq, _blockType: 'case', _caseTitle: b.caseTitle, _caseDescription: b.caseDescription, _isFirstOfCase: i === 0 }));
-      }
-      const count = Math.min(Math.max(examCount, 1), expanded.length);
-      const selected = distributeQuizzes(expanded, count, selectionCriteria);
-      play('start');
-      navigate('/mock-exam', { state: { quizzes: selected, count: selected.length, examTimer, casesExpanded: true } });
-    } catch {
-      notify('Erreur lors du chargement des cas.', 'error');
-    } finally { setStarting(false); }
   };
 
   return (
@@ -196,14 +145,36 @@ const QuizPage = () => {
       <div className="card-teal">
         <h2>{t('quiz.title')}</h2>
 
-        {modulesError ? (
+        {!subscriptionLoading && subError && (
+          <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fdecea', borderRadius: 12, marginBottom: 16 }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>&#9888;</div>
+            <h3 style={{ color: '#c0392b', margin: '0 0 8px' }}>{t('subscription.error.title')}</h3>
+            <p style={{ color: '#c0392b', fontSize: '0.9rem', margin: '0 0 16px' }}>
+              {t('subscription.error.retryMsg')}
+            </p>
+            <button className="btn-primary" onClick={loadSubscription}>{t('subscription.error.retry')}</button>
+          </div>
+        )}
+
+        {!subscriptionLoading && !subError && (!subscription || subscription.status !== 'active' || (subscription.endDate && new Date(subscription.endDate) < new Date())) && (
+          <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff3cd', borderRadius: 12, marginBottom: 16 }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>&#128274;</div>
+            <h3 style={{ color: '#856404', margin: '0 0 8px' }}>{t('subscription.required.title')}</h3>
+            <p style={{ color: '#856404', fontSize: '0.9rem', margin: '0 0 16px' }}>
+              {t('subscription.required.quizzes')}
+            </p>
+            <button className="btn-primary" onClick={() => navigate('/pricing')}>{t('subscription.required.cta')}</button>
+          </div>
+        )}
+
+        {subscription && subscription.status === 'active' && modulesError ? (
           <div className="empty-state" style={{ color: '#e74c3c' }}>
             <p>{t('quiz.loadError')} : {modulesError}</p>
             <button type="button" className="btn-primary" onClick={fetchModules} style={{ marginTop: '12px' }}>{t('quiz.retry')}</button>
           </div>
-        ) : loadingModules ? (
+        ) : subscription && subscription.status === 'active' && loadingModules ? (
           <SkeletonFilters count={3} />
-        ) : (
+        ) : subscription && subscription.status === 'active' && (
           <div className="filters-row">
             <select value={selectedModuleId} onChange={(e) => setSelectedModuleId(e.target.value)}>
               <option value="">{t('quiz.filters.allModules')}</option>
@@ -211,21 +182,13 @@ const QuizPage = () => {
             </select>
             <select value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)} disabled={!selectedModuleId || moduleCourses.length === 0}>
               <option value="">{t('quiz.filters.allCourses')}</option>
-              {moduleCourses.map((c, i) => <option key={i} value={c}>{c}</option>)}
+              {moduleCourses.map((c, i) => {
+                const cName = typeof c === 'string' ? c : c.name || '';
+                return <option key={i} value={cName}>{cName}</option>;
+              })}
             </select>
             <input type="text" placeholder={`🔍 ${t('quiz.filters.search')}`} value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)} style={{ flex: 1, minWidth: '180px', padding: '8px', borderRadius: '8px', border: '1px solid var(--border-light, #ddd)', fontSize: '14px' }} />
-          </div>
-        )}
-
-        {subscription && subscription.status !== 'active' && (
-          <div style={{ textAlign: 'center', padding: '40px 20px', background: '#fff3cd', borderRadius: 12, marginBottom: 16 }}>
-            <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>&#128274;</div>
-            <h3 style={{ color: '#856404', margin: '0 0 8px' }}>Subscription Required</h3>
-            <p style={{ color: '#856404', fontSize: '0.9rem', margin: '0 0 16px' }}>
-              A subscription is required to access quizzes. Subscribe to unlock all content for your discipline and year.
-            </p>
-            <button className="btn-primary" onClick={() => navigate('/pricing')}>View Plans</button>
           </div>
         )}
 
@@ -247,26 +210,6 @@ const QuizPage = () => {
             <SkeletonQuizItem count={5} />
           ) : (
             <>
-              {filteredQuizzes.length > 0 && (
-                <div className="exam-mode-section">
-                  <div className="exam-mode-header">🎯 {t('quiz.mockExam')}</div>
-                  <div className="exam-mode-controls">
-                    <span>{t('quiz.questions')}</span>
-                    <input type="number" className="exam-count-input" min="1" max={filteredQuizzes.length} value={examCount} onChange={(e) => setExamCount(Number(e.target.value))} />
-                    <span style={{ fontSize: '13px', color: '#888' }}>({t('quiz.max')} {filteredQuizzes.length})</span>
-                    <span>{t('quiz.time')}</span>
-                    <input type="number" className="exam-count-input" min="1" max="180" value={examTimer} onChange={(e) => setExamTimer(Number(e.target.value))} />
-                    <select value={selectionCriteria} onChange={(e) => setSelectionCriteria(e.target.value)}
-                      style={{ padding: '8px', borderRadius: '8px', border: '1px solid var(--border-light, #ddd)', fontSize: '13px', background: 'var(--card-bg, #fff)' }}>
-                      <option value="random">{t('quiz.criteria.random')}</option>
-                      <option value="per-module">{t('quiz.criteria.perModule')}</option>
-                      <option value="per-year">{t('quiz.criteria.perYear')}</option>
-                    </select>
-                    <button type="button" className="btn-primary exam-start-btn" onClick={handleStartMockExam} disabled={starting}>{starting ? t('quiz.starting', 'Démarrage...') : t('quiz.startMock')}</button>
-                  </div>
-                </div>
-              )}
-
               {filteredQuizzes.length === 0 ? (
                 <div className="empty-state">
                   <p>{t('quiz.noQuizzes')}</p>
@@ -282,7 +225,7 @@ const QuizPage = () => {
                       <img src={`${API_BASE_URL}/api/quiz-images/${quiz.question.questionImage}`} alt="Question" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, marginTop: 8, marginBottom: 8 }} />
                     )}
                     <div className="qmeta">
-                      Année {quiz.year} — {quiz.moduleId?.name || ''}{quiz.course ? ` — ${quiz.course}` : ''}
+                      {t('quizPage.yearLabel')} {quiz.year} — {quiz.moduleId?.name || ''}{quiz.course ? ` — ${quiz.course}` : ''}
                     </div>
                     {quiz.caseId ? (
                       <button type="button" className="btn-primary" onClick={() => navigate(`/case-exam/${quiz.caseId._id || quiz.caseId}`)}>

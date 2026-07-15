@@ -1,21 +1,24 @@
 .admin-app {
     display: flex;
-    overflow: hidden;
+    min-height: 100vh;
   }
 
   .main-content {
     display: flex;
     width: 100%;
-  }
-
-  .page-content {
-    padding: 50px 20px 70px;
-    background-color: var(--dc-cream);
-    flex: 1;
     min-height: 100vh;
   }
 
-  button {
+  .page-content {
+    padding: 24px 24px 80px;
+    background-color: var(--dc-cream);
+    flex: 1;
+    min-height: 100vh;
+    overflow-y: auto;
+  }
+
+  /* Don't override all buttons globally — only bare/unstyled ones inside admin */
+  .admin-app button:not(.btn-primary):not(.btn-dark):not(.btn-secondary):not(.btn-ghost):not(.btn-icon):not(.admin-tab):not(.feedback-fab):not(.feedback-send-btn):not(.feedback-action-btn):not(.pricing-card-btn):not(.top-bar-btn):not(.top-bar-hamburger):not(.hamburger-btn):not(.sidebar-action-btn):not(.sidebar-toggle-btn):not(.dash-toggle-btn):not(.dash-sidebar-action):not(.dash-premium-btn):not(.dash-empty-cta):not(.dash-upgrade-btn):not(.dash-view-all):not(.dash-carousel-arrow):not(.daily-quiz-close-btn):not(.daily-quiz-check-btn):not(.daily-quiz-next-btn):not(.modal-close):not(.qm-cell-actions button):not(.code-copy-btn) {
     font-size: 1rem;
     padding: 10px 22px;
     background: linear-gradient(135deg, var(--dc-accent), var(--dc-deep));
@@ -25,9 +28,10 @@
     cursor: pointer;
     font-weight: 600;
     transition: opacity 0.2s, transform 0.15s;
+    font-family: inherit;
   }
 
-  button:hover {
+  .admin-app button:not(.btn-primary):not(.btn-dark):not(.btn-secondary):not(.btn-ghost):not(.btn-icon):not(.admin-tab):not(.feedback-fab):not(.feedback-send-btn):not(.feedback-action-btn):not(.pricing-card-btn):not(.top-bar-btn):not(.top-bar-hamburger):not(.hamburger-btn):not(.sidebar-action-btn):not(.sidebar-toggle-btn):not(.dash-toggle-btn):not(.dash-sidebar-action):not(.dash-premium-btn):not(.dash-empty-cta):not(.dash-upgrade-btn):not(.dash-view-all):not(.dash-carousel-arrow):not(.daily-quiz-close-btn):not(.daily-quiz-check-btn):not(.daily-quiz-next-btn):not(.modal-close):not(.qm-cell-actions button):not(.code-copy-btn):hover {
     opacity: 0.9;
     transform: translateY(-1px);
   }
@@ -45,8 +49,20 @@
     box-shadow: var(--dc-shadow);
   }
 
+  .sidebar-overlay {
+    display: none;
+  }
+
   @media (max-width: 768px) {
-    .page-content{
+    .page-content {
+      padding: 16px 12px 70px;
       margin-left: 0 !important;
+    }
+    .sidebar-overlay {
+      display: block;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 550;
     }
   }

@@ -1,176 +1,121 @@
-/* General Reset */
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background-color: #f3f4f6;
-}
-
-/* Parent Container */
 .login-page {
   display: flex;
   justify-content: center;
-  align-items: center;
-min-height: 100vh;
-  background-color: #e3eaf2;
-  padding-bottom: 50px;
+  align-items: flex-start;
+  min-height: 100vh;
+  overflow-y: auto;
+  padding: 40px 16px;
 }
 
-/* Login Container */
 .login-container {
   display: flex;
-  height: 70vh;
-  background-color: #ffffff;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 10px;
-  overflow: hidden;
+  background: var(--card-bg);
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-light);
   max-width: 900px;
   width: 100%;
 }
 
-/* Login Form */
 .login-form {
   flex: 1;
-  padding: 20px;
+  padding: 32px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  align-items: flex-start;
 }
 
-.login-form h2 {
-  font-size: 24px;
-  color: #333333;
-  margin-bottom: 20px;
+.login-sync-container {
+  justify-content: center;
+  align-items: center;
+  padding: 60px;
 }
 
-.form-group {
-  margin-bottom: 15px;
-  width: 100%;
+.login-sync-inner {
+  text-align: center;
 }
 
-.form-group label {
-  font-weight: bold;
-  margin-bottom: 5px;
-  display: block;
-  color: #555555;
-  width: 400px;
+.login-sync-inner p {
+  color: var(--text-muted);
+  font-size: var(--text-base);
 }
 
-.form-group input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #dddddd;
-  border-radius: 5px;
-  font-size: 16px;
-  box-sizing: border-box;
+.login-sync-error {
+  color: var(--color-danger);
+  margin-bottom: 16px;
 }
 
-.login-btn {
-  width: 100%;
-  padding: 10px;
-  background-color: rgb(56, 56, 232);
-  border: none;
-  border-radius: 5px;
-  color: #ffffff;
-  font-size: 16px;
-  cursor: pointer;
-  transition: background-color 0.3s;
+.login-loading {
+  font-size: var(--text-base);
+  color: var(--text-muted);
 }
 
-.login-btn:hover {
-  background-color: #0056b3;
-}
-
-/* Vertical Line */
 .vertical-line {
   width: 2px;
-  background-color: rgb(56, 56, 232);
-  margin: 0 20px;
+  background: linear-gradient(180deg, transparent, var(--teal-dark), transparent);
+  margin: 40px 0;
+  flex-shrink: 0;
 }
 
-/* Description Section */
 .description {
   flex: 1;
-  padding: 20px;
+  padding: 32px;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  background: linear-gradient(135deg, rgba(4, 72, 79, 0.03), rgba(193, 255, 48, 0.05));
 }
 
 .description h2 {
-  font-size: 24px;
-  color: #333333;
-  margin-bottom: 10px;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: var(--teal-dark);
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+  font-family: var(--font-family);
 }
 
 .description p {
-  font-size: 16px;
-  color: #555555;
+  font-size: 1rem;
+  color: var(--text-muted);
   line-height: 1.6;
+  font-family: var(--font-family);
 }
+
+[data-theme="dark"] .description {
+  background: linear-gradient(135deg, rgba(4, 72, 79, 0.15), rgba(193, 255, 48, 0.04));
+}
+
 @media (max-width: 768px) {
   .login-container {
     flex-direction: column;
-    height: 90vh;
-    margin-top: 30px;
-    width: 500px;
+    max-width: 500px;
   }
 
   .login-form,
   .description {
-    padding: 10px;
-  }
-
-  .login-form h2 {
-    font-size: 20px;
-  }
-
-  .form-group label {
-    font-size: 12px;
-  }
-
-  .form-group input {
-    font-size: 14px;
-  }
-
-  .login-btn {
-    font-size: 14px;
-    padding: 10px;
+    padding: 24px;
   }
 
   .vertical-line {
-    display: none;
+    width: 100%;
+    height: 2px;
+    margin: 0 24px;
+    background: linear-gradient(90deg, transparent, var(--teal-dark), transparent);
   }
 
   .description h2 {
-    font-size: 18px;
+    font-size: 1.4rem;
   }
 
   .description p {
-    font-size: 14px;
-    font-weight: bold;
+    font-size: 0.9rem;
   }
 }
 
 @media (max-width: 480px) {
-  .login-page {
-    padding: 0 10px;
-  }
-
-  .login-form h2 {
-    font-size: 18px;
-  }
-
-  .login-btn {
-    font-size: 14px;
-    padding: 8px;
-  }
-
-  .description h2 {
-    font-size: 16px;
-  }
-
-  .description p {
-    font-size: 20px;
+  .login-form,
+  .description {
+    padding: 20px 16px;
   }
 }

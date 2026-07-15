@@ -4,8 +4,10 @@ import { useAuth } from "@clerk/react";
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
 import { setToken } from '../utils/tokenStore';
+import { useTranslation } from '../context/LanguageContext';
 
 const AdminProtectedRoute = () => {
+  const { t } = useTranslation();
   const { isSignedIn, isLoaded, getToken } = useAuth();
   const [synced, setSynced] = useState(false);
   const [role, setRole] = useState(() => { try { return localStorage.getItem('adminRole'); } catch { return null; } });
@@ -36,7 +38,7 @@ const AdminProtectedRoute = () => {
         });
         clearTimeout(timeoutId);
         if (aborted) return;
-        localStorage.setItem('adminRole', res.data.role);
+        try { localStorage.setItem('adminRole', res.data.role); } catch { /* incognito */ }
         setRole(res.data.role);
         setSynced(true);
       } catch (err) {
@@ -49,9 +51,9 @@ const AdminProtectedRoute = () => {
     return () => { aborted = true; };
   }, [isSignedIn, isLoaded]);
 
-  if (!isLoaded) return <div style={{ padding: 24 }}>Vérification…</div>;
+  if (!isLoaded) return <div style={{ padding: 24 }}>{t('loading')}</div>;
   if (!isSignedIn) return <Navigate to="/login" replace />;
-  if (!synced) return <div style={{ padding: 24 }}>Syncing account…</div>;
+  if (!synced) return <div style={{ padding: 24 }}>{t('login.syncing')}</div>;
   if (role !== 'admin') return <Navigate to="/admin/setup" replace />;
   return <Outlet />;
 };

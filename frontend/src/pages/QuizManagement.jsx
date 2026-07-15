@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { authFetch } from '../config/authFetch';
 import { API_BASE_URL } from '../config/api';
-import { FaTrash, FaEdit, FaSave, FaPaperPlane, FaCheckDouble, FaRegCircle, FaCheckCircle } from 'react-icons/fa';
+import { FaTrash, FaEdit, FaSave, FaPaperPlane } from 'react-icons/fa';
 import { useToast } from '../components/Toast';
 import { useSound } from '../context/SoundContext';
 import ConfirmModal from '../components/ConfirmModal';
@@ -9,6 +9,7 @@ import Spinner from '../components/Spinner';
 import Pagination from '../components/Pagination';
 import { useTranslation } from '../context/LanguageContext';
 import { logger } from '../utils/logger';
+import useDocumentTitle from '../utils/useDocumentTitle';
 import '../styles/QuizManagement.css';
 
 const YEARS = [1, 2, 3, 4, 5, 6, 7];
@@ -40,7 +41,7 @@ const OptionItem = ({ i, opt, onUpdate }) => {
 };
 
 const QuizManagement = () => {
-  useEffect(() => { document.title = 'Quiz Management — Admin'; }, []);
+  useDocumentTitle(t('admin.quiz.title'), 'Admin');
   const notify = useToast();
   const play = useSound();
   const { t } = useTranslation();
@@ -72,9 +73,14 @@ const QuizManagement = () => {
   const [imagePreview, setImagePreview]     = useState(null);
   const [removeImage, setRemoveImage]       = useState(false);
   const emptyQuiz = () => ({ questionText: '', options: ['', '', '', ''], correctIndices: [], explanation: '' });
-  const [caseForm, setCaseForm]             = useState({ year: '', moduleId: '', title: '', description: '', quizzes: [emptyQuiz(), emptyQuiz(), emptyQuiz()] });
+  const [caseForm, setCaseForm]             = useState({ year: '', moduleId: '', discipline: '', title: '', description: '', course: '', quizzes: [emptyQuiz(), emptyQuiz(), emptyQuiz()] });
+  const [caseModuleCourses, setCaseModuleCourses] = useState([]);
 
   useEffect(() => { fetchModules(); fetchQuizzes(); }, [filterDiscipline]);
+
+  useEffect(() => {
+    return () => { if (imagePreview && imagePreview.startsWith('blob:')) URL.revokeObjectURL(imagePreview); };
+  }, [imagePreview]);
 
   useEffect(() => {
     setFilteredModules(modules.filter((m) => {
@@ -96,6 +102,18 @@ const QuizManagement = () => {
         .catch((err) => { logger.error({ err }, 'QuizManagement moduleCourses fallback fetch failed'); });
     }
   }, [form.moduleId, modules]);
+
+  useEffect(() => {
+    if (!caseForm.moduleId) { setCaseModuleCourses([]); return; }
+    const mod = modules.find((m) => m._id === caseForm.moduleId);
+    if (mod) setCaseModuleCourses(mod.courses || []);
+    else {
+      authFetch('/api/modules')
+        .then((r) => r.ok ? r.json() : [])
+        .then((all) => { if (Array.isArray(all)) { const found = all.find((m) => m._id === caseForm.moduleId); if (found) setCaseModuleCourses(found.courses || []); } })
+        .catch(() => { setCaseModuleCourses([]); });
+    }
+  }, [caseForm.moduleId, modules]);
 
   const fetchModules = async () => {
     try {
@@ -150,12 +168,12 @@ const QuizManagement = () => {
     play('submit');
     if (submittingRef.current) return;
     const { moduleId, course, questionText, options, correctIndices, explanation } = form;
-    if (!moduleId || !questionText) return notify('Please fill all required fields.', 'warning');
-    if (options.some((o) => !o.trim())) return notify('All options must have text.', 'warning');
-    if (correctIndices.length === 0) return notify('Select at least one correct answer.', 'warning');
+    if (!moduleId || !questionText) return notify(t('admin.quiz.fillRequiredFields'), 'warning');
+      if (options.some((o) => !o.trim())) return notify(t('admin.quiz.optionsMustHaveText'), 'warning');
+      if (correctIndices.length === 0) return notify(t('admin.quiz.selectCorrectAnswer'), 'warning');
 
     const correctAnswers = correctIndices.map((i) => options[i]);
-    const url    = editId ? `/api/edit-quiz/${editId}` : '/api/create-quiz';
+    const url    = editId ? `/api/quizzes/${editId}` : '/api/quizzes';
     const method = editId ? 'PUT' : 'POST';
     submittingRef.current = true;
     setSubmitting(true);
@@ -179,11 +197,11 @@ const QuizManagement = () => {
         res = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       }
       const data = res.ok ? await res.json() : null;
-      if (res.ok) { fetchQuizzes(); resetForm(); notify(editId ? 'Quiz updated' : 'Quiz created', 'success'); }
-      else notify(`Error: ${data?.message || 'Unknown error'}`, 'error');
+      if (res.ok) { fetchQuizzes(); resetForm(); notify(editId ? t('admin.quiz.quizUpdated') : t('admin.quiz.quizCreated'), 'success'); }
+      else notify(t('admin.quiz.error', { message: data?.message || t('admin.quiz.unknownError') }), 'error');
     } catch (err) {
       logger.error({ err }, 'QuizManagement handleSubmit failed');
-      notify('Network error', 'error');
+      notify(t('admin.quiz.networkError'), 'error');
     } finally { submittingRef.current = false; setSubmitting(false); }
   };
 
@@ -193,12 +211,12 @@ const QuizManagement = () => {
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      const res = await authFetch(`/api/delete-quiz/${deleteTarget._id}`, { method: 'DELETE' });
-      if (res.ok) { fetchQuizzes(); notify('Quiz deleted', 'success'); }
-      else notify('Failed to delete', 'error');
+      const res = await authFetch(`/api/quizzes/${deleteTarget._id}`, { method: 'DELETE' });
+      if (res.ok) { fetchQuizzes(); notify(t('admin.quiz.quizDeleted'), 'success'); }
+      else notify(t('admin.quiz.deleteFailed'), 'error');
     } catch (err) {
       logger.error({ err }, 'QuizManagement confirmDelete failed');
-      notify('Network error', 'error');
+      notify(t('admin.quiz.networkError'), 'error');
     }
     setDeleteTarget(null);
     submittingRef.current = false;
@@ -257,14 +275,14 @@ const QuizManagement = () => {
     play('submit');
     if (submittingRef.current) return;
     const ids = [...selectedIds];
-    if (!ids.length) return notify('Aucun quiz sélectionné.', 'warning');
+    if (!ids.length) return notify(t('admin.quiz.noQuizSelected'), 'warning');
     if (action === 'delete') { setBulkDeleteTarget(ids); return; }
     submittingRef.current = true;
     setSubmitting(true);
     setBulkProcessing(true);
     try {
-      const url = action === 'publish' ? '/api/bulk/publish' : '/api/bulk/unpublish';
-      const res = await authFetch(url, { method: 'POST', body: JSON.stringify({ ids }) });
+      const url = action === 'publish' ? '/api/quizzes/bulk/publish' : '/api/quizzes/bulk/unpublish';
+      const res = await authFetch(url, { method: 'POST', body: { ids } });
       const text = await res.text();
       let data;
       try { data = JSON.parse(text); } catch { data = { message: `HTTP ${res.status}: ${text.substring(0, 100)}` }; }
@@ -281,7 +299,7 @@ const QuizManagement = () => {
     setSubmitting(true);
     setBulkProcessing(true);
     try {
-      const res = await authFetch('/api/bulk/delete', { method: 'POST', body: JSON.stringify({ ids: bulkDeleteTarget }) });
+      const res = await authFetch('/api/quizzes/bulk/delete', { method: 'POST', body: { ids: bulkDeleteTarget } });
       const text = await res.text();
       let data;
       try { data = JSON.parse(text); } catch { data = { message: `HTTP ${res.status}: ${text.substring(0, 100)}` }; }
@@ -298,11 +316,11 @@ const QuizManagement = () => {
     formData.append('file', file);
     try {
       setCsvImporting(true);
-      const res    = await authFetch('/api/import-quizzes-csv', { method: 'POST', body: formData });
+      const res    = await authFetch('/api/quizzes/import-csv', { method: 'POST', body: formData });
       const result = res.ok ? await res.json() : null;
       notify(result?.message || 'Import finished', res.ok ? 'success' : 'error');
       fetchQuizzes();
-    } catch (err) { logger.error({ err }, 'QuizManagement CSV import failed'); notify('CSV import failed', 'error'); }
+    } catch (err) { logger.error({ err }, 'QuizManagement CSV import failed'); notify(t('admin.quiz.csvImportFailed'), 'error'); }
     finally { setCsvImporting(false); e.target.value = ''; }
   };
 
@@ -310,30 +328,30 @@ const QuizManagement = () => {
     play('submit');
     if (submittingRef.current) return;
     if (!caseForm.title || !caseForm.description || !caseForm.moduleId)
-      return notify('Please fill all fields.', 'warning');
+      return notify(t('admin.quiz.fillAllFields'), 'warning');
     const incomplete = caseForm.quizzes.findIndex((q) => !q.questionText || q.options.some((o) => !o) || q.correctIndices.length === 0);
-    if (incomplete >= 0) return notify(`Quiz ${incomplete + 1} is incomplete — fill in question, all options, and select correct answer(s).`, 'warning');
+    if (incomplete >= 0) return notify(t('admin.quiz.quizIncomplete', { n: incomplete + 1 }), 'warning');
     submittingRef.current = true;
     setSubmitting(true);
     setCreatingCase(true);
     try {
-      const res = await authFetch('/api/admin/create-case-quizzes', {
+      const res = await authFetch('/api/admin/cases/quizzes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: caseForm.title, description: caseForm.description, moduleId: caseForm.moduleId, quizzes: caseForm.quizzes }),
+        body: JSON.stringify({ title: caseForm.title, description: caseForm.description, moduleId: caseForm.moduleId, discipline: caseForm.discipline || undefined, course: caseForm.course || undefined, quizzes: caseForm.quizzes }),
       });
       const data = res.ok ? await res.json() : null;
       if (res.ok) {
         notify(data.message, 'success');
         setShowCaseModal(false);
-        setCaseForm({ year: '', moduleId: '', title: '', description: '', quizzes: [emptyQuiz(), emptyQuiz(), emptyQuiz()] });
+        setCaseForm({ year: '', moduleId: '', discipline: '', title: '', description: '', course: '', quizzes: [emptyQuiz(), emptyQuiz(), emptyQuiz()] });
         fetchQuizzes();
       } else {
         notify(`Error: ${data.message}`, 'error');
       }
     } catch (err) {
       logger.error({ err }, 'QuizManagement handleCreateCase failed');
-      notify('Failed to create case', 'error');
+      notify(t('admin.quiz.createCaseFailed'), 'error');
     } finally {
       setCreatingCase(false);
       submittingRef.current = false;
@@ -386,9 +404,11 @@ const QuizManagement = () => {
     });
   };
 
-  const caseFilteredModules = caseForm.year
-    ? modules.filter((m) => m.year === Number(caseForm.year))
-    : modules;
+  const caseFilteredModules = modules.filter((m) => {
+    if (caseForm.discipline && m.discipline !== caseForm.discipline) return false;
+    if (caseForm.year && m.year !== Number(caseForm.year)) return false;
+    return true;
+  });
 
   const filterModulesForBar = modules.filter((m) => {
     if (filterYear && m.year !== Number(filterYear)) return false;
@@ -398,7 +418,7 @@ const QuizManagement = () => {
 
   return (
     <div className="quiz-management">
-      {error && <div className="error-banner">{error}<button onClick={() => setError('')}>&times;</button></div>}
+      {error && <div className="error-banner" role="alert">{error}<button onClick={() => setError('')}>&times;</button></div>}
 
       <div className="qm-header">
         <h1 className="qm-logo">MAITRISEZ <span className="qm-logo-light">| Admin Dashboard</span></h1>
@@ -422,21 +442,24 @@ const QuizManagement = () => {
 
         <div className="qm-filters">
           <select value={form.discipline} onChange={(e) => { setField('discipline', e.target.value); setField('selectedYear', ''); }}>
-            <option value="">Choose Discipline</option>
-            <option value="medicine">Medicine</option>
-            <option value="pharmacy">Pharmacy</option>
+            <option value="">{t('admin.quiz.chooseDiscipline')}</option>
+            <option value="medicine">{t('admin.quiz.medicine')}</option>
+            <option value="pharmacy">{t('admin.quiz.pharmacy')}</option>
           </select>
           <select value={form.selectedYear} onChange={(e) => setField('selectedYear', e.target.value)}>
-            <option value="">Choose Year</option>
-            {YEARS.map((y) => <option key={y} value={y}>Year {y}</option>)}
+            <option value="">{t('admin.quiz.chooseYear')}</option>
+            {YEARS.map((y) => <option key={y} value={y}>{t('pricing.year', { n: y })}</option>)}
           </select>
           <select value={form.moduleId} onChange={(e) => setField('moduleId', e.target.value)} disabled={!form.selectedYear}>
-            <option value="">Choose Module</option>
+            <option value="">{t('admin.quiz.chooseModule')}</option>
             {filteredModules.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
           </select>
           <select className="qm-input-sm" value={form.course} onChange={(e) => setField('course', e.target.value)} disabled={!form.moduleId || moduleCourses.length === 0}>
             <option value="">{t('admin.quiz.course')}</option>
-            {moduleCourses.map((c, i) => <option key={i} value={c}>{c}</option>)}
+            {moduleCourses.map((c, i) => {
+              const cName = typeof c === 'string' ? c : c.name || '';
+              return <option key={i} value={cName}>{cName}</option>;
+            })}
           </select>
         </div>
 
@@ -446,7 +469,7 @@ const QuizManagement = () => {
         </div>
 
         <div className="qm-section">
-          <label className="qm-label">Question Image (optional)</label>
+          <label className="qm-label">{t('admin.quiz.imageLabel')}</label>
           {imagePreview && (
             <div style={{ position: 'relative', display: 'inline-block', marginBottom: 8 }}>
               <img src={imagePreview} alt="Preview" style={{ maxWidth: 200, borderRadius: 6, border: '1px solid #ccc' }} />
@@ -471,7 +494,7 @@ const QuizManagement = () => {
             {form.options.map((opt, i) => (<OptionItem key={i} i={i} opt={opt} onUpdate={updateOption} />))}
           </div>
           <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
-            <label style={{ fontWeight: 600 }}>Number of options:</label>
+            <label style={{ fontWeight: 600 }}>{t('admin.quiz.optionsCount')}</label>
             <select value={form.options.length} onChange={(e) => {
               const n = Number(e.target.value);
               setForm((f) => {
@@ -509,13 +532,13 @@ const QuizManagement = () => {
 
       <div className="qm-list-filters">
         <select value={filterDiscipline} onChange={(e) => { setFilterDiscipline(e.target.value); setFilterModule(''); }}>
-          <option value="">All Disciplines</option>
-          <option value="medicine">Medicine</option>
-          <option value="pharmacy">Pharmacy</option>
+          <option value="">{t('admin.quiz.allDisciplines')}</option>
+          <option value="medicine">{t('admin.quiz.medicine')}</option>
+          <option value="pharmacy">{t('admin.quiz.pharmacy')}</option>
         </select>
         <select value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setFilterModule(''); }}>
           <option value="">{t('admin.quiz.allYears')}</option>
-          {YEARS.map((y) => <option key={y} value={y}>Year {y}</option>)}
+          {YEARS.map((y) => <option key={y} value={y}>{t('pricing.year', { n: y })}</option>)}
         </select>
         <select value={filterModule} onChange={(e) => setFilterModule(e.target.value)}>
           <option value="">{t('admin.quiz.allModules')}</option>
@@ -558,7 +581,7 @@ const QuizManagement = () => {
           <thead>
             <tr>
               <th style={{ width: '40px' }}>
-                <input type="checkbox" checked={quizzes.length > 0 && selectedIds.size === quizzes.length}
+                <input type="checkbox" aria-label="Select all" checked={quizzes.length > 0 && selectedIds.size === quizzes.length}
                   onChange={toggleSelectAll} style={{ cursor: 'pointer', width: '16px', height: '16px' }} />
               </th>
               {[t('admin.quiz.quizId'), t('admin.quiz.year'), t('admin.quiz.module'), t('admin.quiz.course'), 'Discipline', t('admin.quiz.published'), 'Case', t('admin.quiz.questionText'), t('admin.quiz.options'), t('admin.quiz.correctAnswers'), 'Actions'].map((h) => (<th key={h}>{h}</th>))}
@@ -570,7 +593,7 @@ const QuizManagement = () => {
                 : quizzes.map((quiz) => (
                   <tr key={quiz._id} style={{ background: selectedIds.has(quiz._id) ? 'var(--dc-cream-light)' : undefined }}>
                     <td>
-                      <input type="checkbox" checked={selectedIds.has(quiz._id)}
+                      <input type="checkbox" aria-label={t('admin.quizzes.selectQuiz')} checked={selectedIds.has(quiz._id)}
                         onChange={() => toggleSelect(quiz._id)} style={{ cursor: 'pointer', width: '16px', height: '16px' }} />
                     </td>
                     <td>{quiz.quizId}</td>
@@ -601,38 +624,50 @@ const QuizManagement = () => {
         <div style={{
           position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
           background: 'rgba(0,0,0,0.5)', zIndex: 2000,
-          display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '20px 0',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }} onClick={() => !creatingCase && setShowCaseModal(false)}>
           <div style={{
             background: 'var(--dc-white, #fff)', borderRadius: 'var(--dc-radius, 12px)',
-            padding: '28px', width: '90%', maxWidth: '680px', marginTop: '20px',
+            padding: '28px', width: '90%', maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto',
             boxShadow: '0 16px 48px rgba(0,0,0,0.2)',
           }} onClick={(e) => e.stopPropagation()}>
             <h2 style={{ margin: '0 0 20px', fontSize: '1.2rem', color: 'var(--dc-dark)' }}>📋 {t('admin.quiz.newCase')}</h2>
 
             <div style={{ display: 'flex', gap: '10px', marginBottom: '16px' }}>
-              <select value={caseForm.year} onChange={(e) => { setCaseField('year', e.target.value); setCaseField('moduleId', ''); }} style={{ flex: 1, padding: '10px 14px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.85rem' }}>
-            <option value="">{t('admin.quiz.year')}</option>
-                {YEARS.map((y) => <option key={y} value={y}>Year {y}</option>)}
+              <select value={caseForm.discipline} onChange={(e) => { setCaseField('discipline', e.target.value); setCaseField('year', ''); setCaseField('moduleId', ''); }} style={{ flex: 1, padding: '10px 14px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.85rem' }}>
+                <option value="">{t('admin.quiz.allDisciplines')}</option>
+                <option value="medicine">{t('admin.quiz.medicine')}</option>
+                <option value="pharmacy">{t('admin.quiz.pharmacy')}</option>
               </select>
-              <select value={caseForm.moduleId} onChange={(e) => setCaseField('moduleId', e.target.value)} disabled={!caseForm.year} style={{ flex: 1, padding: '10px 14px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.85rem' }}>
-            <option value="">{t('admin.quiz.module')}</option>
+              <select value={caseForm.year} onChange={(e) => { setCaseField('year', e.target.value); setCaseField('moduleId', ''); }} style={{ flex: 1, padding: '10px 14px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.85rem' }}>
+            <option value="">{t('admin.quiz.chooseYear')}</option>
+                {YEARS.map((y) => <option key={y} value={y}>{t('pricing.year', { n: y })}</option>)}
+              </select>
+              <select value={caseForm.moduleId} onChange={(e) => { setCaseField('moduleId', e.target.value); setCaseField('course', ''); }} disabled={!caseForm.year} style={{ flex: 1, padding: '10px 14px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.85rem' }}>
+                <option value="">{t('admin.quiz.chooseModule')}</option>
                 {caseFilteredModules.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
               </select>
+              <select value={caseForm.course} onChange={(e) => setCaseField('course', e.target.value)} disabled={!caseForm.moduleId || caseModuleCourses.length === 0} style={{ flex: 1, padding: '10px 14px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.85rem' }}>
+                <option value="">{t('admin.quiz.course')}</option>
+                {caseModuleCourses.map((c, i) => {
+                  const cName = typeof c === 'string' ? c : c.name || '';
+                  return <option key={i} value={cName}>{cName}</option>;
+                })}
+              </select>
             </div>
 
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px', color: 'var(--dc-text)' }}>Case Title</label>
-              <input type="text" value={caseForm.title} onChange={(e) => setCaseField('title', e.target.value)} placeholder="e.g. Hypertension & Renal" style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.9rem', boxSizing: 'border-box' }} />
+              <label style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px', color: 'var(--dc-text)' }}>{t('admin.quiz.caseTitle')}</label>
+              <input type="text" value={caseForm.title} onChange={(e) => setCaseField('title', e.target.value)} placeholder={t('admin.quiz.caseTitlePlaceholder')} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.9rem', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px', color: 'var(--dc-text)' }}>Case Description</label>
-              <textarea value={caseForm.description} onChange={(e) => setCaseField('description', e.target.value)} placeholder="Describe the clinical scenario..." rows={4} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.9rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+              <label style={{ display: 'block', fontWeight: 700, fontSize: '0.85rem', marginBottom: '6px', color: 'var(--dc-text)' }}>{t('admin.quiz.caseDescription')}</label>
+              <textarea value={caseForm.description} onChange={(e) => setCaseField('description', e.target.value)} placeholder={t('admin.quiz.caseDescriptionPlaceholder')} rows={4} style={{ width: '100%', padding: '10px 12px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.9rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
             </div>
 
             <div style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <label style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--dc-text)' }}>Number of Quizzes:</label>
+              <label style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--dc-text)' }}>{t('admin.quiz.caseQuizCount')}</label>
               <input type="number" min="1" max="50" value={caseForm.quizzes.length} onChange={(e) => handleQuizCountChange(Number(e.target.value))} style={{ width: '80px', padding: '8px 10px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.9rem' }} />
             </div>
 
@@ -642,15 +677,15 @@ const QuizManagement = () => {
                   border: '1px solid var(--dc-border)', borderRadius: '8px', padding: '16px', marginBottom: '12px',
                   background: qIdx % 2 === 0 ? 'var(--dc-cream)' : 'var(--dc-white)',
                 }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--dc-accent)', marginBottom: '10px' }}>Quiz {qIdx + 1}</div>
+                  <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--dc-accent)', marginBottom: '10px' }}>{t('admin.quiz.caseQuizN', { n: qIdx + 1 })}</div>
 
                   <div style={{ marginBottom: '10px' }}>
-                    <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '4px', color: 'var(--dc-text)' }}>Question</label>
-                    <textarea value={quiz.questionText} onChange={(e) => updateQuiz(qIdx, 'questionText', e.target.value)} placeholder="Write the question..." rows={2} style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.85rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
+                    <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '4px', color: 'var(--dc-text)' }}>{t('admin.quiz.caseQuestion')}</label>
+                    <textarea value={quiz.questionText} onChange={(e) => updateQuiz(qIdx, 'questionText', e.target.value)} placeholder={t('admin.quiz.caseQuestionPlaceholder')} rows={2} style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--dc-border)', borderRadius: '6px', fontSize: '0.85rem', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }} />
                   </div>
 
                   <div style={{ marginBottom: '10px' }}>
-                    <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '4px', color: 'var(--dc-text)' }}>Options</label>
+                    <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '4px', color: 'var(--dc-text)' }}>{t('admin.quiz.caseOptions')}</label>
                     {LETTERS.slice(0, quiz.options.length).map((l, oIdx) => (
                       <div key={oIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
                         <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--dc-accent)', width: '20px' }}>{l}</span>
@@ -658,20 +693,20 @@ const QuizManagement = () => {
                         <input type="checkbox" checked={quiz.correctIndices.includes(oIdx)} onChange={() => toggleQuizCorrect(qIdx, oIdx)} title="Correct answer" style={{ cursor: 'pointer' }} />
                       </div>
                     ))}
-                    <div style={{ fontSize: '0.75rem', color: 'var(--dc-text-light)', marginTop: '2px' }}>Check the box for correct answer(s)</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--dc-text-light)', marginTop: '2px' }}>{t('admin.quiz.caseCorrectHint')}</div>
                   </div>
 
                   <div>
-                    <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '4px', color: 'var(--dc-text)' }}>Explanation (optional)</label>
-                    <input type="text" value={quiz.explanation} onChange={(e) => updateQuiz(qIdx, 'explanation', e.target.value)} placeholder="Explain the correct answer..." style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--dc-border)', borderRadius: '4px', fontSize: '0.85rem', boxSizing: 'border-box' }} />
+                    <label style={{ display: 'block', fontWeight: 600, fontSize: '0.8rem', marginBottom: '4px', color: 'var(--dc-text)' }}>{t('admin.quiz.caseExplanation')}</label>
+                    <input type="text" value={quiz.explanation} onChange={(e) => updateQuiz(qIdx, 'explanation', e.target.value)} placeholder={t('admin.quiz.caseExplanationPlaceholder')} style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--dc-border)', borderRadius: '4px', fontSize: '0.85rem', boxSizing: 'border-box' }} />
                   </div>
                 </div>
               ))}
             </div>
 
             <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', borderTop: '1px solid var(--dc-border)', paddingTop: '16px' }}>
-              <button type="button" onClick={() => setShowCaseModal(false)} disabled={creatingCase} style={{ padding: '10px 22px', border: '1px solid var(--dc-border)', borderRadius: '6px', background: 'var(--dc-cream-light, #f5f3f7)', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
-              <button type="button" onClick={handleCreateCase} disabled={creatingCase} style={{ padding: '10px 22px', border: 'none', borderRadius: '6px', background: 'linear-gradient(135deg, var(--dc-dark), var(--dc-accent))', color: 'var(--dc-white)', cursor: 'pointer', fontWeight: 700 }}>{creatingCase ? 'Creating...' : 'Create Case'}</button>
+              <button type="button" onClick={() => setShowCaseModal(false)} disabled={creatingCase} style={{ padding: '10px 22px', border: '1px solid var(--dc-border)', borderRadius: '6px', background: 'var(--dc-cream-light, #f5f3f7)', cursor: 'pointer', fontWeight: 600 }}>{t('cancel')}</button>
+              <button type="button" onClick={handleCreateCase} disabled={creatingCase} style={{ padding: '10px 22px', border: 'none', borderRadius: '6px', background: 'linear-gradient(135deg, var(--dc-dark), var(--dc-accent))', color: 'var(--dc-white)', cursor: 'pointer', fontWeight: 700 }}>{creatingCase ? t('admin.quiz.creatingCase') : t('admin.quiz.createCaseBtn')}</button>
             </div>
           </div>
         </div>

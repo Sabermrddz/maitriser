@@ -1,8 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
+import useDocumentTitle from '../utils/useDocumentTitle';
 
 const NotFound = () => {
+  useDocumentTitle('404');
   const navigate = useNavigate();
   const { t } = useTranslation();
   return (

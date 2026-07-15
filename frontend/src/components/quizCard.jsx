@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { FaFilePdf } from 'react-icons/fa';
 import { useToast } from './Toast.jsx';
 import { useSound } from '../context/SoundContext';
 import { useTranslation } from '../context/LanguageContext';
+import PremiumGateModal from './PremiumGateModal';
 import { SkeletonQuizItem } from './LoadingSkeleton';
 import { logger } from '../utils/logger';
 import '../styles/teal-theme.css';
@@ -19,7 +21,7 @@ const QuizCard = () => {
   const { t } = useTranslation();
 
   const [quizData, setQuizData]   = useState(
-    state ? { quizId: state.quizId, quizName: state.quizName, question: state.question, caseId: state.caseId || null } : null
+    state ? { quizId: state.quizId, quizName: state.quizName, question: state.question, caseId: state.caseId || null, course: state.course || '', moduleId: state.moduleId || null } : null
   );
   const [loading, setLoading]     = useState(!state);
   const [selected, setSelected]   = useState([]);
@@ -29,22 +31,49 @@ const QuizCard = () => {
   const [quizTimer, setQuizTimer] = useState(TIMER_SECONDS);
   const [timeLeft, setTimeLeft]   = useState(quizTimer);
   const [timerActive, setTimerActive] = useState(false);
+  const [subscription, setSubscription] = useState(null);
+  const [showGate, setShowGate]   = useState(false);
+  const [pdfMap, setPdfMap]       = useState({});
   const timerRef = useRef(null);
   const submittingRef = useRef(false);
   const handleSubmitRef = useRef(null);
 
-  const userId = localStorage.getItem('userId') || 'anonymous';
+  let userId = 'anonymous'; try { userId = localStorage.getItem('userId') || 'anonymous'; } catch { /* incognito */ }
   const studyMode = state?.studyMode || false;
 
-  const options = useMemo(() => {
-    if (!quizData?.question?.options) return [];
+  const [options, setOptions] = useState([]);
+  useEffect(() => {
+    if (!quizData?.question?.options) { setOptions([]); return; }
     const opts = [...quizData.question.options];
     for (let i = opts.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [opts[i], opts[j]] = [opts[j], opts[i]];
     }
-    return opts;
+    setOptions(opts);
   }, [quizData?.question?.options]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetchWithAuth(`${API_BASE_URL}/api/payments/subscription`);
+        if (res.ok) { const d = await res.json(); setSubscription(d.subscription); }
+      } catch { logger.error({}, 'quizCard fetchSubscription failed') }
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetchWithAuth(`${API_BASE_URL}/api/pdf-documents`);
+        if (res.ok) {
+          const docs = await res.json();
+          const map = {};
+          docs.forEach((d) => { map[d.pdfId] = d.filename; });
+          setPdfMap(map);
+        }
+      } catch { /* pdf map not available */ }
+    })();
+  }, []);
 
   useEffect(() => {
     if (quizData) return;
@@ -68,9 +97,11 @@ const QuizCard = () => {
             options:      data.question?.options || [],
           },
           caseId: data.caseId || null,
+          course: data.course || '',
+          moduleId: data.moduleId || null,
         });
       } catch (err) {
-        if (err.name !== 'AbortError') { logger.error({ err, quizId: id }, 'QuizCard fetch failed'); notify('Quiz introuvable ou erreur de chargement', 'error'); play('navigate'); navigate('/quizPage'); }
+        if (err.name !== 'AbortError') { logger.error({ err, quizId: id }, 'QuizCard fetch failed'); notify(t('quizcard.notFound'), 'error'); play('navigate'); navigate('/quizPage'); }
       } finally {
         if (!controller.signal.aborted) setLoading(false);
       }
@@ -79,10 +110,11 @@ const QuizCard = () => {
   }, [id]);
 
   const hiddenRef = useRef(false);
+  const [tick, setTick] = useState(0);
   useEffect(() => {
     const onVis = () => {
       if (document.hidden) { hiddenRef.current = true; clearTimeout(timerRef.current); }
-      else { hiddenRef.current = false; setTimeLeft((t) => t); }
+      else { hiddenRef.current = false; setTick((t) => t + 1); }
     };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
@@ -96,7 +128,7 @@ const QuizCard = () => {
       handleSubmitRef.current();
     }
     return () => clearTimeout(timerRef.current);
-  }, [timerActive, timeLeft, submitted, studyMode]);
+  }, [timerActive, timeLeft, submitted, studyMode, tick]);
 
   useEffect(() => {
     const onLeave = (e) => { if (!submitted) { e.preventDefault(); e.returnValue = ''; } };
@@ -175,11 +207,25 @@ const QuizCard = () => {
   };
 
   if (loading) return <div className="page-teal"><div className="card-teal"><SkeletonQuizItem count={1} /></div></div>;
-  if (!quizData?.question) return <div className="page-teal"><div className="card-teal" style={{ textAlign: 'center' }}>QCM introuvable.</div></div>;
+  if (!quizData?.question) return <div className="page-teal"><div className="card-teal" style={{ textAlign: 'center' }}>{t('quizcard.notFound')}</div></div>;
+  if (subscription && (subscription.status !== 'active' || (subscription.endDate && new Date(subscription.endDate) < new Date()))) {
+    return (
+      <div className="page-teal">
+        <div className="card-teal" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>&#128274;</div>
+          <h3 style={{ color: '#856404', margin: '0 0 8px' }}>{t('quizcard.subscription.title')}</h3>
+          <p style={{ color: '#856404', fontSize: '0.9rem', margin: '0 0 16px' }}>
+            {t('quizcard.subscription.desc')}
+          </p>
+          <button className="btn-primary" onClick={() => navigate('/pricing')}>{t('quizcard.subscription.cta')}</button>
+        </div>
+      </div>
+    );
+  }
 
   const { quizName, question } = quizData;
   const isMulti = !result
-    ? question.options?.length > 2
+    ? (quizData?.question?.correctAnswers?.length || 0) > 1
     : (result.correctAnswers?.length || 1) > 1;
 
   return (
@@ -234,7 +280,7 @@ const QuizCard = () => {
           }
 
           return (
-            <label key={i} className={optClass} onClick={() => toggleOption(opt)}
+            <label key={i} className={optClass}
               style={{ cursor: submitted ? 'default' : 'pointer' }}>
               <input type="checkbox" checked={selected.includes(opt)}
                 onChange={() => toggleOption(opt)} disabled={submitted} />
@@ -260,6 +306,34 @@ const QuizCard = () => {
               </div>
             )}
           </div>
+        )}
+
+        {submitted && quizData.course && quizData.moduleId?.courses && (
+          (() => {
+            const match = (quizData.moduleId.courses || []).find(
+              (c) => (typeof c === 'string' ? c : c.name || '') === quizData.course
+            );
+            const pdfId = match && typeof match === 'object' ? match.pdfId || '' : '';
+            const pdfFilename = pdfId ? pdfMap[pdfId] : null;
+            if (!pdfFilename) return null;
+            const handleOpenPdf = async () => {
+              try {
+                const res = await fetchWithAuth(`${API_BASE_URL}/api/course-pdfs/${encodeURIComponent(pdfFilename)}`);
+                if (!res.ok) throw new Error('Failed to get PDF');
+                const { url } = await res.json();
+                window.open(url, '_blank');
+              } catch { notify(t('quizcard.error.network'), 'error'); }
+            };
+            return (
+              <div style={{ textAlign: 'center', margin: '16px 0 0' }}>
+                <button onClick={handleOpenPdf}
+                   className="btn-primary"
+                   style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer' }}>
+                  <FaFilePdf /> {t('quizcard.viewCourse')} — {quizData.course}
+                </button>
+              </div>
+            );
+          })()
         )}
 
         <div className="button-row">

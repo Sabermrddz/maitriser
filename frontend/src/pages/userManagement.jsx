@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { authFetch } from '../config/authFetch';
 import { API_BASE_URL } from '../config/api';
 import { useToast } from '../components/Toast';
 import { useSound } from '../context/SoundContext';
 import { logger } from '../utils/logger';
+import useDocumentTitle from '../utils/useDocumentTitle';
+import { useTranslation } from '../context/LanguageContext';
 import '../styles/userManagement.css';
 import { FaSearch, FaEdit, FaTrash, FaHistory } from 'react-icons/fa';
 import AddUserModal from '../components/AddUserModal';
@@ -14,12 +16,12 @@ import Pagination from '../components/Pagination';
 import UserHistoryModal from '../components/UserHistoryModal';
 
 const UserManagement = () => {
-  useEffect(() => { document.title = 'User Management — Admin'; }, []);
+  const { t } = useTranslation();
+  useDocumentTitle(t('admin.user.title'), 'Admin');
   const notify = useToast();
   const play = useSound();
   const [users, setUsers] = useState([]);
   const [search, setSearch] = useState('');
-  const [filteredUsers, setFilteredUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [selectedUser, setSelectedUser] = useState(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -53,14 +55,14 @@ const UserManagement = () => {
 
   useEffect(() => { fetchUsers(1); }, []);
 
-  useEffect(() => {
+  const filteredUsers = useMemo(() => {
     if (users.length > 0) {
-      const result = users.filter(user =>
+      return users.filter(user =>
         (user.name || '').toLowerCase().includes(search.toLowerCase()) ||
         (user.email || '').toLowerCase().includes(search.toLowerCase())
       );
-      setFilteredUsers(result);
     }
+    return [];
   }, [search, users]);
 
   const handleSync = async () => {
@@ -72,12 +74,12 @@ const UserManagement = () => {
       const res = await authFetch('/api/admin/sync-all-users', { method: 'POST' });
       if (res.ok) {
         const d = await res.json();
-        notify(`Clerk sync done: ${d.synced} user(s) imported`, 'success');
+        notify(t('admin.user.syncDone', { count: d.synced }), 'success');
         fetchUsers(1);
       } else {
-        notify('Sync failed', 'error');
+        notify(t('admin.user.syncFailed'), 'error');
       }
-    } catch (err) { logger.error({ err }, 'UserManagement sync-from-clerk failed'); notify('Sync failed', 'error'); }
+    } catch (err) { logger.error({ err }, 'UserManagement sync-from-clerk failed'); notify(t('admin.user.syncFailed'), 'error'); }
     finally { submittingRef.current = false; setSubmitting(false); }
   };
 
@@ -87,17 +89,17 @@ const UserManagement = () => {
     submittingRef.current = true;
     setSubmitting(true);
     try {
-      const response = await authFetch(`/api/users/delete-user/${deleteTarget._id}`, { method: 'DELETE' });
+      const response = await authFetch(`/api/users/${deleteTarget._id}`, { method: 'DELETE' });
       if (!response.ok) {
         const errorData = await response.json();
-        notify(`Error: ${errorData.message || 'Failed to delete user'}`, 'error');
+        notify(`Error: ${errorData.message || t('admin.user.deleteError')}`, 'error');
         return;
       }
       setUsers(prev => prev.filter(user => user._id !== deleteTarget._id));
-      notify('User deleted successfully', 'success');
+      notify(t('admin.user.deleted'), 'success');
     } catch (err) {
       logger.error({ err }, 'UserManagement handleDelete failed');
-      notify('An error occurred while deleting the user.', 'error');
+      notify(t('admin.user.deleteError'), 'error');
     } finally {
       setDeleteTarget(null);
       submittingRef.current = false;
@@ -115,20 +117,20 @@ const UserManagement = () => {
     setShowModal(true);
   };
 
-  if (loading) return <div className="user-management-container"><h2>User Management</h2><Spinner /></div>;
+  if (loading) return <div className="user-management-container"><h2>{t('admin.user.title')}</h2><Spinner /></div>;
 
   return (
     <div className="user-management-container">
-      {error && <div className="error-banner">{error}<button onClick={() => setError('')}>&times;</button></div>}
+      {error && <div className="error-banner" role="alert">{error}<button onClick={() => setError('')}>&times;</button></div>}
 
       <div className="header">
-        <h2>User Management</h2>
+        <h2>{t('admin.user.title')}</h2>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" className="add-user-btn" onClick={handleSync} disabled={submitting} style={{ background: 'var(--dc-dark)' }}>
-            Sync from Clerk
+            {t('admin.user.syncFromClerk')}
           </button>
           <button type="button" className="add-user-btn" onClick={handleAddUser}>
-            + Add User
+            {t('admin.user.addUser')}
           </button>
         </div>
       </div>
@@ -136,9 +138,10 @@ const UserManagement = () => {
       <div className="search-bar">
         <input
           type="text"
-          placeholder="Search users..."
+          placeholder={t('admin.user.searchPlaceholder')}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          aria-label={t('admin.user.searchPlaceholder')}
         />
         <FaSearch />
       </div>
@@ -148,10 +151,10 @@ const UserManagement = () => {
       <table className="user-table">
         <thead>
           <tr>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Actions</th>
+            <th>{t('admin.user.tableName')}</th>
+            <th>{t('admin.user.tableEmail')}</th>
+            <th>{t('admin.user.tableRole')}</th>
+            <th>{t('admin.user.tableActions')}</th>
           </tr>
         </thead>
         <tbody>
@@ -162,14 +165,14 @@ const UserManagement = () => {
                 <td>{user.email}</td>
                 <td>{user.role}</td>
                 <td>
-                  <button type="button" onClick={() => setHistoryUser(user)} className="history-btn" title="View Results"><FaHistory /></button>
+                  <button type="button" onClick={() => setHistoryUser(user)} className="history-btn" title={t('userHistory.viewResults')}><FaHistory /></button>
                   <button type="button" onClick={() => handleEdit(user)} className="edit-btn"><FaEdit /></button>
                   <button type="button" onClick={() => setDeleteTarget(user)} className="delete-btn"><FaTrash /></button>
                 </td>
               </tr>
             ))
           ) : (
-            <tr><td colSpan="4" className="admin-empty">No users found</td></tr>
+            <tr><td colSpan="4" className="admin-empty">{t('admin.user.noUsers')}</td></tr>
           )}
         </tbody>
       </table>
@@ -184,11 +187,11 @@ const UserManagement = () => {
 
       <ConfirmModal
         open={!!deleteTarget}
-        title="Delete User"
-        message={`Are you sure you want to delete ${deleteTarget?.name || 'this user'}?`}
+        title={t('admin.user.deleteConfirm')}
+        message={t('admin.user.deleteConfirmMsg', { name: deleteTarget?.name || '' })}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
-        confirmText="Delete"
+        confirmText={t('admin.user.deleteBtn')}
         confirmDisabled={submitting}
       />
     </div>

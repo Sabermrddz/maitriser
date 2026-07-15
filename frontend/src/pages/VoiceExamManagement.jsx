@@ -7,6 +7,8 @@ import { useSound } from '../context/SoundContext';
 import ConfirmModal from '../components/ConfirmModal';
 import Spinner from '../components/Spinner';
 import { logger } from '../utils/logger';
+import useDocumentTitle from '../utils/useDocumentTitle';
+import { useTranslation } from '../context/LanguageContext';
 import '../styles/sharedAdmin.css';
 
 const YEARS = [1, 2, 3, 4, 5, 6, 7];
@@ -20,7 +22,8 @@ const emptyForm = () => ({
 });
 
 const VoiceExamManagement = () => {
-  useEffect(() => { document.title = 'Voice Exam Management — Admin'; }, []);
+  const { t } = useTranslation();
+  useDocumentTitle(t('admin.voiceExam.documentTitle'), 'Admin');
   const notify = useToast();
   const play = useSound();
   const [modules, setModules]               = useState([]);
@@ -59,12 +62,12 @@ const VoiceExamManagement = () => {
 
   const fetchModules = async () => {
     try {
-      const discipline = localStorage.getItem('userDiscipline') || 'medicine';
+      let discipline = 'medicine'; try { discipline = localStorage.getItem('userDiscipline') || 'medicine'; } catch { /* incognito */ }
       const res = await authFetch(`/api/modules?discipline=${discipline}`);
-      if (!res.ok) { setError('Failed to load modules'); return; }
+      if (!res.ok) { setError(t('admin.voiceExam.loadModulesError')); return; }
       const modData = await res.json();
       setModules(Array.isArray(modData) ? modData : []);
-    } catch (err) { logger.error({ err }, 'VoiceExamManagement fetchModules failed'); setError('Failed to load modules'); }
+    } catch (err) { logger.error({ err }, 'VoiceExamManagement fetchModules failed'); setError(t('admin.voiceExam.loadModulesError')); }
   };
 
   const fetchExams = async () => {
@@ -78,7 +81,7 @@ const VoiceExamManagement = () => {
       const examData = await res.json();
       setExams(Array.isArray(examData) ? examData : []);
       setError('');
-    } catch (err) { logger.error({ err }, 'VoiceExamManagement fetchExams failed'); setError('Failed to load exams'); }
+    } catch (err) { logger.error({ err }, 'VoiceExamManagement fetchExams failed'); setError(t('admin.voiceExam.loadExamsError')); }
     finally { setLoading(false); }
   };
 
@@ -155,11 +158,11 @@ const VoiceExamManagement = () => {
     if (submittingRef.current) return;
     const { title, moduleId, clinicalCasePrompt, questions } = form;
     if (!title || !moduleId || !clinicalCasePrompt)
-      return notify('Title, module, and case prompt are required', 'warning');
+      return notify(t('admin.voiceExam.fillRequired'), 'warning');
 
     const validQuestions = questions.filter((q) => q.questionText.trim());
     if (validQuestions.length === 0)
-      return notify('At least one question with text is required', 'warning');
+      return notify(t('admin.voiceExam.fillRequired'), 'warning');
 
     const url    = editId ? `/api/voice-exams/${editId}` : '/api/voice-exams';
     const method = editId ? 'PUT' : 'POST';
@@ -187,17 +190,17 @@ const VoiceExamManagement = () => {
 
         const res = await authFetch(url, { method, body: fd });
         const data = res.ok ? await res.json() : null;
-        if (res.ok) { fetchExams(); resetForm(); notify(editId ? 'Exam updated' : 'Exam created', 'success'); }
+        if (res.ok) { fetchExams(); resetForm(); notify(editId ? t('admin.voiceExam.updated') : t('admin.voiceExam.created'), 'success'); }
         else notify(`Failed: ${data?.message || 'Unknown error'}`, 'error');
       } else {
         const res  = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body });
         const data = await res.json();
-        if (res.ok) { fetchExams(); resetForm(); notify(editId ? 'Exam updated' : 'Exam created', 'success'); }
+        if (res.ok) { fetchExams(); resetForm(); notify(editId ? t('admin.voiceExam.updated') : t('admin.voiceExam.created'), 'success'); }
         else notify(`Failed: ${data.message}`, 'error');
       }
     } catch (err) {
       logger.error({ err }, 'VoiceExamManagement handleSubmit failed');
-      notify('Network error', 'error');
+      notify(t('admin.voiceExam.networkError'), 'error');
     } finally { submittingRef.current = false; setSubmitting(false); }
   };
 
@@ -208,11 +211,11 @@ const VoiceExamManagement = () => {
     setSubmitting(true);
     try {
       const res = await authFetch(`/api/voice-exams/${deleteTarget._id}`, { method: 'DELETE' });
-      if (res.ok) { fetchExams(); notify('Exam deleted', 'success'); }
-      else notify('Failed to delete', 'error');
+      if (res.ok) { fetchExams(); notify(t('admin.voiceExam.deleted'), 'success'); }
+      else notify(t('admin.voiceExam.deleteFailed'), 'error');
     } catch (err) {
       logger.error({ err }, 'VoiceExamManagement confirmDelete failed');
-      notify('Network error', 'error');
+      notify(t('admin.voiceExam.networkError'), 'error');
     } finally {
       setDeleteTarget(null);
       submittingRef.current = false;
@@ -258,31 +261,31 @@ const VoiceExamManagement = () => {
 
   const inp = { padding: 8, border: '1px solid var(--dc-border)', borderRadius: 6, width: '100%', background: 'var(--dc-cream-light)', boxSizing: 'border-box' };
 
-  if (loading) return <div className="admin-page"><h2>Voice Exam Management</h2><Spinner /></div>;
+  if (loading) return <div className="admin-page"><h2>{t('admin.voiceExam.title')}</h2><Spinner /></div>;
 
   return (
     <div className="admin-page">
-      <h2>Voice Exam Management</h2>
+      <h2>{t('admin.voiceExam.title')}</h2>
 
-      {error && <div className="error-banner">{error}<button onClick={() => setError('')}>&times;</button></div>}
+      {error && <div className="error-banner" role="alert">{error}<button onClick={() => setError('')}>&times;</button></div>}
 
       <div className="admin-form-card" style={{ maxWidth: 900 }}>
-        <h3>{editId ? 'Edit Voice Exam' : 'Create Voice Exam'}</h3>
+        <h3>{editId ? t('admin.voiceExam.editModal') : t('admin.voiceExam.createModal')}</h3>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
-          <input placeholder="Exam Title" value={form.title} onChange={(e) => set('title', e.target.value)} style={inp} />
+          <input placeholder={t('admin.voiceExam.examTitle')} value={form.title} onChange={(e) => set('title', e.target.value)} style={inp} />
           <select value={form.selectedYear} onChange={(e) => set('selectedYear', e.target.value)} style={inp}>
-            <option value="">-- Year --</option>
-            {YEARS.map((y) => <option key={y} value={y}>Year {y}</option>)}
+            <option value="">{t('admin.voiceExam.yearPlaceholder')}</option>
+            {YEARS.map((y) => <option key={y} value={y}>{t('admin.voiceExam.yearOption', { y })}</option>)}
           </select>
           <select value={form.moduleId} onChange={(e) => set('moduleId', e.target.value)} disabled={!form.selectedYear} style={inp}>
-            <option value="">-- Module --</option>
+            <option value="">{t('admin.voiceExam.modulePlaceholder')}</option>
             {filteredModules.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
           </select>
         </div>
 
         <textarea
-          placeholder="Clinical case prompt / scenario shown to student"
+          placeholder={t('admin.voiceExam.promptPlaceholder')}
           value={form.clinicalCasePrompt}
           onChange={(e) => set('clinicalCasePrompt', e.target.value)}
           rows={4}
@@ -291,7 +294,7 @@ const VoiceExamManagement = () => {
 
         <div style={{ marginBottom: 10 }}>
           <p style={{ fontWeight: 600, fontSize: 13, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <FaImage /> Images
+            <FaImage /> {t('admin.voiceExam.images')}
           </p>
           {existingImages.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -326,12 +329,12 @@ const VoiceExamManagement = () => {
           <input type="file" accept="image/*" multiple onChange={handleImageSelect} style={{ fontSize: 13 }} />
         </div>
 
-        <h4 style={{ margin: '16px 0 8px' }}>Questions</h4>
+        <h4 style={{ margin: '16px 0 8px' }}>{t('admin.voiceExam.questions')}</h4>
 
         {form.questions.map((q, qIdx) => (
           <div key={qIdx} style={{ border: '1px solid var(--dc-border)', borderRadius: 8, padding: 14, marginBottom: 12, background: 'var(--dc-cream)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <strong style={{ fontSize: 14 }}>Question {qIdx + 1}</strong>
+              <strong style={{ fontSize: 14 }}>{t('admin.voiceExam.questionLabel', { n: qIdx + 1 })}</strong>
               {form.questions.length > 1 && (
                 <button type="button" onClick={() => removeQuestion(qIdx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dc-highlight)' }}>
                   <FaTimes />
@@ -340,7 +343,7 @@ const VoiceExamManagement = () => {
             </div>
 
             <textarea
-              placeholder="Question text"
+              placeholder={t('admin.voiceExam.questionText')}
               value={q.questionText}
               onChange={(e) => setQuestion(qIdx, 'questionText', e.target.value)}
               rows={2}
@@ -348,7 +351,7 @@ const VoiceExamManagement = () => {
             />
 
             <textarea
-              placeholder="Ideal answer (shown to student after submission)"
+              placeholder={t('admin.voiceExam.idealAnswer')}
               value={q.idealAnswer}
               onChange={(e) => setQuestion(qIdx, 'idealAnswer', e.target.value)}
               rows={2}
@@ -356,17 +359,17 @@ const VoiceExamManagement = () => {
             />
 
             <div style={{ marginLeft: 12 }}>
-              <p style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>Criteria</p>
+              <p style={{ fontWeight: 600, fontSize: 12, marginBottom: 4 }}>{t('admin.voiceExam.criteria')}</p>
               {q.criteria.map((c, cIdx) => (
                 <div key={cIdx} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 6 }}>
                   <input
-                    placeholder="Criterion label (e.g. Diagnosis)"
+                    placeholder={t('admin.voiceExam.criterionLabel')}
                     value={c.label}
                     onChange={(e) => setCriterion(qIdx, cIdx, 'label', e.target.value)}
                     style={{ ...inp, width: '200px' }}
                   />
                   <input
-                    placeholder="Keywords, comma-separated"
+                    placeholder={t('admin.voiceExam.keywords')}
                     value={c.keywords.join(', ')}
                     onChange={(e) => setCriterion(qIdx, cIdx, 'keywords', e.target.value)}
                     style={{ ...inp, flex: 1 }}
@@ -379,29 +382,29 @@ const VoiceExamManagement = () => {
                 </div>
               ))}
               <button type="button" onClick={() => addCriterion(qIdx)} style={{ background: 'none', border: '1px dashed var(--dc-border)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: 12, marginTop: 4 }}>
-                <FaPlus /> Add criterion
+                <FaPlus /> {t('admin.voiceExam.addCriterion')}
               </button>
             </div>
           </div>
         ))}
 
         <button type="button" onClick={addQuestion} style={{ background: 'none', border: '1px dashed var(--dc-accent)', borderRadius: 6, padding: '8px 16px', cursor: 'pointer', fontSize: 13, marginBottom: 12, color: 'var(--dc-accent)', fontWeight: 600 }}>
-          <FaPlus /> Add question
+          <FaPlus /> {t('admin.voiceExam.addQuestion')}
         </button>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          <button type="button" onClick={handleSubmit} disabled={submitting}>{editId ? 'Update' : 'Create'}</button>
-          {editId && <button type="button" onClick={resetForm}>Cancel</button>}
+          <button type="button" onClick={handleSubmit} disabled={submitting}>{editId ? t('admin.voiceExam.update') : t('admin.voiceExam.create')}</button>
+          {editId && <button type="button" onClick={resetForm}>{t('admin.voiceExam.cancel')}</button>}
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         <select value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setFilterModule(''); }} style={inp}>
-          <option value="">All Years</option>
-          {YEARS.map((y) => <option key={y} value={y}>Year {y}</option>)}
+          <option value="">{t('admin.voiceExam.allYears')}</option>
+          {YEARS.map((y) => <option key={y} value={y}>{t('admin.voiceExam.yearOption', { y })}</option>)}
         </select>
         <select value={filterModule} onChange={(e) => setFilterModule(e.target.value)} style={inp}>
-          <option value="">All Modules</option>
+          <option value="">{t('admin.voiceExam.allModules')}</option>
           {filterModulesForBar.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
         </select>
       </div>
@@ -409,13 +412,13 @@ const VoiceExamManagement = () => {
       <div className="admin-table-wrapper">
         <table className="admin-table">
           <thead>
-            <tr>{['ID', 'Title', 'Year', 'Module', 'Prompt', 'Questions', 'Images', 'Actions'].map((h) => (
-              <th key={h}>{h}</th>
+            <tr>{['tableId', 'tableTitle', 'tableYear', 'tableModule', 'tablePrompt', 'tableQuestions', 'tableImages', 'tableActions'].map((k) => (
+              <th key={k}>{t(`admin.voiceExam.${k}`)}</th>
             ))}</tr>
           </thead>
           <tbody>
             {exams.length === 0
-              ? <tr><td colSpan="8" className="admin-empty">No voice exams</td></tr>
+              ? <tr><td colSpan="8" className="admin-empty">{t('admin.voiceExam.noExams')}</td></tr>
               : exams.map((exam) => (
                 <tr key={exam._id}>
                   <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{exam.examId || '—'}</td>
@@ -424,7 +427,7 @@ const VoiceExamManagement = () => {
                   <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{exam.moduleId?.name || '—'}</td>
                   <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{exam.clinicalCasePrompt}</td>
                   <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{(exam.questions || []).length}</td>
-                  <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{(exam.images || []).length > 0 ? `${exam.images.length} image(s)` : '—'}</td>
+                  <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{(exam.images || []).length > 0 ? t('admin.voiceExam.imageCount', { count: exam.images.length }) : t('admin.voiceExam.emptyDash')}</td>
                   <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>
                     <button type="button" onClick={() => startEdit(exam)} style={{ marginRight: 6 }}><FaEdit /></button>
                     <button type="button" onClick={() => setDeleteTarget(exam)}><FaTrash /></button>
@@ -437,11 +440,11 @@ const VoiceExamManagement = () => {
 
       <ConfirmModal
         open={!!deleteTarget}
-        title="Delete Voice Exam"
-        message={`Delete "${deleteTarget?.title || 'this exam'}"?`}
+        title={t('admin.voiceExam.deleteConfirm')}
+        message={t('admin.voiceExam.deleteConfirmMsg', { title: deleteTarget?.title || '' })}
         onConfirm={confirmDelete}
         onCancel={() => setDeleteTarget(null)}
-        confirmText="Delete"
+        confirmText={t('admin.voiceExam.deleteBtn')}
         confirmDisabled={submitting}
       />
     </div>

@@ -12,11 +12,22 @@ import { validate } from '../middleware/validate.js';
 import path from 'path';
 
 const router = express.Router();
+
+const normalizeCourses = (mod) => {
+  if (!mod.courses) return mod;
+  mod.courses = mod.courses.map((c) => {
+    if (typeof c === 'string') return { name: c, pdfId: '' };
+    if (c && typeof c === 'object' && !c.name && c.pdfId === undefined) return { name: '', pdfId: '' };
+    return c;
+  });
+  return mod;
+};
 const upload = multer({
   dest: 'uploads/',
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowedExt = path.extname(file.originalname).toLowerCase();
-    if (allowedExt === '.csv' || file.mimetype === 'text/csv') cb(null, true);
+    if (allowedExt === '.csv' && (file.mimetype === 'text/csv' || file.mimetype === 'application/vnd.ms-excel')) cb(null, true);
     else cb(new Error('Only CSV files are allowed'));
   },
 });
@@ -26,7 +37,8 @@ router.get('/modules', cacheMiddleware(), catchAsync(async (req, res) => {
   const filter = {};
   if (req.query.year)       filter.year       = Number(req.query.year);
   if (req.query.discipline) filter.discipline = String(req.query.discipline);
-  const modules = await Module.find(filter).sort({ year: 1, name: 1 });
+  let modules = await Module.find(filter).sort({ year: 1, name: 1 });
+  modules = modules.map(normalizeCourses);
   res.json(modules);
 }));
 
@@ -34,9 +46,9 @@ router.get('/modules', cacheMiddleware(), catchAsync(async (req, res) => {
 router.post('/modules', requireAdmin, catchAsync(async (req, res) => {
   const { name, year, courses, discipline } = req.body;
   if (!name || !year) return res.status(400).json({ message: 'name and year are required' });
-  const module = await Module.create({ name, year, discipline: discipline || 'medicine', courses: courses || [] });
+  let module = await Module.create({ name, year, discipline: discipline || 'medicine', courses: courses || [] });
   delPattern('GET:/api/modules');
-  res.status(201).json(module);
+  res.status(201).json(normalizeCourses(module));
 }));
 
 // PUT update module
@@ -46,10 +58,10 @@ router.put('/modules/:id', requireAdmin, [
   const { name, year, courses, discipline } = req.body;
   const updates = { name, year, courses: courses || [] };
   if (discipline) updates.discipline = discipline;
-  const updated = await Module.findByIdAndUpdate(req.params.id, updates, { new: true });
+  let updated = await Module.findByIdAndUpdate(req.params.id, updates, { new: true, runValidators: true });
   if (!updated) return res.status(404).json({ message: 'Module not found' });
   delPattern('GET:/api/modules');
-  res.json(updated);
+  res.json(normalizeCourses(updated));
 }));
 
 // DELETE module
@@ -69,7 +81,7 @@ router.post('/import-modules-csv', requireAdmin, upload.single('file'), catchAsy
     if (!req.file) return res.status(400).json({ message: 'CSV file is required' });
     filePath = req.file.path;
     const content = fs.readFileSync(filePath, 'utf8');
-    try { fs.unlinkSync(filePath); } catch { /* best-effort cleanup */ }
+    try { fs.unlinkSync(filePath); } catch { logger.warn('Failed to cleanup temp CSV file'); }
 
     const records = parse(content, { columns: true, skip_empty_lines: true });
 
@@ -87,7 +99,7 @@ router.post('/import-modules-csv', requireAdmin, upload.single('file'), catchAsy
         const existing = await Module.findOne({ name, year, discipline });
         if (existing) { results.skipped.push(name); continue; }
 
-        const courses = row.courses ? row.courses.split('|').map((c) => c.trim()).filter(Boolean) : [];
+        const courses = row.courses ? row.courses.split('|').map((c) => c.trim()).filter(Boolean).map((name) => ({ name, pdfId: '' })) : [];
 
         await Module.create({ name, year, discipline, courses });
         results.created++;
@@ -102,7 +114,7 @@ router.post('/import-modules-csv', requireAdmin, upload.single('file'), catchAsy
     });
   } catch (err) {
     logger.error({ err }, 'Module CSV import failed');
-    if (filePath) try { fs.unlinkSync(filePath); } catch { /* best-effort cleanup */ }
+    if (filePath) try { fs.unlinkSync(filePath); } catch { logger.warn('Failed to cleanup temp CSV file on error'); }
     res.status(500).json({ message: 'Import failed' });
   }
 }));

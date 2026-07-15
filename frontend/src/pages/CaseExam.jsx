@@ -4,21 +4,25 @@ import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { useToast } from '../components/Toast';
 import { SkeletonQuizItem } from '../components/LoadingSkeleton';
 import { useTranslation } from '../context/LanguageContext';
+import useDocumentTitle from '../utils/useDocumentTitle';
 import { logger } from '../utils/logger';
 import { useSound } from '../context/SoundContext';
 import '../styles/teal-theme.css';
 
 const CaseExam = () => {
+  const { t } = useTranslation();
+  useDocumentTitle(t('caseExam.title'));
   const { caseId } = useParams();
   const navigate = useNavigate();
   const notify = useToast();
   const play = useSound();
-  const { t } = useTranslation();
 
   const [caseData, setCaseData] = useState(null);
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [subscription, setSubscription] = useState(null);
+  const [subError, setSubError] = useState(false);
   const STORAGE_KEY = `case-exam-${caseId}`;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selected, setSelected] = useState([]);
@@ -34,10 +38,11 @@ const CaseExam = () => {
         if (saved.caseId === caseId) {
           setCurrentIndex(saved.currentIndex || 0);
           setResults(saved.results || {});
+          if (saved.selected) setSelected(saved.selected);
           restored.current = true;
         }
       }
-    } catch { /* ignore */ }
+    } catch { logger.error({}, 'CaseExam restoreSession failed') }
   }, []);
 
   const current = quizzes[currentIndex];
@@ -46,8 +51,8 @@ const CaseExam = () => {
 
   useEffect(() => {
     if (!quizzes.length || allDone) return;
-    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ caseId, currentIndex, results })); } catch { /* ignore */ }
-  }, [currentIndex, results, quizzes, allDone]);
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ caseId, currentIndex, results, selected })); } catch { /* ignore */ }
+  }, [currentIndex, results, selected, quizzes, allDone]);
 
   const clearSaved = () => { try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ } };
 
@@ -77,6 +82,15 @@ const CaseExam = () => {
     })();
     return () => controller.abort();
   }, [caseId]);
+
+  const loadSubscription = useCallback(async () => {
+    setSubError(false);
+    try {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/payments/subscription`);
+      if (res.ok) { const d = await res.json(); setSubscription(d.subscription); }
+    } catch (err) { logger.error({ err }, 'CaseExam fetchSubscription failed'); setSubError(true); }
+  }, []);
+  useEffect(() => { loadSubscription(); }, [loadSubscription]);
 
   useEffect(() => {
     if (current) setSelected([]);
@@ -132,6 +146,32 @@ const CaseExam = () => {
     </div>
   );
 
+  if (subError) {
+    return (
+      <div className="page-teal">
+        <div className="card-teal case-exam-error">
+          <p>{t('subscription.error.title')}</p>
+          <button className="btn-primary" onClick={loadSubscription}>{t('subscription.error.retry')}</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (subscription && (subscription.status !== 'active' || (subscription.endDate && new Date(subscription.endDate) < new Date()))) {
+    return (
+      <div className="page-teal">
+        <div className="card-teal" style={{ textAlign: 'center', padding: '60px 20px' }}>
+          <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>&#128274;</div>
+          <h3 style={{ color: '#856404', margin: '0 0 8px' }}>{t('subscription.required.title')}</h3>
+          <p style={{ color: '#856404', fontSize: '0.9rem', margin: '0 0 16px' }}>
+            {t('subscription.required.case')}
+          </p>
+          <button className="btn-primary" onClick={() => navigate('/pricing')}>{t('subscription.required.cta')}</button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-teal">
       <div className="card-teal case-exam-container">
@@ -180,7 +220,6 @@ const CaseExam = () => {
             }
             return (
               <label key={i} className={`option-label ${variant}`}
-                onClick={() => toggleOption(opt)}
                 style={{ cursor: isSubmitted ? 'default' : 'pointer' }}>
                 <input type="checkbox" checked={selected.includes(opt)} onChange={() => toggleOption(opt)} disabled={isSubmitted} />
                 {opt}

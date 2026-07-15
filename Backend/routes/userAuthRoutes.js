@@ -10,6 +10,7 @@ import { validatePassword } from '../middleware/passwordValidator.js';
 import { addToBlacklist } from '../middleware/jwtBlacklist.js';
 import { validate } from '../middleware/validate.js';
 import { genUserId } from '../utils/idGenerator.js';
+import { setTokenCookie } from '../controllers/authController.js';
 
 const router = express.Router();
 
@@ -38,6 +39,8 @@ router.post(
         { expiresIn: '2h' }
       );
 
+      setTokenCookie(res, token);
+      logger.info({ userId: user.userId }, 'User registered');
       return res.status(201).json({ message: 'Registration successful!', token, userId: user.userId, role: user.role });
     } catch (err) {
       logger.error({ err }, 'User registration failed');
@@ -70,6 +73,8 @@ router.post(
         { expiresIn: '2h' }
       );
 
+      setTokenCookie(res, token);
+      logger.info({ userId: user.userId }, 'User logged in');
       return res.status(200).json({ message: 'Login successful!', token, userId: user.userId, role: user.role });
     } catch (err) {
       logger.error({ err }, 'User login failed');
@@ -110,8 +115,18 @@ router.put(
       if (year !== undefined) updates.year = year;
       if (!Object.keys(updates).length) return res.status(400).json({ message: 'Nothing to update' });
 
-      const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true }).select('-password');
+      const currentUser = await User.findById(req.user.id).select('year discipline subscription');
+      if (currentUser) {
+        const yearChanged = year !== undefined && Number(year) !== currentUser.year;
+        const discChanged = discipline !== undefined && discipline !== currentUser.discipline;
+        if ((yearChanged || discChanged) && currentUser.subscription?.status === 'active') {
+          updates['subscription.status'] = 'expired';
+        }
+      }
+
+      const user = await User.findByIdAndUpdate(req.user.id, updates, { new: true, runValidators: true }).select('-password');
       if (!user) return res.status(404).json({ message: 'User not found' });
+      logger.info({ userId: req.user.userId, updates: Object.keys(updates) }, 'Profile updated');
       res.json({ message: 'Profile updated', user });
     } catch (err) {
       if (err.code === 11000) return res.status(409).json({ message: 'Email already in use' });
@@ -120,33 +135,33 @@ router.put(
   }
 );
 
+const changePassword = catchAsync(async (req, res) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+  const isMatch = await user.comparePassword(req.body.currentPassword);
+  if (!isMatch) return res.status(400).json({ message: 'Current password is incorrect' });
+  user.password = req.body.newPassword;
+  await user.save();
+  const authHeader = req.headers['authorization'];
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      await addToBlacklist(token, decoded.exp * 1000);
+    } catch { logger.warn('Failed to blacklist old token after password change'); }
+  }
+  res.json({ message: 'Password changed successfully' });
+});
+
+const changePwdValidation = [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters').custom(validatePassword),
+];
+
 // PUT /api/users/change-password — change own password (authenticated)
-router.put(
-  '/users/change-password',
-  verifyToken,
-  [
-    body('currentPassword').notEmpty().withMessage('Current password is required'),
-    body('newPassword').isLength({ min: 8 }).withMessage('New password must be at least 8 characters').custom(validatePassword),
-  ],
-  validate,
-  catchAsync(async (req, res) => {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    const isMatch = await user.comparePassword(req.body.currentPassword);
-    if (!isMatch) return res.status(400).json({ message: 'Current password is incorrect' });
-    user.password = req.body.newPassword;
-    await user.save();
-    const authHeader = req.headers['authorization'];
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        addToBlacklist(token, decoded.exp * 1000);
-      } catch {}
-    }
-    res.json({ message: 'Password changed successfully' });
-  })
-);
+router.put('/users/change-password', verifyToken, changePwdValidation, validate, changePassword);
+// Alias for backward compatibility
+router.put('/change-password', verifyToken, changePwdValidation, validate, changePassword);
 
 // DELETE /api/users/me — self-service account deletion (GDPR)
 router.delete(

@@ -1,14 +1,12 @@
 import express from 'express';
-import { verifyToken, createClerkClient } from '@clerk/backend';
+import jwt from 'jsonwebtoken';
+import { verifyToken as clerkVerify } from '@clerk/backend';
+import { TokenVerificationError, ClerkAPIResponseError } from '@clerk/backend/errors';
 import User from '../models/userModel.js';
 import logger from '../utils/logger.js';
+import { getClerkClient } from '../utils/clerkClient.js';
 
 const router = express.Router();
-
-const getClerkClient = () => {
-  if (!process.env.CLERK_SECRET_KEY) return null;
-  return createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
-};
 
 router.post('/clerk-sync', async (req, res) => {
   try {
@@ -20,13 +18,13 @@ router.post('/clerk-sync', async (req, res) => {
       return res.status(401).json({ message: 'No token provided' });
     }
 
-    const payload = await verifyToken(authHeader.split(' ')[1], { secretKey: process.env.CLERK_SECRET_KEY });
+    const payload = await clerkVerify(authHeader.split(' ')[1], { secretKey: process.env.CLERK_SECRET_KEY });
     const clerkUser = await clerkClient.users.getUser(payload.sub);
     if (!clerkUser) return res.status(404).json({ message: 'Clerk user not found' });
 
     const email = clerkUser.emailAddresses?.[0]?.emailAddress;
     const name = `${clerkUser.firstName || ''} ${clerkUser.lastName || ''}`.trim() || email?.split('@')[0] || 'User';
-    const userId = email?.split('@')[0] || `user_${payload.sub.slice(-8)}`;
+    const baseUserId = email?.split('@')[0] || `user_${payload.sub.slice(-8)}`;
 
     let user = await User.findOne({ clerkId: payload.sub });
     if (user) {
@@ -42,6 +40,11 @@ router.post('/clerk-sync', async (req, res) => {
         user.emailVerified = !!clerkUser.emailAddresses?.[0]?.verification?.status;
         await user.save();
       } else {
+        user = await User.findOne({ userId: baseUserId });
+        let userId = baseUserId;
+        if (user) {
+          userId = `${baseUserId}_${payload.sub.slice(-4)}`;
+        }
         user = new User({
           userId,
           clerkId: payload.sub,
@@ -54,10 +57,31 @@ router.post('/clerk-sync', async (req, res) => {
       }
     }
 
-    res.json({ message: 'Account synced', userId: user.userId, role: user.role, discipline: user.discipline || '', year: user.year || null });
+    const appToken = jwt.sign(
+      { id: user._id, userId: user.userId, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    res.cookie('token', appToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    logger.info({ userId: user.userId, role: user.role }, 'Account synced via Clerk');
+    return res.json({ message: 'Account synced', token: appToken, userId: user.userId, role: user.role, name: user.name || '', discipline: user.discipline || '', year: user.year || null });
   } catch (err) {
-    logger.error({ err }, 'clerk-sync failed');
-    res.status(500).json({ message: 'Failed to sync account' });
+    logger.error({ err, message: err?.message, reason: err?.reason, status: err?.status }, 'clerk-sync failed');
+    if (err instanceof TokenVerificationError) {
+      return res.status(401).json({ message: `Token verification failed: ${err.message}` });
+    }
+    if (err instanceof ClerkAPIResponseError) {
+      return res.status(err.status || 502).json({ message: `Clerk API error: ${err.message}` });
+    }
+    res.status(500).json({ message: `Failed to sync account: ${err?.message || 'Unknown error'}` });
   }
 });
 

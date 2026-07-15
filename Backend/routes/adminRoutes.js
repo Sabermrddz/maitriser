@@ -1,18 +1,18 @@
 import express from 'express';
+import { body } from 'express-validator';
 import crypto from 'crypto';
-import { verifyToken as clerkVerify, createClerkClient } from '@clerk/backend';
+import { verifyToken as clerkVerify } from '@clerk/backend';
 import User from '../models/userModel.js';
 import logger from '../utils/logger.js';
 import { verifyToken, requireAdmin } from '../controllers/authController.js';
+import { validate } from '../middleware/validate.js';
+import { getClerkClient } from '../utils/clerkClient.js';
 
 const router = express.Router();
 
-const getClerkClient = () => {
-  if (!process.env.CLERK_SECRET_KEY) return null;
-  return createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
-};
-
-router.post('/admin/claim', verifyToken, async (req, res) => {
+router.post('/admin/claim', verifyToken, [
+  body('code').isString().notEmpty(),
+], validate, async (req, res) => {
   try {
     const { code } = req.body;
     const secret = process.env.ADMIN_SECRET_CODE || '';

@@ -10,7 +10,6 @@ export const generateId = async (prefix) => {
 
 export const genQuizId = () => generateId('Q');
 export const genExamId = () => generateId('VE');
-export const genBookId = () => generateId('B');
 export const genUserId = async () => {
   for (let i = 0; i < 100; i++) {
     const id = await generateId('USR');

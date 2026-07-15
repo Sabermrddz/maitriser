@@ -4,6 +4,7 @@ import fr from '../locales/fr';
 
 const locales = { en, fr };
 const LanguageContext = createContext();
+export { LanguageContext };
 
 export const useTranslation = () => {
   const ctx = useContext(LanguageContext);
