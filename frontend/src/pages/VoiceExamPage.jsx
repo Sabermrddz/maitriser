@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import VoiceExam from '../components/VoiceExam.jsx';
 import VoiceExamSimulation from '../components/VoiceExamSimulation.jsx';
+import EcosCustomizedSetup from '../components/EcosCustomizedSetup';
+import EcosCustomizedSession from '../components/EcosCustomizedSession';
 import PremiumGateModal from '../components/PremiumGateModal';
 import { SkeletonCard, SkeletonFilters } from '../components/LoadingSkeleton';
 import { logger } from '../utils/logger';
@@ -33,6 +35,8 @@ const VoiceExamPage = () => {
   const [loadingExams, setLoadingExams]           = useState(true);
   const [modulesError, setModulesError]           = useState(null);
   const [examsError, setExamsError]               = useState(null);
+  const [showCustomSetup, setShowCustomSetup]     = useState(false);
+  const [customSession, setCustomSession]         = useState(null);
   const [showPremiumGate, setShowPremiumGate]     = useState(false);
   const [subError, setSubError]                   = useState(false);
 
@@ -123,6 +127,45 @@ const VoiceExamPage = () => {
     setSimulationExams(exams);
   };
 
+  const handleCustomEcos = async () => {
+    const hasSub = await checkSubscription();
+    if (!hasSub) { setShowPremiumGate(true); return; }
+    setShowCustomSetup(true);
+  };
+
+  const handleCustomStart = ({ exams: picked, stationCount, minutesPerStation }) => {
+    setCustomSession({ exams: picked, stationCount, minutesPerStation });
+    setShowCustomSetup(false);
+  };
+
+  const handleCustomBack = () => {
+    setCustomSession(null);
+    setShowCustomSetup(false);
+  };
+
+  if (customSession) {
+    return (
+      <EcosCustomizedSession
+        exams={customSession.exams}
+        stationCount={customSession.stationCount}
+        minutesPerStation={customSession.minutesPerStation}
+        onBack={handleCustomBack}
+      />
+    );
+  }
+
+  if (showCustomSetup) {
+    const yearModules = modules.filter((m) => !userYear || !m.year || String(m.year) === String(userYear));
+    return (
+      <EcosCustomizedSetup
+        modules={yearModules}
+        allExams={exams}
+        onStart={handleCustomStart}
+        onBack={() => setShowCustomSetup(false)}
+      />
+    );
+  }
+
   if (simulationExams) {
     return (
       <VoiceExamSimulation exams={simulationExams} onBack={() => setSimulationExams(null)} />
@@ -175,13 +218,22 @@ const VoiceExamPage = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
           <h2 style={{ margin: 0 }}>{t('voiceExams.title')}</h2>
           {exams.length > 0 && (
-            <button
-              type="button"
-              onClick={handleStartSimulation}
-              style={{ padding: '8px 18px', borderRadius: 6, border: 'none', background: 'var(--teal-dark)', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: 13 }}
-            >
-              {t('voiceExams.startSimulation')}
-            </button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={handleCustomEcos}
+                style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid var(--teal-dark)', background: 'transparent', color: 'var(--teal-dark)', fontWeight: 'bold', cursor: 'pointer', fontSize: 13 }}
+              >
+                {t('ecosCustomSetup.title')}
+              </button>
+              <button
+                type="button"
+                onClick={handleStartSimulation}
+                style={{ padding: '8px 18px', borderRadius: 6, border: 'none', background: 'var(--teal-dark)', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: 13 }}
+              >
+                {t('voiceExams.startSimulation')}
+              </button>
+            </div>
           )}
         </div>
 

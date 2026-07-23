@@ -331,16 +331,6 @@ const DashboardPage = () => {
             </div>
             )}
 
-            <div className="dash-action-card" role="button" tabIndex={0} onClick={() => navigate('/mock-exams')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/mock-exams'); } }}>
-              <div className="dash-action-header">
-                <div className="dash-action-badge blue"><FaGraduationCap /></div>
-                <div className="dash-action-info">
-                  <h3>{t('dashboard.actions.mock')}</h3>
-                  <p>{t('dashboard.actions.mock.desc')}</p>
-                </div>
-                <FaChevronRight className="dash-action-arrow" />
-              </div>
-            </div>
           </aside>
         </div>
       </div>

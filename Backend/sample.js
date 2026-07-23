@@ -6,8 +6,6 @@ import Counter from './models/counterModel.js';
 import User from './models/userModel.js';
 import QuizResult from './models/quizResultModel.js';
 import VoiceExamResult from './models/voiceExamResultModel.js';
-import QuizMockExam from './models/quizMockExamModel.js';
-import QuizMockAttempt from './models/quizMockAttemptModel.js';
 import OralMockExam from './models/oralMockExamModel.js';
 import OralMockSession from './models/oralMockSessionModel.js';
 import Plan from './models/planModel.js';

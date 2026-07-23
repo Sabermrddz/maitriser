@@ -73,6 +73,8 @@ router.get('/course-pdfs/:filename', verifyToken, catchAsync(async (req, res) =>
   const key = `course-pdfs/${path.basename(req.params.filename)}`;
   const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
     expiresIn: getPresignedExpiry(),
+    ResponseContentDisposition: 'inline',
+    ResponseContentType: 'application/pdf',
   });
   res.json({ url });
 }));

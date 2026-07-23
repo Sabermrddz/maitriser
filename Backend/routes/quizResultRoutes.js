@@ -1,6 +1,7 @@
 import express from 'express';
 import { body, param } from 'express-validator';
 import Quiz from '../models/quizModel.js';
+import QuizAttempt from '../models/quizAttemptModel.js';
 import QuizResult from '../models/quizResultModel.js';
 import logger from '../utils/logger.js';
 import { broadcast } from '../ws.js';
@@ -8,6 +9,7 @@ import { catchAsync } from '../utils/asyncHandler.js';
 import { getPagination, paginatedResponse } from '../utils/paginate.js';
 import { validate } from '../middleware/validate.js';
 import { verifyToken } from '../controllers/authController.js';
+import { checkSubscription } from '../middleware/requireSubscription.js';
 
 const router = express.Router();
 
@@ -23,9 +25,15 @@ router.post('/quizzes/:quizId/submit', [
 
   if (!userId) return res.status(400).json({ message: 'userId is required' });
 
+  if (!await checkSubscription(req.user?.id)) return res.status(403).json({ message: 'Subscription required' });
+
   const quiz = await Quiz.findById(quizId);
   if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
   if (!quiz.published) return res.status(404).json({ message: 'Quiz not found' });
+
+  const attempt = await QuizAttempt.findOne({ userId: req.user.id, quizId: quiz._id });
+  if (!attempt) return res.status(410).json({ message: 'Quiz session not started. Please go back and start the quiz.' });
+  if (attempt.expiresAt < new Date()) return res.status(410).json({ message: 'Quiz session expired. Please go back and start again.' });
 
   const correct = quiz.question?.correctAnswers || [];
 

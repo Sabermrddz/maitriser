@@ -5,15 +5,14 @@ const Skeleton = ({ width, height, borderRadius = '8px', style }) => (
 );
 
 export const SkeletonCard = ({ count = 6 }) => (
-  <>
+  <div className="grid-cards">
     {Array.from({ length: count }).map((_, i) => (
       <div key={i} className="card-item skeleton-card">
-        <Skeleton width="40px" height="40px" borderRadius="50%" style={{ margin: '0 auto 8px' }} />
-        <Skeleton width="80%" height="14px" style={{ margin: '0 auto 4px' }} />
-        <Skeleton width="60%" height="12px" style={{ margin: '0 auto' }} />
+        <Skeleton width="70%" height="16px" style={{ margin: '0 auto 10px' }} />
+        <Skeleton width="50%" height="12px" />
       </div>
     ))}
-  </>
+  </div>
 );
 
 export const SkeletonQuizItem = ({ count = 5 }) => (
@@ -33,6 +32,17 @@ export const SkeletonFilters = ({ count = 3 }) => (
   <div className="filters-row">
     {Array.from({ length: count }).map((_, i) => (
       <Skeleton key={i} width="160px" height="42px" borderRadius="10px" />
+    ))}
+  </div>
+);
+
+export const SkeletonModuleGrid = ({ count = 6 }) => (
+  <div className="grid-cards">
+    {Array.from({ length: count }).map((_, i) => (
+      <div key={i} className="card-item skeleton-card">
+        <Skeleton width="75%" height="16px" style={{ margin: '0 auto 10px' }} />
+        <Skeleton width="55%" height="12px" />
+      </div>
     ))}
   </div>
 );

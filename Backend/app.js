@@ -25,7 +25,6 @@ import pdfDocumentRoutes from './routes/pdfDocumentRoutes.js';
 import imageRoutes from './routes/imageRoutes.js';
 import planRoutes from './routes/planRoutes.js';
 import dailyQuizRoutes from './routes/dailyQuizRoutes.js';
-import quizMockExamRoutes from './routes/quizMockExamRoutes.js';
 
 import { verifyToken, requireAdmin } from './controllers/authController.js';
 import { auditMutations } from './utils/audit.js';
@@ -118,7 +117,7 @@ const feedbackLimiter = rateLimit({
 });
 
 app.use(['/api/users/login', '/api/users/register', '/api/user/logging', '/api/user/register', '/api/admin/claim'], authLimiter);
-app.use(['/api/quizzes', '/api/voice-exams', '/api/mock-exams'], (req, res, next) => {
+app.use(['/api/quizzes', '/api/voice-exams'], (req, res, next) => {
   if (req.method === 'POST' && /\/(submit|submit-station)$/.test(req.path)) return submitLimiter(req, res, next);
   next();
 });
@@ -148,11 +147,10 @@ app.use('/api', verifyToken, userLimiter, quizResultRoutes);
 app.use('/api', verifyToken, userLimiter, voiceExamRoutes);
 app.use('/api', verifyToken, userLimiter, moduleRoutes);
 app.use('/api', verifyToken, userLimiter, bookmarkRoutes);
-app.use('/api', verifyToken, userLimiter, quizMockExamRoutes);
 app.use('/api/feedback', verifyToken, userLimiter, feedbackLimiter, feedbackRoutes);
 
-app.use('/api', verifyToken, requireAdmin, auditMutations, userRoutes);
-app.use('/api', verifyToken, requireAdmin, auditMutations, dashboardRoutes);
+app.use('/api', verifyToken, auditMutations, userRoutes);
+app.use('/api', verifyToken, auditMutations, dashboardRoutes);
 app.use('/api', pdfDocumentRoutes);
 app.use('/api', imageRoutes);
 

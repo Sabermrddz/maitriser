@@ -1,14 +1,36 @@
 import express from 'express';
 import { body, param } from 'express-validator';
+import path from 'path';
+import multer from 'multer';
 import Plan from '../models/planModel.js';
 import SubscriptionCode from '../models/subscriptionCodeModel.js';
 import User from '../models/userModel.js';
+import ContactMessage from '../models/contactModel.js';
+import AppConfig from '../models/appConfigModel.js';
 import { verifyToken, requireAdmin } from '../controllers/authController.js';
 import { catchAsync } from '../utils/asyncHandler.js';
 import { validate } from '../middleware/validate.js';
+import { getPagination, paginatedResponse } from '../utils/paginate.js';
+import { broadcast } from '../ws.js';
+import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { getR2Client, getBucket, getPresignedExpiry } from '../config/r2.js';
+import logger from '../utils/logger.js';
 import crypto from 'crypto';
 
 const router = express.Router();
+
+const receiptUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+    const ext = '.' + file.originalname.toLowerCase().split('.').pop();
+    const allowedMime = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+    if (allowed.includes(ext) && allowedMime.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only image files are allowed (png, jpg, jpeg, gif, webp)'));
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
 
 function generateCode(prefix) {
   const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
@@ -238,6 +260,117 @@ router.put('/users/:id/subscription', verifyToken, requireAdmin, [
   const user = await User.findByIdAndUpdate(req.params.id, { $set: subscription }, { new: true }).select('-password');
   if (!user) return res.status(404).json({ message: 'User not found' });
   res.json({ message: 'Subscription updated', user });
+}));
+
+// ── Payment info (public) ───────────────────────────────────────────────────
+router.get('/payments/payment-info', catchAsync(async (req, res) => {
+  const instructions = await AppConfig.findOne({ key: 'paymentInstructions' });
+  const imageUrl = await AppConfig.findOne({ key: 'paymentImageUrl' });
+  res.json({
+    instructions: instructions?.value || '',
+    imageUrl: imageUrl?.value || '',
+  });
+}));
+
+// ── Submit a payment intent (authenticated, with receipt image) ─────────────
+router.post('/payments/payment-intent', verifyToken, receiptUpload.single('receiptImage'), catchAsync(async (req, res) => {
+  const { planId, message } = req.body;
+  if (!planId || !message) return res.status(400).json({ message: 'planId and message are required' });
+
+  const plan = await Plan.findById(planId);
+  if (!plan) return res.status(404).json({ message: 'Plan not found' });
+
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  let imageUrl = null;
+  if (req.file) {
+    const s3 = getR2Client();
+    const ext = req.file.originalname.toLowerCase().split('.').pop();
+    const key = `payment-receipts/${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
+    if (s3) {
+      await s3.send(new PutObjectCommand({
+        Bucket: getBucket(),
+        Key: key,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+      }));
+      imageUrl = key;
+    }
+  }
+
+  const contactMessage = await ContactMessage.create({
+    name: user.name || user.email || 'Unknown',
+    email: user.email || '',
+    message: `[Payment Intent] Plan: ${plan.name}\nAmount: ${plan.price} €\nMessage: ${message}`,
+    imageUrl,
+    planName: plan.name,
+    userId: user._id,
+  });
+
+  broadcast('contact:new', { name: contactMessage.name, email: contactMessage.email, plan: plan.name });
+  res.status(201).json({ message: 'Payment request submitted successfully' });
+}));
+
+// ── Serve payment receipt images (authenticated) ────────────────────────────
+router.get('/payment-images/:filename', verifyToken, catchAsync(async (req, res) => {
+  const s3 = getR2Client();
+  if (!s3) return res.status(500).json({ message: 'Storage not configured' });
+  const key = `payment-receipts/${path.basename(req.params.filename)}`;
+  const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
+    expiresIn: getPresignedExpiry(),
+  });
+  res.redirect(url);
+}));
+
+// ── Admin: update payment config ────────────────────────────────────────────
+router.put('/admin/payment-config', verifyToken, requireAdmin, [
+  body('instructions').optional().isString(),
+  body('imageUrl').optional().isString(),
+], validate, catchAsync(async (req, res) => {
+  if (req.body.instructions !== undefined) {
+    await AppConfig.findOneAndUpdate(
+      { key: 'paymentInstructions' },
+      { key: 'paymentInstructions', value: String(req.body.instructions) },
+      { upsert: true, new: true }
+    );
+  }
+  if (req.body.imageUrl !== undefined) {
+    await AppConfig.findOneAndUpdate(
+      { key: 'paymentImageUrl' },
+      { key: 'paymentImageUrl', value: String(req.body.imageUrl) },
+      { upsert: true, new: true }
+    );
+  }
+  res.json({ message: 'Payment config updated' });
+}));
+
+// ── Admin: list payment intents ─────────────────────────────────────────────
+router.get('/admin/payment-intents', verifyToken, requireAdmin, catchAsync(async (req, res) => {
+  const filter = { imageUrl: { $ne: null } };
+  const { skip, limit, page } = getPagination(req.query);
+  const [items, total] = await Promise.all([
+    ContactMessage.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+    ContactMessage.countDocuments(filter),
+  ]);
+  res.json(paginatedResponse(items, total, page, limit));
+}));
+
+// ── Admin: delete a payment intent + its image ──────────────────────────────
+router.delete('/admin/payment-intents/:id', verifyToken, requireAdmin, [
+  param('id').isMongoId(),
+], validate, catchAsync(async (req, res) => {
+  const doc = await ContactMessage.findById(req.params.id);
+  if (!doc) return res.status(404).json({ message: 'Payment intent not found' });
+  if (doc.imageUrl) {
+    const s3 = getR2Client();
+    if (s3) {
+      try { await s3.send(new DeleteObjectCommand({ Bucket: getBucket(), Key: doc.imageUrl })); }
+      catch { logger.warn('Failed to delete payment receipt image from R2'); }
+    }
+  }
+  await ContactMessage.findByIdAndDelete(req.params.id);
+  res.json({ message: 'Payment intent deleted' });
 }));
 
 export default router;

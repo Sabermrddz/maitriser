@@ -1,4 +1,4 @@
-import { getToken, refreshToken } from '../utils/tokenStore';
+import { getToken, refreshToken, clearToken } from '../utils/tokenStore';
 import { logger } from '../utils/logger';
 
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
@@ -10,6 +10,12 @@ export const authHeaders = () => {
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+const handleSessionConflict = () => {
+  clearToken();
+  try { localStorage.removeItem('userId'); } catch { /* incognito */ }
+  window.location.href = '/login?conflict=1';
+};
 
 export const fetchWithAuth = async (url, options = {}) => {
   const doFetch = async (token) => {
@@ -42,6 +48,11 @@ export const fetchWithAuth = async (url, options = {}) => {
         continue;
       }
       throw networkErr;
+    }
+
+    if (res.status === 409) {
+      handleSessionConflict();
+      return res;
     }
 
     if (res.status === 401) {

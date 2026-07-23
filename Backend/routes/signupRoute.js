@@ -72,8 +72,11 @@ router.post(
       const isPasswordValid = await user.comparePassword(password);
       if (!isPasswordValid) return res.status(401).json({ message: 'Invalid credentials.' });
 
+      user.activeTokenId = crypto.randomBytes(32).toString('hex');
+      await user.save();
+
       const token = jwt.sign(
-        { id: user._id, userId: user.userId, email: user.email, role: user.role, name: user.name },
+        { id: user._id, userId: user.userId, email: user.email, role: user.role, name: user.name, tokenId: user.activeTokenId },
         process.env.JWT_SECRET,
         { expiresIn: '24h' }
       );

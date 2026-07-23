@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { useToast } from '../components/Toast';
 import { useNavigate } from 'react-router-dom';
@@ -21,6 +21,13 @@ const PricingPage = () => {
   const [redeeming, setRedeeming] = useState(false);
   const [redeemError, setRedeemError] = useState('');
   const [subscription, setSubscription] = useState(null);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentInfo, setPaymentInfo] = useState({ instructions: '', imageUrl: '' });
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [paymentMessage, setPaymentMessage] = useState('');
+  const [paymentFile, setPaymentFile] = useState(null);
+  const [paymentSubmitting, setPaymentSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
 
   const userDiscipline = (() => { try { return localStorage.getItem('userDiscipline') || ''; } catch { return ''; } })();
   const userYear = (() => { try { return localStorage.getItem('userYear') || ''; } catch { return ''; } })();
@@ -94,6 +101,49 @@ const PricingPage = () => {
     } finally {
       setRedeeming(false);
     }
+  };
+
+  const fetchPaymentInfo = async () => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/payments/payment-info`);
+      if (res.ok) setPaymentInfo(await res.json());
+    } catch { /* ignore */ }
+  };
+
+  const handlePaidSubscribe = async (plan) => {
+    setSelectedPlan(plan);
+    setPaymentMessage('');
+    setPaymentFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    await fetchPaymentInfo();
+    setShowPaymentModal(true);
+  };
+
+  const handlePaymentSubmit = async () => {
+    if (!paymentMessage.trim()) return notify(t('pricing.paymentModal.messageRequired'), 'warning');
+    setPaymentSubmitting(true);
+    try {
+      const fd = new FormData();
+      fd.append('planId', selectedPlan._id);
+      fd.append('message', paymentMessage.trim());
+      if (paymentFile) fd.append('receiptImage', paymentFile);
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/payments/payment-intent`, { method: 'POST', body: fd });
+      if (res.ok) {
+        notify(t('pricing.paymentModal.success'), 'success');
+        setShowPaymentModal(false);
+      } else {
+        const data = await res.json();
+        notify(data.message || t('pricing.paymentModal.error'), 'error');
+      }
+    } catch {
+      notify(t('pricing.paymentModal.error'), 'error');
+    } finally {
+      setPaymentSubmitting(false);
+    }
+  };
+
+  const handleFileChange = (e) => {
+    setPaymentFile(e.target.files[0] || null);
   };
 
   const hasActiveSub = subscription?.status === 'active' && new Date(subscription.endDate ?? 0) > new Date();
@@ -170,15 +220,65 @@ const PricingPage = () => {
                     {subscribingId === plan._id ? t('pricing.activating') : t('pricing.subscribeFree')}
                   </button>
                 ) : (
-                  <>
-                    <button className="pricing-card-btn" onClick={() => navigate(`/contact?subject=${encodeURIComponent(`Subscription request: ${plan.name}`)}`)}>
-                      {t('pricing.contactAdminBtn')}
-                    </button>
-                    <p className="pricing-card-hint">{t('pricing.contactHint')}</p>
-                  </>
+                  <button className="pricing-card-btn" onClick={() => handlePaidSubscribe(plan)}>
+                    {t('pricing.subscribe')}
+                  </button>
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {showPaymentModal && selectedPlan && (
+          <div className="ecos-overlay" onClick={() => !paymentSubmitting && setShowPaymentModal(false)}>
+            <div className="ecos-modal" style={{ maxWidth: 480 }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h3 style={{ margin: 0 }}>{t('pricing.paymentModal.title')}</h3>
+                <button onClick={() => setShowPaymentModal(false)} disabled={paymentSubmitting}
+                  style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', padding: '0 4px' }}>&times;</button>
+              </div>
+
+              <p style={{ fontSize: '0.9rem', marginBottom: 4 }}><strong>{selectedPlan.name}</strong></p>
+              <p style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 12, color: 'var(--dc-accent)' }}>{selectedPlan.price} €</p>
+
+              {paymentInfo.instructions && (
+                <div style={{ background: 'var(--dc-cream)', padding: 12, borderRadius: 8, marginBottom: 12, fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>
+                  {paymentInfo.instructions}
+                </div>
+              )}
+
+              {paymentInfo.imageUrl && (
+                <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                  <img src={paymentInfo.imageUrl} alt="Bank transfer info"
+                    style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, border: '1px solid var(--dc-border)' }} />
+                </div>
+              )}
+
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
+                {t('pricing.paymentModal.uploadLabel')}
+              </label>
+              <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*"
+                disabled={paymentSubmitting}
+                style={{ marginBottom: 12, fontSize: '0.85rem' }} />
+
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: 4 }}>
+                {t('pricing.paymentModal.messageLabel')}
+              </label>
+              <textarea value={paymentMessage} onChange={(e) => setPaymentMessage(e.target.value)}
+                disabled={paymentSubmitting}
+                rows={3}
+                style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid var(--dc-border)', fontSize: '0.85rem', resize: 'vertical' }} />
+
+              <div className="ecos-modal-actions" style={{ marginTop: 16 }}>
+                <button className="btn-ghost" onClick={() => setShowPaymentModal(false)} disabled={paymentSubmitting}>
+                  {t('cancel')}
+                </button>
+                <button className="btn-primary" onClick={handlePaymentSubmit}
+                  disabled={paymentSubmitting || !paymentMessage.trim()}>
+                  {paymentSubmitting ? t('pricing.paymentModal.sending') : t('pricing.paymentModal.submit')}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

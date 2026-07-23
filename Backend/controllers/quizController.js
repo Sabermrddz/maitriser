@@ -1,6 +1,7 @@
 import path from 'path';
 import mongoose from 'mongoose';
 import Quiz from '../models/quizModel.js';
+import QuizAttempt from '../models/quizAttemptModel.js';
 import Module from '../models/moduleModel.js';
 import Case from '../models/caseModel.js';
 import { getPagination, paginatedResponse } from '../utils/paginate.js';
@@ -197,6 +198,62 @@ export const createCaseQuizzes = catchAsync(async (req, res) => {
   }
 
   return res.status(201).json({ message: `Case and ${created.length} quizzes created`, case: caseDoc, quizzes: created });
+});
+
+export const startQuiz = catchAsync(async (req, res) => {
+  if (!await checkSubscription(req.user?.id)) return res.status(403).json({ message: 'Subscription required' });
+  const quiz = await Quiz.findById(req.params.id);
+  if (!quiz) return res.status(404).json({ message: 'Quiz not found' });
+  if (!quiz.published) return res.status(404).json({ message: 'Quiz not found' });
+
+  const timer = Number(req.body.timer) || quiz.timer || 0;
+  const expiresAt = timer > 0 ? new Date(Date.now() + timer * 1000) : new Date('9999-12-31T23:59:59Z');
+
+  await QuizAttempt.findOneAndUpdate(
+    { userId: req.user.id, quizId: quiz._id },
+    { userId: req.user.id, quizId: quiz._id, startedAt: new Date(), expiresAt },
+    { upsert: true, new: true }
+  );
+
+  return res.json({ expiresAt: expiresAt.toISOString(), timer });
+});
+
+export const quizCounts = catchAsync(async (req, res) => {
+  const filter = { published: true };
+  if (req.query.discipline) filter.discipline = String(req.query.discipline);
+  if (req.query.year)       filter.year = Number(req.query.year);
+
+  const counts = await Quiz.aggregate([
+    { $match: filter },
+    { $group: {
+      _id: { moduleId: '$moduleId', course: '$course' },
+      count: { $sum: 1 },
+    }},
+    { $group: {
+      _id: '$_id.moduleId',
+      courses: { $push: { course: '$_id.course', count: '$count' } },
+      total: { $sum: '$count' },
+    }},
+    { $project: {
+      _id: 0,
+      moduleId: '$_id',
+      total: 1,
+      courses: 1,
+    }},
+  ]);
+
+  const result = {};
+  for (const entry of counts) {
+    const courses = {};
+    for (const c of entry.courses) {
+      if (c.course) courses[c.course] = c.count;
+    }
+    result[entry.moduleId.toString()] = {
+      total: entry.total,
+      courses,
+    };
+  }
+  res.json(result);
 });
 
 export const serveQuizImage = catchAsync(async (req, res) => {

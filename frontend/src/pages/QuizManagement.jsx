@@ -41,10 +41,10 @@ const OptionItem = ({ i, opt, onUpdate }) => {
 };
 
 const QuizManagement = () => {
+  const { t } = useTranslation();
   useDocumentTitle(t('admin.quiz.title'), 'Admin');
   const notify = useToast();
   const play = useSound();
-  const { t } = useTranslation();
   const [modules, setModules]               = useState([]);
   const [filteredModules, setFilteredModules] = useState([]);
   const [quizzes, setQuizzes]               = useState([]);
@@ -421,7 +421,7 @@ const QuizManagement = () => {
       {error && <div className="error-banner" role="alert">{error}<button onClick={() => setError('')}>&times;</button></div>}
 
       <div className="qm-header">
-        <h1 className="qm-logo">MAITRISEZ <span className="qm-logo-light">| Admin Dashboard</span></h1>
+        <h1 className="qm-logo brand-name">MAITRISEZ <span className="qm-logo-light">| Admin Dashboard</span></h1>
         <span className="qm-user">Admin</span>
       </div>
 

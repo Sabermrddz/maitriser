@@ -57,6 +57,9 @@ export const verifyToken = async (req, res, next) => {
     if (await isBlacklisted(token)) return res.status(401).json({ message: 'Token revoked.' });
     const user = await User.findById(decoded.id);
     if (!user) return res.status(401).json({ message: 'User not found.' });
+    if (user.activeTokenId && decoded.tokenId && decoded.tokenId !== user.activeTokenId) {
+      return res.status(409).json({ message: 'Session expired. You have been logged in from another device.' });
+    }
     req.user = { id: user._id, userId: user.userId, role: user.role, email: user.email, name: user.name, discipline: user.discipline || '', year: user.year || null };
     logger.debug({ userId: user.userId }, 'JWT token verified');
     return next();

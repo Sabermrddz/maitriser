@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { FaHome, FaClipboardList, FaUsers, FaLayerGroup, FaMicrophone, FaComment, FaDollarSign, FaGraduationCap, FaFilePdf, FaImage, FaSun, FaMoon, FaGlobe, FaSignOutAlt, FaUser, FaChevronLeft } from "react-icons/fa";
+import { FaHome, FaClipboardList, FaUsers, FaLayerGroup, FaMicrophone, FaComment, FaDollarSign, FaFilePdf, FaImage, FaSun, FaMoon, FaGlobe, FaSignOutAlt, FaUser, FaChevronLeft } from "react-icons/fa";
 import { useSound } from '../context/SoundContext';
 import { useTranslation } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -30,7 +30,7 @@ const Sidebar = ({ sidebarOpen, toggleSidebar }) => {
       <div className="sidebar-header">
         <div className="sidebar-header-logo" onClick={() => { play('navigate'); navigate('/admin/dashboard'); }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); play('navigate'); navigate('/admin/dashboard'); } }}>
           <BrandLogo width={34} height={22} />
-          <span className="sidebar-text">MAITRISEZ</span>
+          <span className="sidebar-text brand-name">MAITRISEZ</span>
         </div>
         <button className="sidebar-toggle-btn" onClick={() => { play('navigate'); toggleSidebar(); }} aria-label={sidebarOpen ? t('nav.collapse') : t('nav.expand')}>
           <FaChevronLeft />
@@ -44,8 +44,6 @@ const Sidebar = ({ sidebarOpen, toggleSidebar }) => {
             { label: t('admin.sidebar.modules'), path: '/admin/module-management', icon: <FaLayerGroup /> },
             { label: t('admin.sidebar.quizzes'), path: '/admin/quiz-management', icon: <FaClipboardList /> },
             { label: t('admin.sidebar.users'), path: '/admin/user-management', icon: <FaUsers /> },
-            { label: t('admin.sidebar.mockExams'), path: '/admin/mock-exam-management', icon: <FaGraduationCap /> },
-
             { label: t('admin.sidebar.voiceExams'), path: '/admin/voice-exam-management', icon: <FaMicrophone /> },
             { label: t('admin.sidebar.feedback'), path: '/admin/feedback', icon: <FaComment /> },
             { label: t('admin.sidebar.pricing'), path: '/admin/pricing', icon: <FaDollarSign /> },

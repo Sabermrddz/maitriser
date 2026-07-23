@@ -31,10 +31,11 @@ router.post(
 
       const userId = await genUserId();
       const user = new User({ userId, name, email, password, role: 'user' });
+      user.activeTokenId = crypto.randomBytes(32).toString('hex');
       await user.save();
 
       const token = jwt.sign(
-        { id: user._id, userId: user.userId, role: user.role },
+        { id: user._id, userId: user.userId, role: user.role, tokenId: user.activeTokenId },
         process.env.JWT_SECRET,
         { expiresIn: '2h' }
       );
@@ -67,8 +68,11 @@ router.post(
       const isMatch = await user.comparePassword(password);
       if (!isMatch) return res.status(401).json({ message: 'Invalid credentials.' });
 
+      user.activeTokenId = crypto.randomBytes(32).toString('hex');
+      await user.save();
+
       const token = jwt.sign(
-        { id: user._id, userId: user.userId, role: user.role },
+        { id: user._id, userId: user.userId, role: user.role, tokenId: user.activeTokenId },
         process.env.JWT_SECRET,
         { expiresIn: '2h' }
       );

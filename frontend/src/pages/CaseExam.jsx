@@ -94,7 +94,7 @@ const CaseExam = () => {
 
   useEffect(() => {
     if (current) setSelected([]);
-  }, [currentIndex, current]);
+  }, [currentIndex]);
 
   const toggleOption = (opt) => {
     if (isSubmitted) return;
@@ -161,12 +161,16 @@ const CaseExam = () => {
     return (
       <div className="page-teal">
         <div className="card-teal" style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>&#128274;</div>
-          <h3 style={{ color: '#856404', margin: '0 0 8px' }}>{t('subscription.required.title')}</h3>
-          <p style={{ color: '#856404', fontSize: '0.9rem', margin: '0 0 16px' }}>
-            {t('subscription.required.case')}
-          </p>
-          <button className="btn-primary" onClick={() => navigate('/pricing')}>{t('subscription.required.cta')}</button>
+          <div className="gate-banner" style={{ marginBottom: 0, background: 'transparent', border: 'none' }}>
+            <div className="gate-icon">&#128274;</div>
+            <h3>{t('subscription.required.title')}</h3>
+            <p>
+              {t('subscription.required.case')}
+            </p>
+            <div className="gate-cta">
+              <button className="btn-primary" onClick={() => navigate('/pricing')}>{t('subscription.required.cta')}</button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -186,7 +190,7 @@ const CaseExam = () => {
 
         <div className="case-exam-nav-row">
           <span className="case-exam-counter">
-            {t('mock.question')} {currentIndex + 1} / {quizzes.length}
+            {t('caseExam.question')} {currentIndex + 1} / {quizzes.length}
           </span>
           <div className="case-exam-dots">
             {quizzes.map((q, i) => (
@@ -230,11 +234,11 @@ const CaseExam = () => {
           {isSubmitted && (
             <div className={`case-result-box ${results[current._id].correct ? 'correct' : 'incorrect'}`}>
               <p className="case-result-label">
-                {results[current._id].correct ? t('mock.correct') : t('mock.incorrect')}
+                {results[current._id].correct ? t('caseExam.correct') : t('caseExam.incorrect')}
               </p>
               {!results[current._id].correct && (
                 <p className="case-result-answers">
-                  <strong>{results[current._id].correctAnswers?.length > 1 ? t('mock.correctAnswers') : t('mock.correctAnswer')} :</strong>{' '}
+                  <strong>{results[current._id].correctAnswers?.length > 1 ? t('caseExam.correctAnswers') : t('caseExam.correctAnswer')} :</strong>{' '}
                   {results[current._id].correctAnswers?.join(', ')}
                 </p>
               )}
@@ -250,18 +254,18 @@ const CaseExam = () => {
             <div>
               {currentIndex > 0 && (
                 <button className="btn-dark" onClick={() => { play('prev'); setCurrentIndex((i) => i - 1); }}>
-                  {t('mock.prev')}
+                  {t('caseExam.prev')}
                 </button>
               )}
             </div>
             <div className="case-exam-actions">
               {!isSubmitted ? (
                 <button className="btn-primary" onClick={handleSubmit} disabled={submitting || selected.length === 0}>
-                  {submitting ? t('mock.submitting') : t('mock.submit')}
+                  {submitting ? t('caseExam.submitting') : t('caseExam.submit')}
                 </button>
               ) : currentIndex < quizzes.length - 1 ? (
                 <button className="btn-primary" onClick={() => { play('next'); setCurrentIndex((i) => i + 1); }}>
-                  {t('mock.next')}
+                  {t('caseExam.next')}
                 </button>
               ) : (
                 <button className="btn-dark" onClick={() => { play('prev'); navigate('/quizPage'); }}>

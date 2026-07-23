@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { FaHome, FaFileMedical, FaStethoscope, FaChartBar, FaCog, FaGraduationCap, FaUserShield, FaSun, FaMoon, FaGlobe, FaSignOutAlt, FaUser, FaChevronLeft } from "react-icons/fa";
+import { FaHome, FaFileMedical, FaStethoscope, FaChartBar, FaCog, FaUserShield, FaSun, FaMoon, FaGlobe, FaSignOutAlt, FaUser, FaChevronLeft } from "react-icons/fa";
 import { useSound } from '../context/SoundContext';
 import { useTranslation } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -32,7 +32,7 @@ const NewSidebar = ({ sidebarOpen, toggleSidebar }) => {
       <div className="dash-sidebar-header">
         <div className="dash-logo-area" onClick={() => { play('navigate'); navigate('/dashboard'); }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); play('navigate'); navigate('/dashboard'); } }}>
           <BrandLogo width={38} height={24} />
-          <span className="dash-logo-text">MAITRISEZ</span>
+          <span className="dash-logo-text brand-name">MAITRISEZ</span>
         </div>
         <button className="dash-toggle-btn" onClick={() => { play('navigate'); toggleSidebar(); }} aria-label={sidebarOpen ? t('nav.collapse') : t('nav.expand')}>
           <FaChevronLeft />
@@ -44,7 +44,6 @@ const NewSidebar = ({ sidebarOpen, toggleSidebar }) => {
           items={[
             { label: t('nav.home'), path: '/dashboard', icon: <FaHome /> },
             { label: t('nav.qcmExams'), path: '/quizPage', icon: <FaFileMedical /> },
-            { label: t('nav.mockExam'), path: '/mock-exams', icon: <FaGraduationCap /> },
             ...(userDiscipline === 'medicine' && ECOS_YEARS.includes(userYear)
               ? [{ label: t('nav.ecos'), path: '/voice-exams', icon: <FaStethoscope /> }]
               : []),

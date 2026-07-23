@@ -29,17 +29,12 @@
   transform: translateY(0);
 }
 
-/* ---------- NAV ---------- */
-.landing-nav {
-  position: sticky;
-  top: 0;
-  z-index: 50;
+/* ---------- HERO TOP (brand + nav, no bar) ---------- */
+.landing-hero-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 22px 5.5vw;
-  background: linear-gradient(180deg, rgba(0, 38, 47, 0.92), rgba(0, 38, 47, 0.7) 80%, transparent);
-  backdrop-filter: blur(6px);
+  padding-bottom: 32px;
 }
 
 .landing-brand {

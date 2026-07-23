@@ -83,7 +83,7 @@ const UserHistoryModal = ({ user, onClose }) => {
                 {percentage}%
               </div>
               <div style={{ fontSize: '13px', color: 'var(--dc-text-muted)' }}>
-                {correct}/{total} {t('mock.correct').toLowerCase()} — {total} {t('userHistory.attempts')}
+                {correct}/{total} {t('caseExam.correct').toLowerCase()} — {total} {t('userHistory.attempts')}
               </div>
             </div>
 

@@ -64,14 +64,29 @@ router.get('/voice-exams', verifyToken, cacheMiddleware(), catchAsync(async (req
 
   const filter = { year: Number(req.query.year), discipline: 'medicine' };
   if (req.query.moduleId && mongoose.Types.ObjectId.isValid(String(req.query.moduleId))) filter.moduleId = String(req.query.moduleId);
+  if (req.query.course) filter.course = String(req.query.course);
   const exams = await VoiceExam.find(filter).populate('moduleId', 'name year').sort({ createdAt: -1 });
   res.json(exams);
+}));
+
+router.get('/voice-exam-counts', verifyToken, cacheMiddleware(), catchAsync(async (req, res) => {
+  const filter = { discipline: 'medicine' };
+  if (req.query.year) filter.year = Number(req.query.year);
+  const counts = await VoiceExam.aggregate([
+    { $match: filter },
+    { $group: { _id: '$moduleId', count: { $sum: 1 } } },
+  ]);
+  const result = {};
+  for (const entry of counts) {
+    if (entry._id) result[entry._id.toString()] = entry.count;
+  }
+  res.json(result);
 }));
 
 router.get('/voice-exams/:id', verifyToken, [
   param('id').isMongoId(),
 ], validate, catchAsync(async (req, res) => {
-  if (!await checkSubscription(req.user?.id)) return res.status(403).json({ message: 'Subscription required' });
+  if (!await checkSubscription(req.user?.id)) return res.status(404).json({ message: 'Voice exam not found' });
 
   const user = await User.findById(req.user.id || req.user._id).select('discipline').lean();
   const allowedDisciplines = ['medicine'];
@@ -85,7 +100,7 @@ router.get('/voice-exams/:id', verifyToken, [
 }));
 
 router.post('/voice-exams', requireAdmin, upload.array('images', 10), catchAsync(async (req, res) => {
-  let { title, moduleId, clinicalCasePrompt, questions } = req.body;
+  let { title, moduleId, course, clinicalCasePrompt, questions } = req.body;
   if (!title || !moduleId || !clinicalCasePrompt)
     return res.status(400).json({ message: 'title, moduleId, and clinicalCasePrompt are required' });
 
@@ -100,7 +115,7 @@ router.post('/voice-exams', requireAdmin, upload.array('images', 10), catchAsync
 
   const examId = await genExamId();
   const exam = await VoiceExam.create({
-    examId, title, moduleId, year: module.year, discipline: 'medicine', clinicalCasePrompt, questions, images,
+    examId, title, moduleId, course: course || '', year: module.year, discipline: 'medicine', clinicalCasePrompt, questions, images,
   });
   delPattern('GET:/api/voice-exams');
   res.status(201).json({ message: 'Voice exam created successfully', exam });
@@ -109,7 +124,7 @@ router.post('/voice-exams', requireAdmin, upload.array('images', 10), catchAsync
 router.put('/voice-exams/:id', requireAdmin, upload.array('images', 10), [
   param('id').isMongoId(),
 ], validate, catchAsync(async (req, res) => {
-  let { title, moduleId, clinicalCasePrompt, questions, existingImages } = req.body;
+  let { title, moduleId, course, clinicalCasePrompt, questions, existingImages } = req.body;
   let year;
   if (moduleId) {
     const module = await Module.findById(moduleId);
@@ -130,6 +145,7 @@ router.put('/voice-exams/:id', requireAdmin, upload.array('images', 10), [
   const updateFields = {};
   if (title)              updateFields.title = title;
   if (moduleId)           updateFields.moduleId = moduleId;
+  if (course !== undefined) updateFields.course = course;
   if (year)               updateFields.year = year;
   updateFields.discipline = 'medicine';
   if (clinicalCasePrompt) updateFields.clinicalCasePrompt = clinicalCasePrompt;

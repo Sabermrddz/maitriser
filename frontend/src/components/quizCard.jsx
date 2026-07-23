@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { FaFilePdf } from 'react-icons/fa';
@@ -9,8 +9,6 @@ import PremiumGateModal from './PremiumGateModal';
 import { SkeletonQuizItem } from './LoadingSkeleton';
 import { logger } from '../utils/logger';
 import '../styles/teal-theme.css';
-
-const TIMER_SECONDS = 60;
 
 const QuizCard = () => {
   const { state }    = useLocation();
@@ -28,13 +26,12 @@ const QuizCard = () => {
   const [submitted, setSubmitted] = useState(false);
   const [result, setResult]       = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [quizTimer, setQuizTimer] = useState(TIMER_SECONDS);
-  const [timeLeft, setTimeLeft]   = useState(quizTimer);
+  const [elapsed, setElapsed]     = useState(0);
   const [timerActive, setTimerActive] = useState(false);
   const [subscription, setSubscription] = useState(null);
   const [showGate, setShowGate]   = useState(false);
   const [pdfMap, setPdfMap]       = useState({});
-  const timerRef = useRef(null);
+  const [moduleCourses, setModuleCourses] = useState(null);
   const submittingRef = useRef(false);
   const handleSubmitRef = useRef(null);
 
@@ -76,6 +73,20 @@ const QuizCard = () => {
   }, []);
 
   useEffect(() => {
+    const mid = quizData?.moduleId;
+    if (!mid) return;
+    (async () => {
+      try {
+        const res = await fetchWithAuth(`${API_BASE_URL}/api/modules/${mid}`);
+        if (res.ok) {
+          const mod = await res.json();
+          setModuleCourses(mod.courses || []);
+        }
+      } catch { /* module courses not available */ }
+    })();
+  }, [quizData?.moduleId]);
+
+  useEffect(() => {
     if (quizData) return;
     if (!id) { navigate('/quizPage'); return; }
 
@@ -86,9 +97,6 @@ const QuizCard = () => {
         if (!res.ok) throw new Error('Quiz not found');
         const data = await res.json();
         if (controller.signal.aborted) return;
-        const t = data.timer || TIMER_SECONDS;
-        setQuizTimer(t);
-        setTimeLeft(t);
         setQuizData({
           quizId:   data._id,
           quizName: data.question?.questionText || data.quizId,
@@ -109,34 +117,40 @@ const QuizCard = () => {
     return () => controller.abort();
   }, [id]);
 
-  const hiddenRef = useRef(false);
-  const [tick, setTick] = useState(0);
   useEffect(() => {
-    const onVis = () => {
-      if (document.hidden) { hiddenRef.current = true; clearTimeout(timerRef.current); }
-      else { hiddenRef.current = false; setTick((t) => t + 1); }
+    if (studyMode || submitted) { setTimerActive(false); return; }
+    setTimerActive(true);
+    let id = setInterval(() => setElapsed((p) => p + 1), 1000);
+    const handleVisibility = () => {
+      if (document.hidden) {
+        clearInterval(id);
+      } else {
+        id = setInterval(() => setElapsed((p) => p + 1), 1000);
+      }
     };
-    document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
-  }, []);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [studyMode, submitted]);
 
-  useEffect(() => {
-    if (hiddenRef.current || studyMode) return;
-    if (timerActive && timeLeft > 0 && !submitted) {
-      timerRef.current = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
-    } else if (timerActive && timeLeft === 0 && !submitted && handleSubmitRef.current) {
-      handleSubmitRef.current();
+  const startQuizSession = useCallback(async () => {
+    if (!quizData?.quizId) return;
+    try {
+      await fetchWithAuth(`${API_BASE_URL}/api/quizzes/${quizData.quizId}/start`, {
+        method: 'POST',
+        body: { timer: 0 },
+      });
+    } catch (err) {
+      logger.error({ err, quizId: quizData.quizId }, 'startQuizSession failed');
     }
-    return () => clearTimeout(timerRef.current);
-  }, [timerActive, timeLeft, submitted, studyMode, tick]);
+  }, [quizData?.quizId]);
 
   useEffect(() => {
-    const onLeave = (e) => { if (!submitted) { e.preventDefault(); e.returnValue = ''; } };
-    window.addEventListener('beforeunload', onLeave);
-    return () => window.removeEventListener('beforeunload', onLeave);
-  }, [submitted]);
-
-  const startTimer = () => { if (!timerActive) setTimerActive(true); };
+    if (quizData?.quizId && !studyMode) startQuizSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quizData?.quizId, studyMode]);
 
   const toggleOption = (opt) => {
     if (submitted) return;
@@ -146,7 +160,6 @@ const QuizCard = () => {
       handleStudyCheck(opt);
       return;
     }
-    startTimer();
     setSelected((prev) =>
       prev.includes(opt) ? prev.filter((a) => a !== opt) : [...prev, opt]
     );
@@ -179,7 +192,6 @@ const QuizCard = () => {
     submittingRef.current = true;
     setSubmitting(true);
     setTimerActive(false);
-    clearTimeout(timerRef.current);
     try {
       const res = await fetchWithAuth(`${API_BASE_URL}/api/quizzes/${quizData.quizId}/submit`, {
         method: 'POST',
@@ -203,21 +215,26 @@ const QuizCard = () => {
   const formatTime = (s) => {
     const m = Math.floor(s / 60);
     const sec = s % 60;
-    return `${m}:${sec.toString().padStart(2, '0')}`;
+    return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
   };
 
   if (loading) return <div className="page-teal"><div className="card-teal"><SkeletonQuizItem count={1} /></div></div>;
   if (!quizData?.question) return <div className="page-teal"><div className="card-teal" style={{ textAlign: 'center' }}>{t('quizcard.notFound')}</div></div>;
-  if (subscription && (subscription.status !== 'active' || (subscription.endDate && new Date(subscription.endDate) < new Date()))) {
+  const isSubActive = subscription?.status === 'active' && (!subscription.endDate || new Date(subscription.endDate) > new Date());
+  if (!isSubActive) {
     return (
       <div className="page-teal">
         <div className="card-teal" style={{ textAlign: 'center', padding: '60px 20px' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: 8 }}>&#128274;</div>
-          <h3 style={{ color: '#856404', margin: '0 0 8px' }}>{t('quizcard.subscription.title')}</h3>
-          <p style={{ color: '#856404', fontSize: '0.9rem', margin: '0 0 16px' }}>
-            {t('quizcard.subscription.desc')}
-          </p>
-          <button className="btn-primary" onClick={() => navigate('/pricing')}>{t('quizcard.subscription.cta')}</button>
+          <div className="gate-banner" style={{ marginBottom: 0, background: 'transparent', border: 'none' }}>
+            <div className="gate-icon">&#128274;</div>
+            <h3>{t('quizcard.subscription.title')}</h3>
+            <p>
+              {t('quizcard.subscription.desc')}
+            </p>
+            <div className="gate-cta">
+              <button className="btn-primary" onClick={() => navigate('/pricing')}>{t('quizcard.subscription.cta')}</button>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -231,15 +248,13 @@ const QuizCard = () => {
   return (
     <div className="page-teal">
       <div className="quiz-container-teal">
-        <div className="flex-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: 'var(--text-dark)' }}>{quizName}</h2>
+        <div className="quiz-flex-header">
+          <h2>{quizName}</h2>
           {!studyMode && (
-            <span className={`timer-badge ${timerActive ? 'timer-running' : ''}`} style={{
-              color: timeLeft <= 10 ? 'var(--color-danger)' : 'var(--text-dark)',
-              opacity: timerActive ? 1 : 0.5,
+            <span className="timer-badge timer-running" style={{
+              color: 'var(--text-dark)',
             }}>
-              {timerActive ? '⏱' : '⏸'} {formatTime(timeLeft)}
-              {!timerActive && <span style={{ fontSize: '11px', marginLeft: '6px', color: 'var(--text-muted)' }}>Click an answer to start</span>}
+              ⏱ {formatTime(elapsed)}
             </span>
           )}
         </div>
@@ -247,14 +262,11 @@ const QuizCard = () => {
         {studyMode && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-light)', marginBottom: '10px' }}>🔍 {t('quizcard.studyMode')}</div>}
 
         {quizData.caseId && typeof quizData.caseId === 'object' && (
-          <div className="case-box" style={{
-            background: 'var(--color-info-bg)', border: '1px solid var(--border-light)', borderRadius: '10px',
-            padding: '14px 16px', marginBottom: '16px',
-          }}>
-            <div style={{ fontSize: '12px', fontWeight: 700, color: '#04484F', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+          <div className="case-box">
+            <div className="case-box-label">
               📋 Cas clinique — {quizData.caseId.title || ''}
             </div>
-            <p style={{ margin: 0, fontSize: '14px', color: 'var(--text-muted)', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+            <p>
               {quizData.caseId.description || ''}
             </p>
           </div>
@@ -294,6 +306,9 @@ const QuizCard = () => {
             <p className="result-box-title">
               {result.correct ? '✅ Correct !' : '❌ Incorrect'}
             </p>
+            <p className="result-box-time">
+              ⏱ {t('customExam.timeTaken', { time: formatTime(elapsed) })}
+            </p>
             {!result.correct && (
               <p className="result-box-answer">
                 <strong>{result.correctAnswers?.length > 1 ? t('quizcard.correctAnswers') : t('quizcard.correctAnswer')} :</strong>{' '}
@@ -308,15 +323,15 @@ const QuizCard = () => {
           </div>
         )}
 
-        {submitted && quizData.course && quizData.moduleId?.courses && (
+        {submitted && quizData.course && (
           (() => {
-            const match = (quizData.moduleId.courses || []).find(
+            const match = (moduleCourses || quizData.moduleId?.courses || []).find(
               (c) => (typeof c === 'string' ? c : c.name || '') === quizData.course
             );
             const pdfId = match && typeof match === 'object' ? match.pdfId || '' : '';
             const pdfFilename = pdfId ? pdfMap[pdfId] : null;
-            if (!pdfFilename) return null;
             const handleOpenPdf = async () => {
+              if (!pdfFilename) { notify(t('quizcard.courseNotAvailable'), 'warning'); return; }
               try {
                 const res = await fetchWithAuth(`${API_BASE_URL}/api/course-pdfs/${encodeURIComponent(pdfFilename)}`);
                 if (!res.ok) throw new Error('Failed to get PDF');
@@ -328,7 +343,7 @@ const QuizCard = () => {
               <div style={{ textAlign: 'center', margin: '16px 0 0' }}>
                 <button onClick={handleOpenPdf}
                    className="btn-primary"
-                   style={{ display: 'inline-flex', alignItems: 'center', gap: 8, border: 'none', cursor: 'pointer' }}>
+                   style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 18px', fontSize: 13 }}>
                   <FaFilePdf /> {t('quizcard.viewCourse')} — {quizData.course}
                 </button>
               </div>

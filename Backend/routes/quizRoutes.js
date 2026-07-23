@@ -4,7 +4,7 @@ import multer from 'multer';
 import { requireAdmin } from '../controllers/authController.js';
 import { validate } from '../middleware/validate.js';
 import {
-  listQuizzes, getQuiz, getCase,
+  listQuizzes, getQuiz, getCase, quizCounts, startQuiz,
   listAdminQuizzes, createQuiz, editQuiz, deleteQuiz,
   createCaseQuizzes, serveQuizImage,
 } from '../controllers/quizController.js';
@@ -34,9 +34,11 @@ const quizImageUpload = multer({
 
 const router = express.Router();
 
+router.get('/quiz-counts', quizCounts);
 router.get('/quizzes', listQuizzes);
 router.get('/quizzes/:id', [param('id').isMongoId()], validate, getQuiz);
 router.get('/cases/:id', [param('id').isMongoId()], validate, getCase);
+router.post('/quizzes/:id/start', [param('id').isMongoId(), body('timer').optional().isInt({ min: 0 })], validate, startQuiz);
 
 router.get('/admin/quizzes', requireAdmin, listAdminQuizzes);
 router.post('/quizzes', requireAdmin, quizImageUpload.single('questionImage'), [

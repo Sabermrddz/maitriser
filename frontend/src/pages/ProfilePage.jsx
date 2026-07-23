@@ -176,12 +176,12 @@ const ProfilePage = () => {
       datasets: [{
         label: 'Accuracy',
         data: last.map((r) => r.score * 100),
-        borderColor: '#3BB8B0',
+        borderColor: 'var(--teal-accent)',
         backgroundColor: 'rgba(59, 184, 176, 0.08)',
         fill: true,
         tension: 0.4,
         pointRadius: 3,
-        pointBackgroundColor: last.map((r) => r.score === 1 ? '#3BB8B0' : '#EF4444'),
+        pointBackgroundColor: last.map((r) => r.score === 1 ? 'var(--teal-accent)' : 'var(--color-danger)'),
       }],
     };
   }, [results]);
@@ -204,8 +204,8 @@ const ProfilePage = () => {
         data: entries.map((e) => e.accuracy),
         backgroundColor: entries.map((e) =>
           e.accuracy >= 70 ? 'rgba(59, 184, 176, 0.75)' :
-          e.accuracy >= 50 ? 'rgba(234, 179, 8, 0.75)' :
-          'rgba(239, 68, 68, 0.75)'
+          e.accuracy >= 50 ? 'rgba(59, 184, 176, 0.45)' :
+          'rgba(59, 184, 176, 0.2)'
         ),
         borderRadius: 4,
       }],
@@ -220,8 +220,8 @@ const ProfilePage = () => {
       tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.y}%` } },
     },
     scales: {
-      y: { min: 0, max: 100, ticks: { callback: (v) => `${v}%`, color: 'var(--dc-text-muted)', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
-      x: { ticks: { color: 'var(--dc-text-muted)', font: { size: 10 } }, grid: { display: false } },
+      y: { min: 0, max: 100, ticks: { callback: (v) => `${v}%`, color: 'var(--text-muted)', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
+      x: { ticks: { color: 'var(--text-muted)', font: { size: 10 } }, grid: { display: false } },
     },
   };
 
@@ -234,8 +234,8 @@ const ProfilePage = () => {
       tooltip: { callbacks: { label: (ctx) => `${ctx.parsed.x}%` } },
     },
     scales: {
-      x: { min: 0, max: 100, ticks: { callback: (v) => `${v}%`, color: 'var(--dc-text-muted)', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
-      y: { ticks: { color: 'var(--dc-text)', font: { size: 11 } }, grid: { display: false } },
+      x: { min: 0, max: 100, ticks: { callback: (v) => `${v}%`, color: 'var(--text-muted)', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
+      y: { ticks: { color: 'var(--text-dark)', font: { size: 11 } }, grid: { display: false } },
     },
   };
 
@@ -313,10 +313,10 @@ const ProfilePage = () => {
         onCancel={() => setShowConfirmModal(false)}
       />
       {!statsLoading && (
-        <div className="card-teal" style={{ maxWidth: 560, margin: '24px auto 0', padding: 24 }}>
-          <h2 className="profile-heading">📊 {t('profile.progress.title')}</h2>
+        <div className="card-teal profile-stats-card">
+          <h2 className="profile-heading">{t('profile.progress.title')}</h2>
 
-          <div className="dashboard-stats" style={{ marginBottom: 24 }}>
+          <div className="profile-stats-grid">
             <div className="stat-card">
               <div className="stat-value">{stats.total}</div>
               <div className="stat-label">{t('profile.progress.quizzesTaken')}</div>
@@ -326,34 +326,38 @@ const ProfilePage = () => {
               <div className="stat-label">{t('profile.progress.correct')}</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value" style={{ color: stats.percentage >= 70 ? '#3BB8B0' : stats.percentage >= 50 ? '#eab308' : '#ef4444' }}>
+              <div className={`stat-value ${stats.percentage >= 70 ? 'profile-stat-value--high' : stats.percentage >= 50 ? 'profile-stat-value--mid' : 'profile-stat-value--low'}`}>
                 {stats.percentage}%
               </div>
               <div className="stat-label">{t('profile.progress.accuracy')}</div>
             </div>
             <div className="stat-card">
-              <div className="stat-value" style={{ color: '#e67e22' }}>{stats.streak}</div>
+              <div className="stat-value profile-stat-value--streak">{stats.streak}</div>
               <div className="stat-label">{t('profile.progress.streak')}</div>
             </div>
           </div>
 
           {results.length === 0 && (
-            <p style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '12px 0 24px' }}>
+            <p className="profile-empty-msg">
               {t('profile.progress.empty')}
             </p>
           )}
 
           {trendData.labels.length > 1 && (
-            <div style={{ height: 220, marginBottom: 28 }}>
-              <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--dc-text)', marginBottom: 8 }}>{t('profile.progress.trendTitle')}</p>
-              <Line data={trendData} options={lineOptions} />
+            <div className="profile-chart-section">
+              <p className="profile-chart-title">{t('profile.progress.trendTitle')}</p>
+              <div className="profile-chart-wrap">
+                <Line data={trendData} options={lineOptions} />
+              </div>
             </div>
           )}
 
           {moduleData.labels.length > 0 && (
-            <div style={{ height: Math.max(140, moduleData.labels.length * 36) }}>
-              <p style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--dc-text)', marginBottom: 8 }}>{t('profile.progress.moduleTitle')}</p>
-              <Bar data={moduleData} options={barOptions} />
+            <div className="profile-chart-section profile-chart-wrap--bar">
+              <p className="profile-chart-title">{t('profile.progress.moduleTitle')}</p>
+              <div style={{ height: Math.max(140, moduleData.labels.length * 36) }}>
+                <Bar data={moduleData} options={barOptions} />
+              </div>
             </div>
           )}
         </div>

@@ -15,7 +15,7 @@
   --dash-text-primary: light-dark(#0F172A, #f1f5f9);
   --dash-text-secondary: light-dark(#475569, #cbd5e1);
   --dash-text-muted: light-dark(#94a3b8, #64748b);
-  --dash-accent: var(--teal-accent, #C1FF30);
+  --dash-accent: var(--teal-accent, #88D62B);
   --dash-border: light-dark(rgba(0,0,0,0.06), rgba(255,255,255,0.07));
   --dash-section-gap: 28px;
   --dash-sidebar-width: 260px;
@@ -319,7 +319,7 @@
 .dash-premium-btn {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(90deg, #04484F, #077384, #C1FF30, #04484F);
+  background: linear-gradient(90deg, #04484F, #077384, #88D62B, #04484F);
   background-size: 200% auto;
   animation: flow 6s linear infinite;
   border: none;
@@ -345,7 +345,7 @@
   border-radius: 6px;
 }
 .dash-premium-btn:hover {
-  box-shadow: 0 6px 28px #04484F66, 0 3px 12px #C1FF3044;
+  box-shadow: 0 6px 28px #04484F66, 0 3px 12px #88D62B44;
 }
 
 /* ── Main content ─────────────────────────────────── */
@@ -588,7 +588,7 @@
   transition: all 0.2s;
 }
 .dash-view-all:hover {
-  background-image: linear-gradient(90deg, #C1FF30, #077384, #C1FF30);
+  background-image: linear-gradient(90deg, #88D62B, #077384, #88D62B);
   background-size: 200% auto;
   -webkit-background-clip: text;
   background-clip: text;
@@ -638,7 +638,7 @@
   position: absolute;
   inset: -2px;
   border-radius: inherit;
-  background: conic-gradient(from var(--a), #04484F, #077384, #C1FF30, #077384, #04484F);
+  background: conic-gradient(from var(--a), #04484F, #077384, #88D62B, #077384, #04484F);
   padding: 2px;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
@@ -746,7 +746,7 @@
   position: absolute;
   inset: -2px;
   border-radius: inherit;
-  background: conic-gradient(from var(--a), #04484F, #077384, #C1FF30, #077384, #04484F);
+  background: conic-gradient(from var(--a), #04484F, #077384, #88D62B, #077384, #04484F);
   padding: 2px;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
@@ -811,7 +811,7 @@
 .dash-empty-cta {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(90deg, #C1FF30, #9DE820, #C1FF30);
+  background: linear-gradient(90deg, #88D62B, #9DE820, #88D62B);
   background-size: 200% auto;
   animation: flow 6s linear infinite;
   color: #04484F;
@@ -822,7 +822,7 @@
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s;
-  box-shadow: 0 4px 20px #C1FF3044;
+  box-shadow: 0 4px 20px #88D62B44;
 }
 .dash-empty-cta::after {
   content: "";
@@ -835,7 +835,7 @@
   border-radius: 8px;
 }
 .dash-empty-cta:hover {
-  box-shadow: 0 6px 28px #C1FF3066;
+  box-shadow: 0 6px 28px #88D62B66;
 }
 
 /* ── Activity split ───────────────────────────────── */
@@ -962,7 +962,7 @@
   position: absolute;
   inset: -2px;
   border-radius: inherit;
-  background: conic-gradient(from var(--a), #04484F, #077384, #C1FF30, #077384, #04484F);
+  background: conic-gradient(from var(--a), #04484F, #077384, #88D62B, #077384, #04484F);
   padding: 2px;
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;

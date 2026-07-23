@@ -37,7 +37,7 @@ export default function LandingNav() {
     <nav className="landing-nav" ref={menuRef}>
       <a className="landing-brand" href="/" onClick={(e) => { e.preventDefault(); navigate('/'); }} aria-label={t('landing.nav.home')}>
         <BrandLogo />
-        <span>MAITRISEZ</span>
+        <span className="brand-name">MAITRISEZ</span>
       </a>
       <button className="landing-mobile-toggle" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? t('landing.nav.closeMenu') : t('landing.nav.openMenu')} aria-expanded={menuOpen}>
         {menuOpen ? '✖' : '☰'}

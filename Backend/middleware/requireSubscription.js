@@ -9,7 +9,7 @@ export async function checkSubscription(userId) {
 
   if (user.subscription.planId) {
     const plan = await Plan.findById(user.subscription.planId);
-    if (!plan || plan.year !== user.year || plan.discipline !== user.discipline) return false;
+    if (!plan || plan.discipline !== user.discipline) return false;
   }
 
   return true;

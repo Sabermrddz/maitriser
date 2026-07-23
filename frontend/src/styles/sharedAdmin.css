@@ -296,7 +296,7 @@ input:focus, select:focus, textarea:focus {
   padding: 6px 14px;
   border-radius: 6px;
   border: none;
-  background: linear-gradient(90deg, #04484F, #077384, #C1FF30, #04484F);
+  background: linear-gradient(90deg, #04484F, #077384, #88D62B, #04484F);
   background-size: 200% auto;
   animation: flow 6s linear infinite;
   color: #fff;
@@ -323,7 +323,7 @@ input:focus, select:focus, textarea:focus {
   cursor: not-allowed;
 }
 .feedback-action-btn:hover:not(:disabled) {
-  box-shadow: 0 6px 20px #04484F55, 0 3px 10px #C1FF3033;
+  box-shadow: 0 6px 20px #04484F55, 0 3px 10px #88D62B33;
 }
 
 .year-tag {

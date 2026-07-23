@@ -17,7 +17,7 @@ const emptyCriterion = () => ({ label: '', keywords: [] });
 const emptyQuestion = () => ({ questionText: '', idealAnswer: '', criteria: [emptyCriterion()] });
 
 const emptyForm = () => ({
-  title: '', selectedYear: '', moduleId: '',
+  title: '', selectedYear: '', moduleId: '', course: '',
   clinicalCasePrompt: '', questions: [emptyQuestion()],
 });
 
@@ -27,7 +27,6 @@ const VoiceExamManagement = () => {
   const notify = useToast();
   const play = useSound();
   const [modules, setModules]               = useState([]);
-  const [filteredModules, setFilteredModules] = useState([]);
   const [exams, setExams]                   = useState([]);
   const [form, setForm]                     = useState(emptyForm());
   const [editId, setEditId]                 = useState(null);
@@ -43,12 +42,6 @@ const VoiceExamManagement = () => {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => { fetchModules(); fetchExams(); }, []);
-
-  useEffect(() => {
-    setFilteredModules(form.selectedYear
-      ? modules.filter((m) => m.year === Number(form.selectedYear))
-      : modules);
-  }, [form.selectedYear, modules]);
 
   useEffect(() => { fetchExams(); }, [filterYear, filterModule]);
 
@@ -156,7 +149,7 @@ const VoiceExamManagement = () => {
   const handleSubmit = async () => {
     play('submit');
     if (submittingRef.current) return;
-    const { title, moduleId, clinicalCasePrompt, questions } = form;
+    const { title, moduleId, course, clinicalCasePrompt, questions } = form;
     if (!title || !moduleId || !clinicalCasePrompt)
       return notify(t('admin.voiceExam.fillRequired'), 'warning');
 
@@ -170,7 +163,7 @@ const VoiceExamManagement = () => {
     const hasFiles = newImages.length > 0;
 
     const body = JSON.stringify({
-      title, moduleId, clinicalCasePrompt,
+      title, moduleId, course, clinicalCasePrompt,
       questions: validQuestions,
       existingImages,
     });
@@ -183,6 +176,7 @@ const VoiceExamManagement = () => {
         const fd = new FormData();
         fd.append('title', title);
         fd.append('moduleId', moduleId);
+        fd.append('course', course || '');
         fd.append('clinicalCasePrompt', clinicalCasePrompt);
         fd.append('questions', JSON.stringify(validQuestions));
         fd.append('existingImages', JSON.stringify(existingImages));
@@ -229,6 +223,7 @@ const VoiceExamManagement = () => {
       title: exam.title,
       selectedYear: String(exam.year),
       moduleId: exam.moduleId?._id || exam.moduleId,
+      course: exam.course || '',
       clinicalCasePrompt: exam.clinicalCasePrompt,
 
       questions: (exam.questions || []).length > 0
@@ -259,6 +254,12 @@ const VoiceExamManagement = () => {
     ? modules.filter((m) => m.year === Number(filterYear))
     : modules;
 
+  const filteredModulesForForm = form.selectedYear
+    ? modules.filter((m) => m.year === Number(form.selectedYear))
+    : modules;
+  const selectedModule = filteredModulesForForm.find((m) => m._id === form.moduleId);
+  const moduleCourses = (selectedModule?.courses || []).map((c) => typeof c === 'string' ? c : c.name || '').filter(Boolean);
+
   const inp = { padding: 8, border: '1px solid var(--dc-border)', borderRadius: 6, width: '100%', background: 'var(--dc-cream-light)', boxSizing: 'border-box' };
 
   if (loading) return <div className="admin-page"><h2>{t('admin.voiceExam.title')}</h2><Spinner /></div>;
@@ -272,15 +273,19 @@ const VoiceExamManagement = () => {
       <div className="admin-form-card" style={{ maxWidth: 900 }}>
         <h3>{editId ? t('admin.voiceExam.editModal') : t('admin.voiceExam.createModal')}</h3>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 10, marginBottom: 10 }}>
           <input placeholder={t('admin.voiceExam.examTitle')} value={form.title} onChange={(e) => set('title', e.target.value)} style={inp} />
-          <select value={form.selectedYear} onChange={(e) => set('selectedYear', e.target.value)} style={inp}>
+          <select value={form.selectedYear} onChange={(e) => { set('selectedYear', e.target.value); set('moduleId', ''); set('course', ''); }} style={inp}>
             <option value="">{t('admin.voiceExam.yearPlaceholder')}</option>
             {YEARS.map((y) => <option key={y} value={y}>{t('admin.voiceExam.yearOption', { y })}</option>)}
           </select>
-          <select value={form.moduleId} onChange={(e) => set('moduleId', e.target.value)} disabled={!form.selectedYear} style={inp}>
+          <select value={form.moduleId} onChange={(e) => { set('moduleId', e.target.value); set('course', ''); }} disabled={!form.selectedYear} style={inp}>
             <option value="">{t('admin.voiceExam.modulePlaceholder')}</option>
-            {filteredModules.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
+            {filteredModulesForForm.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
+          </select>
+          <select value={form.course} onChange={(e) => set('course', e.target.value)} disabled={!form.moduleId || moduleCourses.length === 0} style={inp}>
+            <option value="">{t('admin.voiceExam.coursePlaceholder') || 'Course (optional)'}</option>
+            {moduleCourses.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
 
@@ -412,19 +417,20 @@ const VoiceExamManagement = () => {
       <div className="admin-table-wrapper">
         <table className="admin-table">
           <thead>
-            <tr>{['tableId', 'tableTitle', 'tableYear', 'tableModule', 'tablePrompt', 'tableQuestions', 'tableImages', 'tableActions'].map((k) => (
+            <tr>{['tableId', 'tableTitle', 'tableYear', 'tableModule', 'tableCourse', 'tablePrompt', 'tableQuestions', 'tableImages', 'tableActions'].map((k) => (
               <th key={k}>{t(`admin.voiceExam.${k}`)}</th>
             ))}</tr>
           </thead>
           <tbody>
             {exams.length === 0
-              ? <tr><td colSpan="8" className="admin-empty">{t('admin.voiceExam.noExams')}</td></tr>
+              ? <tr><td colSpan="9" className="admin-empty">{t('admin.voiceExam.noExams')}</td></tr>
               : exams.map((exam) => (
                 <tr key={exam._id}>
                   <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{exam.examId || '—'}</td>
                   <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{exam.title}</td>
                   <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>Y{exam.year}</td>
                   <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{exam.moduleId?.name || '—'}</td>
+                  <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{exam.course || '—'}</td>
                   <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{exam.clinicalCasePrompt}</td>
                   <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{(exam.questions || []).length}</td>
                   <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{(exam.images || []).length > 0 ? t('admin.voiceExam.imageCount', { count: exam.images.length }) : t('admin.voiceExam.emptyDash')}</td>

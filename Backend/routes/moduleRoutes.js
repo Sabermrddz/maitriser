@@ -42,6 +42,15 @@ router.get('/modules', cacheMiddleware(), catchAsync(async (req, res) => {
   res.json(modules);
 }));
 
+// GET module by ID
+router.get('/modules/:id', [
+  param('id').isMongoId(),
+], validate, catchAsync(async (req, res) => {
+  const mod = await Module.findById(req.params.id);
+  if (!mod) return res.status(404).json({ message: 'Module not found' });
+  res.json(normalizeCourses(mod));
+}));
+
 // POST create module
 router.post('/modules', requireAdmin, catchAsync(async (req, res) => {
   const { name, year, courses, discipline } = req.body;

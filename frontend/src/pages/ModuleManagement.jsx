@@ -135,8 +135,6 @@ const ModuleManagement = () => {
     finally { setCsvImporting(false); e.target.value = ''; }
   };
 
-  const grouped = YEARS.reduce((acc, y) => { acc[y] = modules.filter((m) => m.year === y); return acc; }, {});
-
   if (loading) return <div className="admin-page"><h2>{t('admin.module.title')}</h2><Spinner /></div>;
 
   const disciplines = [
@@ -233,38 +231,54 @@ const ModuleManagement = () => {
         </select>
       </div>
 
-      {YEARS.filter((y) => !filterYear || Number(filterYear) === y).map((y) =>
-        grouped[y].length > 0 ? (
-          <div key={y} style={{ marginBottom: 20 }}>
-            <h4 style={{ borderBottom: '2px solid var(--dc-accent)', paddingBottom: 4, color: 'var(--dc-accent)' }}>{t('admin.module.yearHeading', { y })}</h4>
-            <div className="admin-table-wrapper">
-              <table className="admin-table">
-                <thead>
-                  <tr>
-                    <th>{t('admin.module.tableName')}</th>
-                    <th>{t('admin.module.tableCourses')}</th>
-                    <th>{t('admin.module.tableActions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {grouped[y].map((mod) => (
-                    <tr key={mod._id}>
-                      <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{mod.name}</td>
-                      <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>
-                        {(mod.courses || []).length > 0 ? mod.courses.map((c) => typeof c === 'string' ? c : c.name || '').join(', ') : '—'}
-                      </td>
-                      <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>
-                        <button onClick={() => startEdit(mod)} style={{ marginRight: 8 }}><FaEdit /></button>
-                        <button onClick={() => setDeleteTarget(mod)}><FaTrash /></button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      {['medicine', 'pharmacy'].map((disc) => {
+        const discModules = modules.filter((m) => (m.discipline || 'medicine') === disc);
+        if (discModules.length === 0) return null;
+        const discLabel = disc === 'pharmacy' ? t('admin.module.pharmacy') : t('admin.module.medicine');
+        const discColor = disc === 'pharmacy' ? '#8e44ad' : '#0e7c86';
+        return (
+          <div key={disc} style={{ marginBottom: 26 }}>
+            <h3 style={{ display: 'flex', alignItems: 'center', gap: 10, borderBottom: `3px solid ${discColor}`, paddingBottom: 6, color: discColor, marginBottom: 12 }}>
+              <span style={{ display: 'inline-block', padding: '3px 14px', borderRadius: 14, fontSize: '0.85rem', fontWeight: 700, color: '#fff', background: discColor }}>{discLabel}</span>
+              <span style={{ fontSize: '0.85rem', color: 'var(--dc-text-muted)', fontWeight: 400 }}>{t('admin.module.modulesCount', { count: discModules.length })}</span>
+            </h3>
+            {YEARS.filter((y) => !filterYear || Number(filterYear) === y).map((y) => {
+              const yearly = discModules.filter((m) => m.year === y);
+              if (yearly.length === 0) return null;
+              return (
+                <div key={y} style={{ marginBottom: 16 }}>
+                  <h4 style={{ borderBottom: '2px solid var(--dc-accent)', paddingBottom: 4, color: 'var(--dc-accent)' }}>{t('admin.module.yearHeading', { y })}</h4>
+                  <div className="admin-table-wrapper">
+                    <table className="admin-table">
+                      <thead>
+                        <tr>
+                          <th>{t('admin.module.tableName')}</th>
+                          <th>{t('admin.module.tableCourses')}</th>
+                          <th>{t('admin.module.tableActions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {yearly.map((mod) => (
+                          <tr key={mod._id}>
+                            <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>{mod.name}</td>
+                            <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>
+                              {(mod.courses || []).length > 0 ? mod.courses.map((c) => typeof c === 'string' ? c : c.name || '').join(', ') : '—'}
+                            </td>
+                            <td style={{ padding: 8, borderBottom: '1px solid var(--dc-border)' }}>
+                              <button onClick={() => startEdit(mod)} style={{ marginRight: 8 }}><FaEdit /></button>
+                              <button onClick={() => setDeleteTarget(mod)}><FaTrash /></button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        ) : null
-      )}
+        );
+      })}
       {modules.length === 0 && !loading && <p style={{ color: 'var(--dc-text-muted)' }}>{t('admin.module.empty')}</p>}
 
       <ConfirmModal

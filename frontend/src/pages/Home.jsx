@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useDocumentTitle from '../utils/useDocumentTitle';
-import LandingNav from '../components/LandingNav';
 import HomeHero from '../components/HomeHero';
 import FeatureStrip from '../components/FeatureStrip';
 import EcosSection from '../components/EcosSection';
@@ -32,8 +31,8 @@ export default function Home() {
 
   return (
     <div className="landing-root">
-      <LandingNav />
       <HomeHero />
+
       <FeatureStrip />
       <EcosSection />
       <PricingSection />

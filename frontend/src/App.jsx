@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, Suspense, lazy, useMem
 import { Routes, Route, useLocation, Navigate, Outlet } from 'react-router-dom';
 import { ClerkProvider, useAuth, useClerk } from "@clerk/react";
 import Home from './pages/Home';
-import Header from './components/Header';
+
 import FooterPage from './components/Footer.jsx';
 import ProtectedRoute from './components/protectedRoute';
 import Sidebar from './components/adminSidebar';
@@ -16,6 +16,7 @@ import CookieConsent from './components/CookieConsent';
 import FeedbackButton from './components/FeedbackButton';
 import ProfileGuardModal from './components/ProfileGuardModal';
 import ErrorBoundary from './components/ErrorBoundary';
+import AnimatedLoading from './components/AnimatedLoading';
 import { logger } from './utils/logger';
 import { API_BASE_URL } from './config/api';
 import { setToken } from './utils/tokenStore';
@@ -29,10 +30,10 @@ const Contact = lazy(() => import('./pages/Contact'));
 const Help = lazy(() => import('./pages/Help'));
 const DashboardPage = lazy(() => import('./pages/DashboardPage.jsx'));
 const QuizPage = lazy(() => import('./pages/quizPage.jsx'));
-const MockExam = lazy(() => import('./pages/MockExam.jsx'));
 const CaseExam = lazy(() => import('./pages/CaseExam.jsx'));
 const VoiceExamPage = lazy(() => import('./pages/VoiceExamPage.jsx'));
 const QuizCard = lazy(() => import('./components/quizCard'));
+const CourseViewPage = lazy(() => import('./pages/CourseViewPage'));
 const ReviewPage = lazy(() => import('./pages/ReviewPage.jsx'));
 const ProfilePage = lazy(() => import('./pages/ProfilePage.jsx'));
 const NotFound = lazy(() => import('./pages/NotFound.jsx'));
@@ -54,23 +55,15 @@ const AdminSetup = lazy(() => import('./pages/AdminSetup'));
 const FeedbackManagement = lazy(() => import('./pages/FeedbackManagement'));
 const PricingPage = lazy(() => import('./pages/PricingPage'));
 const AdminPricingPage = lazy(() => import('./pages/AdminPricingPage'));
-const MockExamListPage = lazy(() => import('./pages/MockExamListPage'));
-const AdminMockExamPage = lazy(() => import('./pages/AdminMockExamPage'));
 const PdfManagement = lazy(() => import('./pages/PdfManagement'));
 const ImageManagement = lazy(() => import('./pages/ImageManagement'));
 
 const Fallback = () => {
-  const { t } = useTranslation();
-  return <div className="page-teal"><div className="card-teal" style={{ textAlign: 'center', padding: 40 }}>{t('loading')}</div></div>;
+  return <AnimatedLoading />;
 };
 
 const LoadingPage = () => {
-  const { t } = useTranslation();
-  return (
-    <div className="page-teal" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <div className="card-teal" style={{ textAlign: 'center', padding: 40 }}>{t('loading')}</div>
-    </div>
-  );
+  return <AnimatedLoading />;
 };
 
 const isMobile = () => window.innerWidth < 768;
@@ -87,15 +80,15 @@ const UserLayout = () => {
     if (isMobile()) setSidebarOpen(false);
   }, [location.pathname]);
 
-  const appPaths = ['/quizPage', '/quiz/', '/mock-exams', '/mock-exam/', '/case-exam', '/review', '/voice-exams'];
+  const appPaths = ['/quizPage', '/quiz/', '/case-exam', '/review', '/voice-exams'];
   const isAppPath = appPaths.some((p) => location.pathname.startsWith(p));
 
   const showSidebar = isSignedIn && !isHome;
 
   return (
-    <div style={isHome ? {} : { background: 'linear-gradient(135deg, var(--teal-dark, #04484F) 0%, var(--teal-deeper, #03383E) 100%)', minHeight: '100vh' }}>
+    <div style={isHome || location.pathname === '/login' ? {} : { background: 'linear-gradient(135deg, var(--teal-dark, #04484F) 0%, var(--teal-deeper, #03383E) 100%)', minHeight: '100vh' }}>
       <CookieConsent />
-      {!isHome && !isSignedIn && <Header />}
+
       {showSidebar && !sidebarOpen && (
         <button className="dash-mobile-toggle" onClick={toggleSidebar} aria-label="Open sidebar">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
@@ -125,14 +118,12 @@ const UserLayout = () => {
               <Route path="/dashboard"   element={<DashboardPage />} />
               <Route path="/discipline-picker" element={<DisciplinePicker />} />
               <Route path="/quizPage"    element={<ProfileGuardModal><QuizPage /></ProfileGuardModal>} />
-              <Route path="/mock-exams"  element={<ProfileGuardModal><MockExamListPage /></ProfileGuardModal>} />
-              <Route path="/mock-exam/:attemptId" element={<ProfileGuardModal><MockExam /></ProfileGuardModal>} />
-
               <Route path="/case-exam/:caseId" element={<ProfileGuardModal><CaseExam /></ProfileGuardModal>} />
               <Route path="/voice-exams" element={<ProfileGuardModal><VoiceExamPage /></ProfileGuardModal>} />
               <Route path="/review"      element={<ProfileGuardModal><ReviewPage /></ProfileGuardModal>} />
               <Route path="/profile"     element={<ProfilePage />} />
               <Route path="/quiz/:id"    element={<ProfileGuardModal><QuizCard /></ProfileGuardModal>} />
+              <Route path="/course/:moduleId/:courseName" element={<ProfileGuardModal><CourseViewPage /></ProfileGuardModal>} />
               <Route path="/pricing"    element={<PricingPage />} />
             </Route>
 
@@ -149,7 +140,7 @@ const UserLayout = () => {
   );
 };
 
-import './styles/adminHeader.css';
+
 import './styles/adminTheme.css';
 import './styles/adminStyles.css';
 import './styles/sharedAdmin.css';
@@ -179,25 +170,25 @@ const AdminLayout = () => {
 
 const SyncErrorPage = ({ error, onRetry, onSignOut }) => {
   const { t } = useTranslation();
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 24, textAlign: 'center' }}>
-      <h2 style={{ color: '#dc3545', marginBottom: 12 }}>{t('sync.title')}</h2>
-      <p style={{ color: '#666', marginBottom: 8, maxWidth: 400 }}>
-        {t('sync.description')}
-      </p>
-      <p style={{ color: '#999', marginBottom: 24, maxWidth: 400, fontSize: 13, fontFamily: 'monospace', wordBreak: 'break-word' }}>
-        {error}
-      </p>
-      <div style={{ display: 'flex', gap: 12 }}>
-        <button onClick={onRetry} style={{ padding: '10px 24px', background: '#04484F', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 16 }}>
-          {t('sync.retry')}
-        </button>
-        <button onClick={onSignOut} style={{ padding: '10px 24px', background: '#dc3545', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 16 }}>
-          {t('sync.signOut')}
-        </button>
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: 24, textAlign: 'center' }}>
+        <h2 style={{ color: 'var(--color-danger)', marginBottom: 12 }}>{t('sync.title')}</h2>
+        <p style={{ color: 'var(--text-muted)', marginBottom: 8, maxWidth: 400 }}>
+          {t('sync.description')}
+        </p>
+        <p style={{ color: 'var(--text-light)', marginBottom: 24, maxWidth: 400, fontSize: 13, fontFamily: 'monospace', wordBreak: 'break-word' }}>
+          {error}
+        </p>
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button onClick={onRetry} style={{ padding: '10px 24px', background: 'var(--teal-dark)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 16 }}>
+            {t('sync.retry')}
+          </button>
+          <button onClick={onSignOut} style={{ padding: '10px 24px', background: 'var(--color-danger)', color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', fontSize: 16 }}>
+            {t('sync.signOut')}
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
 };
 
 const AppContent = () => {
@@ -268,8 +259,6 @@ const AppContent = () => {
             <Route path="/admin/quiz-management" element={<QuizManagement />} />
             <Route path="/admin/user-management" element={<UserManagement />} />
             <Route path="/admin/voice-exam-management" element={<VoiceExamManagement />} />
-            <Route path="/admin/mock-exam-management" element={<AdminMockExamPage />} />
-
             <Route path="/admin/feedback" element={<FeedbackManagement />} />
             <Route path="/admin/pricing" element={<AdminPricingPage />} />
             <Route path="/admin/pdfs" element={<PdfManagement />} />

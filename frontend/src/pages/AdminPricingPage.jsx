@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { API_BASE_URL } from '../config/api';
 import { authFetch } from '../config/authFetch';
 import { useToast } from '../components/Toast';
 import { useSound } from '../context/SoundContext';
@@ -39,6 +40,14 @@ const AdminPricingPage = () => {
   const [dailyCount, setDailyCount] = useState(5);
   const [dailyLoading, setDailyLoading] = useState(false);
   const [dailySaving, setDailySaving] = useState(false);
+  const [payInstructions, setPayInstructions] = useState('');
+  const [payImageUrl, setPayImageUrl] = useState('');
+  const [payConfigLoading, setPayConfigLoading] = useState(false);
+  const [payConfigSaving, setPayConfigSaving] = useState(false);
+  const [payIntents, setPayIntents] = useState([]);
+  const [payIntentsLoading, setPayIntentsLoading] = useState(false);
+  const [payIntentsPage, setPayIntentsPage] = useState(1);
+  const [payIntentsTotal, setPayIntentsTotal] = useState(0);
   const [confirm, setConfirm] = useState({ open: false, title: '', message: '', onConfirm: null });
 
   useDocumentTitle(t('admin.pricing.title'), 'Admin');
@@ -86,6 +95,7 @@ const AdminPricingPage = () => {
 
   useEffect(() => { if (tab === 'codes') fetchCodes(); }, [tab]);
   useEffect(() => { if (tab === 'daily') { setDailyLoading(true); fetchDailyConfig(); } }, [tab]);
+  useEffect(() => { if (tab === 'payment') { fetchPaymentConfig(); fetchPaymentIntents(); } }, [tab]);
 
   const fetchDailyConfig = async () => {
     try {
@@ -104,6 +114,49 @@ const AdminPricingPage = () => {
       else { const d = await res.json(); notify(d.message || t('admin.pricing.error'), 'error'); }
     } catch { notify(t('admin.pricing.networkError'), 'error'); }
     finally { setDailySaving(false); }
+  };
+
+  const fetchPaymentConfig = async () => {
+    setPayConfigLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/payments/payment-info`);
+      if (res.ok) { const data = await res.json(); setPayInstructions(data.instructions || ''); setPayImageUrl(data.imageUrl || ''); }
+    } catch { /* ignore */ }
+    finally { setPayConfigLoading(false); }
+  };
+
+  const handleSavePaymentConfig = async () => {
+    setPayConfigSaving(true);
+    play('submit');
+    try {
+      const res = await authFetch('/api/admin/payment-config', {
+        method: 'PUT', body: { instructions: payInstructions, imageUrl: payImageUrl },
+      });
+      if (res.ok) { notify(t('admin.pricing.paymentSaved'), 'success'); }
+      else { const d = await res.json(); notify(d.message || t('admin.pricing.error'), 'error'); }
+    } catch { notify(t('admin.pricing.networkError'), 'error'); }
+    finally { setPayConfigSaving(false); }
+  };
+
+  const fetchPaymentIntents = async (page = 1) => {
+    setPayIntentsLoading(true);
+    try {
+      const res = await authFetch(`/api/admin/payment-intents?page=${page}&limit=20`);
+      if (res.ok) { const data = await res.json(); setPayIntents(data.data || []); setPayIntentsTotal(data.total || 0); setPayIntentsPage(data.page || 1); }
+    } catch { /* ignore */ }
+    finally { setPayIntentsLoading(false); }
+  };
+
+  const handleDeleteIntent = async (id) => {
+    setConfirm({ open: true, title: t('admin.pricing.deleteIntentConfirm'), message: '', onConfirm: async () => {
+      setConfirm(c => ({ ...c, open: false }));
+      play('delete');
+      try {
+        const res = await authFetch(`/api/admin/payment-intents/${id}`, { method: 'DELETE' });
+        if (res.ok) { notify(t('admin.pricing.intentDeleted'), 'success'); fetchPaymentIntents(payIntentsPage); }
+        else notify(t('admin.pricing.deleteFailed'), 'error');
+      } catch { notify(t('admin.pricing.networkError'), 'error'); }
+    }});
   };
 
   const openEditPlan = (plan) => {
@@ -174,6 +227,7 @@ const AdminPricingPage = () => {
         <button className={`admin-tab ${tab === 'plans' ? 'active' : ''}`} onClick={() => setTab('plans')}>{t('admin.pricing.tabPlans')}</button>
         <button className={`admin-tab ${tab === 'codes' ? 'active' : ''}`} onClick={() => setTab('codes')}>{t('admin.pricing.tabCodes')}</button>
         <button className={`admin-tab ${tab === 'daily' ? 'active' : ''}`} onClick={() => setTab('daily')}>{t('admin.pricing.tabDaily')}</button>
+        <button className={`admin-tab ${tab === 'payment' ? 'active' : ''}`} onClick={() => setTab('payment')}>{t('admin.pricing.tabPayment')}</button>
       </div>
 
       {tab === 'plans' && (
@@ -394,6 +448,96 @@ const AdminPricingPage = () => {
                 {dailySaving ? 'Saving...' : 'Save'}
               </button>
             </>
+          )}
+        </div>
+      )}
+
+      {tab === 'payment' && (
+        <div className="admin-card" style={{ marginTop: 16 }}>
+          <h3 style={{ marginBottom: 12 }}>{t('admin.pricing.paymentConfigTitle')}</h3>
+          {payConfigLoading ? (
+            <Spinner text={t('admin.pricing.loadPlans')} />
+          ) : (
+            <>
+              <label style={{ display: 'block', marginBottom: 4 }}>{t('admin.pricing.paymentInstructionsLabel')}</label>
+              <textarea value={payInstructions} onChange={(e) => setPayInstructions(e.target.value)}
+                disabled={payConfigSaving} rows={4}
+                style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid var(--dc-border)', fontSize: '0.85rem', resize: 'vertical', marginBottom: 12 }} />
+
+              <label style={{ display: 'block', marginBottom: 4 }}>{t('admin.pricing.paymentImageLabel')}</label>
+              <input type="text" value={payImageUrl} onChange={(e) => setPayImageUrl(e.target.value)}
+                disabled={payConfigSaving} placeholder="https://..."
+                style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid var(--dc-border)', fontSize: '0.85rem', marginBottom: 12 }} />
+              {payImageUrl && (
+                <div style={{ textAlign: 'center', marginBottom: 12 }}>
+                  <img src={payImageUrl} alt="Bank info preview"
+                    style={{ maxWidth: '100%', maxHeight: 150, borderRadius: 6, border: '1px solid var(--dc-border)' }} />
+                </div>
+              )}
+
+              <button className="btn-primary" onClick={handleSavePaymentConfig} disabled={payConfigSaving}>
+                {payConfigSaving ? '...' : t('admin.pricing.paymentSaveBtn')}
+              </button>
+            </>
+          )}
+
+          <h3 style={{ margin: '24px 0 12px' }}>{t('admin.pricing.paymentIntents')}</h3>
+          {payIntentsLoading ? (
+            <Spinner text={t('admin.pricing.loadPlans')} />
+          ) : payIntents.length === 0 ? (
+            <div className="admin-empty">{t('admin.pricing.noIntents')}</div>
+          ) : (
+            <div className="admin-table-wrapper">
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>{t('admin.pricing.colUser')}</th>
+                    <th>{t('admin.pricing.colPlan')}</th>
+                    <th>{t('admin.pricing.colMessage')}</th>
+                    <th>{t('admin.pricing.colReceipt')}</th>
+                    <th>{t('admin.pricing.colDate')}</th>
+                    <th>{t('admin.pricing.colActions')}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payIntents.map((item) => (
+                    <tr key={item._id}>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{item.name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--dc-text-muted)' }}>{item.email}</div>
+                      </td>
+                      <td style={{ fontSize: '0.85rem' }}>{item.planName || '—'}</td>
+                      <td style={{ fontSize: '0.8rem', maxWidth: 200, wordBreak: 'break-word' }}>
+                        {item.message?.replace(/\[Payment Intent\]/g, '').trim() || '—'}
+                      </td>
+                      <td>
+                        {item.imageUrl ? (
+                          <a href={`${API_BASE_URL}/api/payment-images/${item.imageUrl.split('/').pop()}`} target="_blank" rel="noopener noreferrer"
+                            style={{ color: 'var(--dc-accent)', fontSize: '0.85rem' }}>
+                            {t('admin.pricing.viewReceipt')}
+                          </a>
+                        ) : '—'}
+                      </td>
+                      <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                        {item.createdAt ? formatDate(item.createdAt, lang) : '—'}
+                      </td>
+                      <td>
+                        <button onClick={() => handleDeleteIntent(item._id)} style={{ color: '#e74c3c', border: 'none', background: 'none', cursor: 'pointer', fontSize: '0.85rem' }}>
+                          {t('admin.pricing.deleteIntent')}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {payIntentsTotal > 20 && (
+                <div style={{ textAlign: 'center', marginTop: 12 }}>
+                  <button className="btn-ghost" onClick={() => fetchPaymentIntents(payIntentsPage + 1)}>
+                    {t('admin.pricing.loadMore')}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

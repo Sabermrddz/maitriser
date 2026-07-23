@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import { verifyToken as clerkVerify } from '@clerk/backend';
@@ -57,8 +58,11 @@ router.post('/clerk-sync', async (req, res) => {
       }
     }
 
+    user.activeTokenId = crypto.randomBytes(32).toString('hex');
+    await user.save();
+
     const appToken = jwt.sign(
-      { id: user._id, userId: user.userId, role: user.role },
+      { id: user._id, userId: user.userId, role: user.role, tokenId: user.activeTokenId },
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );

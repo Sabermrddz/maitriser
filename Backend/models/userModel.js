@@ -23,6 +23,7 @@ const userSchema = new mongoose.Schema({
   verificationExpiry: { type: Date, default: null },
   resetToken:         { type: String, default: null },
   resetExpiry:        { type: Date, default: null },
+  activeTokenId:      { type: String, default: null },
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {
