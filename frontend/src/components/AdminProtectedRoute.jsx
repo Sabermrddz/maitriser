@@ -44,6 +44,8 @@ const AdminProtectedRoute = () => {
       } catch (err) {
         clearTimeout(timeoutId);
         if (aborted) return;
+        setRole(null);
+        try { localStorage.removeItem('adminRole'); } catch { /* incognito */ }
         setSynced(true);
       }
     };

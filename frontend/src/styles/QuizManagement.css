@@ -43,7 +43,7 @@
   padding: 12px 16px;
   border: 1px dashed var(--dc-accent-light);
   border-radius: var(--dc-radius-sm);
-  background: rgba(193, 255, 48, 0.12);
+  background: rgba(0, 115, 85, 0.12);
   display: flex;
   align-items: center;
   gap: 12px;
@@ -95,7 +95,7 @@
 .qm-filters select:focus {
   outline: none;
   border-color: var(--dc-accent);
-  box-shadow: 0 0 0 3px rgba(193, 255, 48, 0.3);
+  box-shadow: 0 0 0 3px rgba(0, 115, 85, 0.3);
 }
 
 .qm-textinput {
@@ -111,7 +111,7 @@
 .qm-textinput:focus {
   outline: none;
   border-color: var(--dc-accent);
-  box-shadow: 0 0 0 3px rgba(193, 255, 48, 0.3);
+  box-shadow: 0 0 0 3px rgba(0, 115, 85, 0.3);
 }
 
 .qm-section {
@@ -138,7 +138,7 @@
 .qm-textarea:focus {
   outline: none;
   border-color: var(--dc-accent);
-  box-shadow: 0 0 0 3px rgba(193, 255, 48, 0.3);
+  box-shadow: 0 0 0 3px rgba(0, 115, 85, 0.3);
 }
 
 .qm-options-header {
@@ -181,7 +181,7 @@
 .option-input:focus {
   outline: none;
   border-color: var(--dc-accent);
-  box-shadow: 0 0 0 3px rgba(193, 255, 48, 0.25);
+  box-shadow: 0 0 0 3px rgba(0, 115, 85, 0.25);
 }
 
 .btn-add-option {
@@ -199,7 +199,7 @@
   cursor: pointer;
 }
 .btn-add-option:hover {
-  background: rgba(193, 255, 48, 0.12);
+  background: rgba(0, 115, 85, 0.12);
 }
 
 .qm-answer-letters {
@@ -298,7 +298,7 @@
   vertical-align: top;
 }
 .qm-table tbody tr:hover {
-  background: rgba(193, 255, 48, 0.08);
+  background: rgba(0, 115, 85, 0.08);
 }
 .qm-cell-text {
   max-width: 200px;

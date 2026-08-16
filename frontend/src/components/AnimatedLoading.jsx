@@ -1,20 +1,15 @@
 import BrandLogo from './BrandLogo';
 
-const LETTERS = 'MAITRISEZ'.split('');
-
 export default function AnimatedLoading() {
   return (
     <div className="loading-wrapper">
       <div className="loading-inner">
         <div className="loading-logo">
-          <BrandLogo width={100} height={63} />
+          <BrandLogo width={80} height={50} />
         </div>
-        <div className="loading-text brand-name">
-          {LETTERS.map((ch, i) => (
-            <span key={i} className="loading-letter" style={{ animationDelay: `${i * 0.12}s` }}>
-              {ch}
-            </span>
-          ))}
+        <span className="loading-brand brand-name">MAITRISEZ</span>
+        <div className="loading-bar-track">
+          <div className="loading-bar-fill" />
         </div>
       </div>
     </div>

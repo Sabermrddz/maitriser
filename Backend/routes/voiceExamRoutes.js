@@ -10,7 +10,6 @@ import VoiceExamResult from '../models/voiceExamResultModel.js';
 import Module from '../models/moduleModel.js';
 import { verifyToken, requireAdmin } from '../controllers/authController.js';
 import { cacheMiddleware, delPattern } from '../utils/cache.js';
-import logger from '../utils/logger.js';
 import { catchAsync } from '../utils/asyncHandler.js';
 import { getPagination, paginatedResponse } from '../utils/paginate.js';
 import { validate } from '../middleware/validate.js';
@@ -104,9 +103,17 @@ router.post('/voice-exams', requireAdmin, upload.array('images', 10), catchAsync
   if (!title || !moduleId || !clinicalCasePrompt)
     return res.status(400).json({ message: 'title, moduleId, and clinicalCasePrompt are required' });
 
-  if (typeof questions === 'string') questions = JSON.parse(questions);
+  if (typeof questions === 'string') {
+    try { questions = JSON.parse(questions); } catch { return res.status(400).json({ message: 'Invalid questions JSON' }); }
+  }
   if (!Array.isArray(questions) || questions.length === 0)
     return res.status(400).json({ message: 'At least one question is required' });
+  if (questions.length > 50)
+    return res.status(400).json({ message: 'Maximum 50 questions per exam' });
+  for (const [i, q] of questions.entries()) {
+    if (!q || typeof q !== 'object' || !q.question || !Array.isArray(q.options) || q.options.length < 2)
+      return res.status(400).json({ message: `Question ${i + 1} is missing required fields (question, options)` });
+  }
 
   const module = await Module.findById(moduleId);
   if (!module) return res.status(404).json({ message: 'Module not found' });
@@ -132,7 +139,9 @@ router.put('/voice-exams/:id', requireAdmin, upload.array('images', 10), [
     year = module.year;
   }
 
-  if (typeof questions === 'string') questions = JSON.parse(questions);
+  if (typeof questions === 'string') {
+    try { questions = JSON.parse(questions); } catch { return res.status(400).json({ message: 'Invalid questions JSON' }); }
+  }
 
   let images = existingImages
     ? (Array.isArray(existingImages) ? existingImages : (() => { try { return JSON.parse(existingImages); } catch { return []; } })())
@@ -176,7 +185,7 @@ router.delete('/voice-exams/:id', requireAdmin, [
   res.json({ message: 'Voice exam deleted successfully' });
 }));
 
-router.get('/voice-exam-images/:filename', catchAsync(async (req, res) => {
+router.get('/voice-exam-images/:filename', verifyToken, catchAsync(async (req, res) => {
   const s3 = getR2Client();
   if (!s3) return res.status(500).json({ message: 'Storage not configured' });
   const key = `voice-exam-images/${path.basename(req.params.filename)}`;

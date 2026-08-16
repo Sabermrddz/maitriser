@@ -155,7 +155,6 @@ const DashboardPage = () => {
   if (loading) {
     return (
       <div className="dash-root">
-        <div className="dash-watermark" />
         <div className="dash-main">
           <PageHeader className="dash-topbar" right={topBarRight} />
           <div className="dash-workspace">
@@ -173,7 +172,6 @@ const DashboardPage = () => {
 
   return (
     <div className="dash-root">
-      <div className="dash-watermark" />
       <div className="dash-main">
         <PageHeader className="dash-topbar" right={topBarRight} />
 

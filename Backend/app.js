@@ -59,7 +59,7 @@ app.use(helmet({
       formAction: ["'self'"],
     },
   },
-  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  crossOriginResourcePolicy: { policy: 'same-origin' },
   referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   hsts: process.env.NODE_ENV === 'production' ? { maxAge: 63072000, includeSubDomains: true, preload: true } : false,
 }));
@@ -88,7 +88,7 @@ app.use(cors({
 app.options('*', (req, res) => res.status(204).end());
 
 app.use(express.json({ limit: '1mb' }));
-app.use(cookieParser());
+app.use(cookieParser(process.env.COOKIE_SECRET || process.env.JWT_SECRET));
 
 const globalLimiter = rateLimit({
   windowMs: 60 * 1000, max: 1000,
@@ -117,6 +117,11 @@ const feedbackLimiter = rateLimit({
 });
 
 app.use(['/api/users/login', '/api/users/register', '/api/user/logging', '/api/user/register', '/api/admin/claim'], authLimiter);
+app.use('/api/admin/sync-all-users', rateLimit({
+  windowMs: 5 * 60 * 1000, max: 3,
+  message: { message: 'Too many sync requests, please try again later.' },
+  standardHeaders: true, legacyHeaders: false,
+}));
 app.use(['/api/quizzes', '/api/voice-exams'], (req, res, next) => {
   if (req.method === 'POST' && /\/(submit|submit-station)$/.test(req.path)) return submitLimiter(req, res, next);
   next();

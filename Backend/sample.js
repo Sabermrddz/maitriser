@@ -6,8 +6,6 @@ import Counter from './models/counterModel.js';
 import User from './models/userModel.js';
 import QuizResult from './models/quizResultModel.js';
 import VoiceExamResult from './models/voiceExamResultModel.js';
-import OralMockExam from './models/oralMockExamModel.js';
-import OralMockSession from './models/oralMockSessionModel.js';
 import Plan from './models/planModel.js';
 import SubscriptionCode from './models/subscriptionCodeModel.js';
 import Case from './models/caseModel.js';
@@ -306,80 +304,21 @@ async function seed() {
   console.log(`Cases: ${await Case.countDocuments()}  (case quizzes: ${caseQuizDocs.length})`);
 
   // -----------------------------------------------------------------------
-  // 7. QUIZ MOCK EXAMS
+  // 7. QUIZ MOCK EXAMS (skipped — model not available)
   // -----------------------------------------------------------------------
-  const existingMockExams = await QuizMockExam.countDocuments();
-  let mockExam;
-  if (existingMockExams === 0) {
-    const med4Modules = moduleDocs.filter(m => m.year === 4 && m.discipline === 'medicine');
-    const med4QuizIds = quizDocs.filter(q => q.year === 4 && q.discipline === 'medicine').concat(caseQuizDocs).map(q => q._id);
-    const pharm3Modules = moduleDocs.filter(m => m.year === 3 && m.discipline === 'pharmacy');
-    const pharm3QuizIds = quizDocs.filter(q => q.year === 3 && q.discipline === 'pharmacy').map(q => q._id);
-
-    mockExam = await QuizMockExam.create({
-      title: 'Examen Blanc : Médecine Interne 4e Année',
-      moduleId: med4Modules[0]?._id || moduleMap['Médecine Interne']._id,
-      year: 4, discipline: 'medicine',
-      quizIds: med4QuizIds.slice(0, 5),
-      duration: 45, published: true,
-    });
-    await QuizMockExam.create({
-      title: 'Examen Blanc : Pharmacodynamie 3e Année',
-      moduleId: pharm3Modules[0]?._id || moduleMap['Pharmacodynamie']._id,
-      year: 3, discipline: 'pharmacy',
-      quizIds: pharm3QuizIds.slice(0, 3),
-      duration: 30, published: true,
-    });
-  } else {
-    mockExam = await QuizMockExam.findOne({});
-  }
-  console.log(`QuizMockExams: ${await QuizMockExam.countDocuments()}`);
+  // const existingMockExams = await QuizMockExam.countDocuments();
+  // ... removed: QuizMockExam model does not exist
 
   // -----------------------------------------------------------------------
-  // 8. QUIZ MOCK ATTEMPTS
+  // 8. QUIZ MOCK ATTEMPTS (skipped — model not available)
   // -----------------------------------------------------------------------
-  const existingAttempts = await QuizMockAttempt.countDocuments();
-  if (existingAttempts === 0 && mockExam && user1) {
-    await QuizMockAttempt.create({
-      userId: user1.userId,
-      mockExamId: mockExam._id,
-      quizIds: mockExam.quizIds,
-      answers: mockExam.quizIds.map(qId => ({
-        quizId: qId,
-        selectedAnswers: ['Fémur'],
-        correct: true,
-        correctAnswers: ['Fémur'],
-        explanation: '',
-      })),
-      totalScore: mockExam.quizIds.length,
-      totalPossible: mockExam.quizIds.length,
-      percentage: 100,
-      status: 'completed',
-      completedAt: new Date(),
-    });
-  }
-  console.log(`QuizMockAttempts: ${await QuizMockAttempt.countDocuments()}`);
+  // ... removed: QuizMockAttempt model does not exist
 
   // -----------------------------------------------------------------------
-  // 9. ORAL MOCK EXAMS
+  // 9. ORAL MOCK EXAMS (skipped — model not available)
   // -----------------------------------------------------------------------
-  const existingOralExams = await OralMockExam.countDocuments();
-  let oralExam;
-  if (existingOralExams === 0) {
-    const allVoiceExams = await VoiceExam.find({});
-
-    oralExam = await OralMockExam.create({
-      title: 'Oral Blanc : Urgences & Réanimation',
-      moduleId: moduleMap['Urgences']._id,
-      year: 6, discipline: 'medicine',
-      voiceExamIds: allVoiceExams.map(v => v._id),
-      published: true,
-      createdBy: admin._id,
-    });
-  } else {
-    oralExam = await OralMockExam.findOne({});
-  }
-  console.log(`OralMockExams: ${await OralMockExam.countDocuments()}`);
+  // ... removed: OralMockExam model does not exist
+  let oralExam = null;
 
   // -----------------------------------------------------------------------
   // 10. VOICE EXAMS
@@ -436,28 +375,9 @@ async function seed() {
   console.log(`VoiceExamResults: ${await VoiceExamResult.countDocuments()}`);
 
   // -----------------------------------------------------------------------
-  // 12. ORAL MOCK SESSIONS
+  // 12. ORAL MOCK SESSIONS (skipped — model not available)
   // -----------------------------------------------------------------------
-  const existingSessions = await OralMockSession.countDocuments();
-  if (existingSessions === 0 && oralExam && user1) {
-    await OralMockSession.create({
-      blueprintId: oralExam._id,
-      userId: user1.userId,
-      voiceExamIds: oralExam.voiceExamIds,
-      status: 'completed',
-      currentStation: oralExam.voiceExamIds.length,
-      stationResults: (oralExam.voiceExamIds || []).map((vid, i) => ({
-        voiceExamId: vid,
-        resultId: null,
-        title: voiceExamDocs[i]?.title || `Station ${i + 1}`,
-        overallPassed: 2,
-        overallTotal: 2,
-        overallMax: 3,
-      })),
-      completedAt: new Date(),
-    });
-  }
-  console.log(`OralMockSessions: ${await OralMockSession.countDocuments()}`);
+  // ... removed: OralMockSession model does not exist
 
   // -----------------------------------------------------------------------
   // 13. QUIZ RESULTS
@@ -661,13 +581,9 @@ async function seed() {
     Users: await User.countDocuments(),
     Quizzes: await Quiz.countDocuments(),
     Cases: await Case.countDocuments(),
-    QuizMockExams: await QuizMockExam.countDocuments(),
-    QuizMockAttempts: await QuizMockAttempt.countDocuments(),
-    OralMockExams: await OralMockExam.countDocuments(),
-    OralMockSessions: await OralMockSession.countDocuments(),
+    QuizResults: await QuizResult.countDocuments(),
     VoiceExams: await VoiceExam.countDocuments(),
     VoiceExamResults: await VoiceExamResult.countDocuments(),
-    QuizResults: await QuizResult.countDocuments(),
     Bookmarks: await Bookmark.countDocuments(),
     DailyActivities: await DailyActivity.countDocuments(),
     Plans: await Plan.countDocuments(),

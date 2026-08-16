@@ -201,7 +201,7 @@ const PricingPage = () => {
                 <div style={{ fontSize: '1.5rem', marginBottom: 4 }}>&#11088;</div>
                 <h3 className="pricing-card-name">{plan.name}</h3>
                 <p className="pricing-card-meta">
-                  {plan.discipline === 'medicine' ? t('pricing.medicine') : t('pricing.pharmacy')} {t('pricing.year', { n: plan.year })} &mdash; {plan.interval === 'day' ? t('pricing.interval.daily') : plan.interval === 'week' ? t('pricing.interval.weekly') : plan.interval === 'month' ? t('pricing.interval.monthly') : plan.interval === 'semester' ? t('pricing.interval.semester') : plan.interval === 'year' ? t('pricing.interval.yearly') : plan.interval}
+                  {plan.discipline === 'medicine' ? t('pricing.medicine') : t('pricing.pharmacy')} {t('pricing.year', { n: plan.year })} &mdash; {plan.interval === 'day' ? t('pricing.interval.daily') : plan.interval === 'week' ? t('pricing.interval.weekly') : plan.interval === 'month' ? t('pricing.interval.monthly') : plan.interval === 'bimonth' ? t('pricing.interval.bimonth') : plan.interval === 'semester' ? t('pricing.interval.semester') : plan.interval === 'year' ? t('pricing.interval.yearly') : plan.interval}
                 </p>
 
                 <div className="pricing-card-price">{plan.price === 0 ? t('pricing.free') : `${plan.price} €`}</div>
@@ -249,7 +249,7 @@ const PricingPage = () => {
 
               {paymentInfo.imageUrl && (
                 <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                  <img src={paymentInfo.imageUrl} alt="Bank transfer info"
+                  <img src={paymentInfo.imageUrl} alt="Baridimob info"
                     style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, border: '1px solid var(--dc-border)' }} />
                 </div>
               )}

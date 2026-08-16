@@ -1,7 +1,6 @@
 import express from 'express';
 import { body, param } from 'express-validator';
 import Bookmark from '../models/bookmarkModel.js';
-import logger from '../utils/logger.js';
 import { catchAsync } from '../utils/asyncHandler.js';
 import { validate } from '../middleware/validate.js';
 import { verifyToken } from '../controllers/authController.js';

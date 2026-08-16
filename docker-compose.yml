@@ -21,6 +21,10 @@ services:
       ADMIN_SECRET_CODE: "${ADMIN_SECRET_CODE}"
       PORT: "4000"
       CORS_ORIGIN: "${CORS_ORIGIN}"
+      NODE_ENV: "${NODE_ENV:-production}"
+      COOKIE_SECRET: "${COOKIE_SECRET:-}"
+      DISABLE_JWT_FALLBACK: "${DISABLE_JWT_FALLBACK:-}"
+      SENTRY_DSN: "${SENTRY_DSN:-}"
 
   frontend:
     build:

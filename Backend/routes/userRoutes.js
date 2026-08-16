@@ -34,11 +34,13 @@ const userValidation = [
   body('email').isEmail().normalizeEmail(),
   body('role').optional().isIn(['user', 'admin']),
   body('discipline').optional().isIn(['medicine', 'pharmacy', '']),
-  body('year').optional({ values: 'null' }).isInt({ min: 1, max: 6 }),
+  body('year').optional({ values: 'null' }).isInt({ min: 1, max: 7 }),
 ];
 
 // Create a user — admin generates a random initial password and returns it once
+/** @deprecated Use POST /api/users instead */
 router.post('/users', verifyToken, requireAdmin, userValidation, validate, userCreate);
+/** @deprecated Use POST /api/users instead */
 router.post('/add-user', verifyToken, requireAdmin, userValidation, validate, userCreate);
 
 // Get all users (password excluded)
@@ -87,7 +89,7 @@ const editUserValidation = [
   body('email').optional().isEmail().normalizeEmail(),
   body('role').optional().isIn(['user', 'admin']),
   body('discipline').optional().isIn(['medicine', 'pharmacy', '']),
-  body('year').optional({ values: 'null' }).isInt({ min: 1, max: 6 }),
+  body('year').optional({ values: 'null' }).isInt({ min: 1, max: 7 }),
   body('subscription.status').optional().isIn(['none', 'active', 'expired', 'cancelled']),
   body('subscription.planId').optional({ values: 'null' }).isMongoId(),
   body('subscription.planName').optional().trim(),
@@ -96,11 +98,15 @@ const editUserValidation = [
 ];
 
 // Delete user by ID
+/** @deprecated Use DELETE /api/users/:id instead */
 router.delete('/users/:id', verifyToken, requireAdmin, [param('id').isMongoId()], validate, userDelete);
+/** @deprecated Use DELETE /api/users/:id instead */
 router.delete('/users/delete-user/:id', verifyToken, requireAdmin, [param('id').isMongoId()], validate, userDelete);
 
 // Edit user by ID
+/** @deprecated Use PUT /api/users/:id instead */
 router.put('/users/:id', verifyToken, requireAdmin, editUserValidation, validate, userEdit);
+/** @deprecated Use PUT /api/users/:id instead */
 router.put('/users/edit-user/:id', verifyToken, requireAdmin, editUserValidation, validate, userEdit);
 
 export default router;

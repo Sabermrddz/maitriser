@@ -4,7 +4,7 @@ import User from '../models/userModel.js';
 import logger from '../utils/logger.js';
 import { isBlacklisted } from '../middleware/jwtBlacklist.js';
 
-const COOKIE_OPTIONS = {
+export const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   sameSite: 'lax',
@@ -17,7 +17,7 @@ export const setTokenCookie = (res, token) => {
 };
 
 export const clearTokenCookie = (res) => {
-  res.clearCookie('token', { path: '/' });
+  res.clearCookie('token', { path: '/', httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' });
 };
 
 export const verifyToken = async (req, res, next) => {

@@ -61,6 +61,9 @@ router.post('/quizzes/:quizId/submit', [
     correctAnswers: correct,
     selectedAnswers,
     explanation: quiz.explanation || '',
+    optionExplanations: quiz.optionExplanations || [],
+    keyConcepts: quiz.keyConcepts || [],
+    commonTraps: quiz.commonTraps || [],
   });
 }));
 
@@ -76,7 +79,7 @@ router.get('/results/:userId', verifyToken, catchAsync(async (req, res) => {
   const { skip, limit, page } = getPagination(req.query);
   const [results, total] = await Promise.all([
     QuizResult.find({ userId })
-      .populate({ path: 'quizId', select: 'question.questionText quizId explanation year course moduleId', populate: { path: 'moduleId', select: 'name year' } })
+      .populate({ path: 'quizId', select: 'question.questionText quizId explanation optionExplanations keyConcepts commonTraps year course moduleId', populate: { path: 'moduleId', select: 'name year' } })
       .sort({ timestamp: -1 }).skip(skip).limit(limit),
     QuizResult.countDocuments({ userId }),
   ]);

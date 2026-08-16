@@ -10,6 +10,13 @@ const quizSchema = new mongoose.Schema({
   course:   { type: String, default: '' },
   published: { type: Boolean, default: false },
   explanation: { type: String, default: '' },
+  optionExplanations: [{
+    letter: { type: String, required: true },
+    whyTrue: { type: String, default: '' },
+    whyFalse: { type: String, default: '' },
+  }],
+  keyConcepts: { type: [String], default: [] },
+  commonTraps: { type: [String], default: [] },
   timer:    { type: Number, default: null },
   caseId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Case', default: null },
   question: {

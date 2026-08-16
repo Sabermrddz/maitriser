@@ -82,7 +82,7 @@ router.post(
       );
 
       setTokenCookie(res, token);
-      return res.status(200).json({ token, message: 'Login successful!' });
+      return res.status(200).json({ message: 'Login successful!' });
     } catch (err) {
       logger.error({ err }, 'Admin login failed');
       return res.status(500).json({ message: 'Server error. Please try again.' });

@@ -1,7 +1,6 @@
 import express from 'express';
 import { body } from 'express-validator';
 import crypto from 'crypto';
-import { verifyToken as clerkVerify } from '@clerk/backend';
 import User from '../models/userModel.js';
 import logger from '../utils/logger.js';
 import { verifyToken, requireAdmin } from '../controllers/authController.js';
@@ -45,10 +44,13 @@ router.post('/admin/sync-all-users', verifyToken, requireAdmin, async (req, res)
     let offset = 0;
     const limit = 100;
     let synced = 0;
+    const maxPages = 100;
+    let pages = 0;
 
-    while (true) {
+    while (pages < maxPages) {
       const clerkUsers = await clerkClient.users.getUserList({ limit, offset });
       if (!clerkUsers.data || clerkUsers.data.length === 0) break;
+      pages++;
 
       const clerkIds = clerkUsers.data.map((cu) => cu.id);
       const emails = clerkUsers.data.map((cu) => cu.emailAddresses?.[0]?.emailAddress).filter(Boolean);

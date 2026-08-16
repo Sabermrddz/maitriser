@@ -43,7 +43,7 @@ const UserManagement = () => {
       const d = await response.json();
       setUsers(d.data || (Array.isArray(d) ? d : []));
       setPage(d.page || 1);
-      setTotalPages(d.pages || 1);
+      setTotalPages(d.totalPages || 1);
       setError('');
     } catch (error) {
       logger.error({ err: error }, 'UserManagement fetchUsers failed');

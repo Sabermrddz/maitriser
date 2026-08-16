@@ -10,7 +10,7 @@ const planSchema = new mongoose.Schema({
     quizzes: { type: Boolean, default: true },
     voiceExams: { type: Boolean, default: false },
   },
-  interval: { type: String, enum: ['day', 'week', 'month', 'semester', 'year'], default: 'month' },
+  interval: { type: String, enum: ['day', 'week', 'month', 'bimonth', 'semester', 'year'], default: 'month' },
   isActive: { type: Boolean, default: true },
   sortOrder: { type: Number, default: 0 },
 }, { timestamps: true });

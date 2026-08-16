@@ -89,6 +89,7 @@ router.post('/payments/redeem-code', verifyToken, [
     case 'day': endDate.setDate(endDate.getDate() + 1); break;
     case 'week': endDate.setDate(endDate.getDate() + 7); break;
     case 'month': endDate.setMonth(endDate.getMonth() + 1); break;
+    case 'bimonth': endDate.setMonth(endDate.getMonth() + 2); break;
     case 'semester': endDate.setMonth(endDate.getMonth() + 6); break;
     case 'year': endDate.setFullYear(endDate.getFullYear() + 1); break;
     default: endDate.setMonth(endDate.getMonth() + 1);
@@ -126,6 +127,7 @@ router.post('/plans/:id/subscribe', verifyToken, [
     case 'day': endDate.setDate(endDate.getDate() + 1); break;
     case 'week': endDate.setDate(endDate.getDate() + 7); break;
     case 'month': endDate.setMonth(endDate.getMonth() + 1); break;
+    case 'bimonth': endDate.setMonth(endDate.getMonth() + 2); break;
     case 'semester': endDate.setMonth(endDate.getMonth() + 6); break;
     case 'year': endDate.setFullYear(endDate.getFullYear() + 1); break;
     default: endDate.setMonth(endDate.getMonth() + 1);
@@ -156,7 +158,7 @@ router.post('/admin/plans', verifyToken, requireAdmin, [
   body('year').isInt({ min: 1, max: 7 }),
   body('included').optional().isObject(),
   body('price').optional().isFloat({ min: 0 }),
-  body('interval').optional().isIn(['day', 'week', 'month', 'semester', 'year']),
+  body('interval').optional().isIn(['day', 'week', 'month', 'bimonth', 'semester', 'year']),
   body('isActive').optional().isBoolean(),
   body('sortOrder').optional().isInt(),
 ], validate, catchAsync(async (req, res) => {
@@ -250,6 +252,10 @@ router.put('/users/:id/subscription', verifyToken, requireAdmin, [
   body('endDate').optional({ values: 'null' }).isISO8601(),
 ], validate, catchAsync(async (req, res) => {
   const { status, planId, planName, startDate, endDate } = req.body;
+  if (planId) {
+    const plan = await Plan.findById(planId);
+    if (!plan) return res.status(400).json({ message: 'Plan not found' });
+  }
   const subscription = {};
   if (status !== undefined) subscription['subscription.status'] = status;
   if (planId !== undefined) subscription['subscription.planId'] = planId || null;

@@ -318,6 +318,7 @@ const AdminPricingPage = () => {
                   <option value="week">{t('admin.pricing.intervalWeek')}</option>
                   <option value="month">{t('admin.pricing.intervalMonth')}</option>
                   <option value="semester">{t('admin.pricing.intervalSemester')}</option>
+                  <option value="bimonth">{t('admin.pricing.intervalBimonth')}</option>
                   <option value="year">{t('admin.pricing.intervalYear')}</option>
                 </select>
 
@@ -470,7 +471,7 @@ const AdminPricingPage = () => {
                 style={{ width: '100%', padding: 10, borderRadius: 6, border: '1px solid var(--dc-border)', fontSize: '0.85rem', marginBottom: 12 }} />
               {payImageUrl && (
                 <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                  <img src={payImageUrl} alt="Bank info preview"
+                  <img src={payImageUrl} alt="Baridimob info preview"
                     style={{ maxWidth: '100%', maxHeight: 150, borderRadius: 6, border: '1px solid var(--dc-border)' }} />
                 </div>
               )}

@@ -2709,15 +2709,13 @@ textarea:focus-visible,
 }
 
 /* ── Animated Loading Screen ─────────────────────────────── */
-@keyframes letterJump {
-  0%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-14px); }
-  50% { transform: translateY(-4px); }
-  70% { transform: translateY(-9px); }
+@keyframes loadingFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
-@keyframes logoPulse {
-  0%, 100% { transform: scale(1); opacity: 0.9; }
-  50% { transform: scale(1.04); opacity: 1; }
+@keyframes loadingBar {
+  0% { width: 0%; }
+  100% { width: 100%; }
 }
 
 .loading-wrapper {
@@ -2726,7 +2724,7 @@ textarea:focus-visible,
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #04484F 0%, #03383E 100%);
+  background: #00262F;
   z-index: 9999;
 }
 
@@ -2734,31 +2732,37 @@ textarea:focus-visible,
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  gap: 16px;
 }
 
 .loading-logo {
-  color: #88D62B;
-  animation: logoPulse 1.8s ease-in-out infinite;
+  color: #007355;
+  animation: loadingFadeIn 0.6s ease-out forwards;
 }
 
-.loading-text {
-  display: flex;
-  gap: 6px;
+.loading-brand {
+  font-family: 'RTL-Saudi', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: #E8F1F0;
+  letter-spacing: 0.04em;
+  animation: loadingFadeIn 0.6s ease-out 0.2s both;
 }
 
-.loading-letter {
-  display: inline-block;
-  font-size: 32px;
-  font-weight: 800;
-  font-family: inherit;
-  color: #fff;
-  letter-spacing: var(--tracking-tight);
-  animation: letterJump 1.5s ease-in-out infinite;
+.loading-bar-track {
+  width: 120px;
+  height: 2px;
+  background: rgba(232, 241, 240, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+  animation: loadingFadeIn 0.6s ease-out 0.4s both;
 }
 
-[data-theme="dark"] .loading-wrapper {
-  background: linear-gradient(135deg, #03383E 0%, #021f23 100%);
+.loading-bar-fill {
+  height: 100%;
+  background: #007355;
+  border-radius: 2px;
+  animation: loadingBar 1.8s ease-in-out infinite;
 }
 
 /* ===== QuizSession: sticky timer header ===== */

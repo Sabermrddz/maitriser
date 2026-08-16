@@ -6,6 +6,7 @@ import { TokenVerificationError, ClerkAPIResponseError } from '@clerk/backend/er
 import User from '../models/userModel.js';
 import logger from '../utils/logger.js';
 import { getClerkClient } from '../utils/clerkClient.js';
+import { COOKIE_OPTIONS } from '../controllers/authController.js';
 
 const router = express.Router();
 
@@ -67,25 +68,19 @@ router.post('/clerk-sync', async (req, res) => {
       { expiresIn: '24h' }
     );
 
-    res.cookie('token', appToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000,
-      path: '/',
-    });
+    res.cookie('token', appToken, COOKIE_OPTIONS);
 
     logger.info({ userId: user.userId, role: user.role }, 'Account synced via Clerk');
-    return res.json({ message: 'Account synced', token: appToken, userId: user.userId, role: user.role, name: user.name || '', discipline: user.discipline || '', year: user.year || null });
+    return res.json({ message: 'Account synced', userId: user.userId, role: user.role, name: user.name || '', discipline: user.discipline || '', year: user.year || null });
   } catch (err) {
     logger.error({ err, message: err?.message, reason: err?.reason, status: err?.status }, 'clerk-sync failed');
     if (err instanceof TokenVerificationError) {
-      return res.status(401).json({ message: `Token verification failed: ${err.message}` });
+      return res.status(401).json({ message: 'Authentication failed' });
     }
     if (err instanceof ClerkAPIResponseError) {
-      return res.status(err.status || 502).json({ message: `Clerk API error: ${err.message}` });
+      return res.status(err.status || 502).json({ message: 'Authentication service unavailable' });
     }
-    res.status(500).json({ message: `Failed to sync account: ${err?.message || 'Unknown error'}` });
+    res.status(500).json({ message: 'Failed to sync account' });
   }
 });
 

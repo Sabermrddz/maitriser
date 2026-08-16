@@ -6,7 +6,6 @@ import { catchAsync } from '../utils/asyncHandler.js';
 import { getR2Client, getBucket } from '../config/r2.js';
 import Quiz from '../models/quizModel.js';
 import VoiceExam from '../models/voiceExamModel.js';
-import logger from '../utils/logger.js';
 
 const router = express.Router();
 

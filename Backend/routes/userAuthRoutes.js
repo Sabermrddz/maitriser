@@ -42,7 +42,7 @@ router.post(
 
       setTokenCookie(res, token);
       logger.info({ userId: user.userId }, 'User registered');
-      return res.status(201).json({ message: 'Registration successful!', token, userId: user.userId, role: user.role });
+      return res.status(201).json({ message: 'Registration successful!', userId: user.userId, role: user.role });
     } catch (err) {
       logger.error({ err }, 'User registration failed');
       if (err.code === 11000) return res.status(409).json({ message: 'userId or email already exists' });
@@ -79,7 +79,7 @@ router.post(
 
       setTokenCookie(res, token);
       logger.info({ userId: user.userId }, 'User logged in');
-      return res.status(200).json({ message: 'Login successful!', token, userId: user.userId, role: user.role });
+      return res.status(200).json({ message: 'Login successful!', userId: user.userId, role: user.role });
     } catch (err) {
       logger.error({ err }, 'User login failed');
       return res.status(500).json({ message: 'Server error. Please try again.' });
@@ -106,7 +106,7 @@ router.put(
     body('name').optional().trim().notEmpty().withMessage('Name cannot be empty'),
     body('email').optional().isEmail().normalizeEmail().withMessage('Valid email is required'),
     body('discipline').optional().isIn(['medicine', 'pharmacy', '']).withMessage('Invalid discipline'),
-    body('year').optional({ values: 'null' }).isInt({ min: 1, max: 6 }).withMessage('Year must be between 1 and 6'),
+    body('year').optional({ values: 'null' }).isInt({ min: 1, max: 7 }).withMessage('Year must be between 1 and 7'),
   ],
   validate,
   async (req, res) => {
@@ -145,6 +145,7 @@ const changePassword = catchAsync(async (req, res) => {
   const isMatch = await user.comparePassword(req.body.currentPassword);
   if (!isMatch) return res.status(400).json({ message: 'Current password is incorrect' });
   user.password = req.body.newPassword;
+  user.activeTokenId = crypto.randomBytes(32).toString('hex');
   await user.save();
   const authHeader = req.headers['authorization'];
   if (authHeader?.startsWith('Bearer ')) {
@@ -164,7 +165,7 @@ const changePwdValidation = [
 
 // PUT /api/users/change-password — change own password (authenticated)
 router.put('/users/change-password', verifyToken, changePwdValidation, validate, changePassword);
-// Alias for backward compatibility
+/** @deprecated Use PUT /api/users/change-password instead */
 router.put('/change-password', verifyToken, changePwdValidation, validate, changePassword);
 
 // DELETE /api/users/me — self-service account deletion (GDPR)
@@ -180,6 +181,21 @@ router.delete(
     user.password = crypto.randomBytes(32).toString('hex');
     await user.save();
     res.json({ message: 'Account deleted successfully' });
+  })
+);
+
+// POST /api/users/cancel-subscription — self-service subscription cancellation
+router.post(
+  '/users/cancel-subscription',
+  verifyToken,
+  catchAsync(async (req, res) => {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user.subscription || user.subscription.status !== 'active')
+      return res.status(400).json({ message: 'No active subscription to cancel' });
+    user.subscription.status = 'cancelled';
+    await user.save();
+    res.json({ message: 'Subscription cancelled' });
   })
 );
 

@@ -2,7 +2,6 @@ import express from 'express';
 import { param } from 'express-validator';
 import multer from 'multer';
 import { parse } from 'csv-parse/sync';
-import fs from 'fs';
 import Module from '../models/moduleModel.js';
 import { requireAdmin } from '../controllers/authController.js';
 import { cacheMiddleware, delPattern } from '../utils/cache.js';
@@ -23,7 +22,7 @@ const normalizeCourses = (mod) => {
   return mod;
 };
 const upload = multer({
-  dest: 'uploads/',
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const allowedExt = path.extname(file.originalname).toLowerCase();
@@ -85,12 +84,9 @@ router.delete('/modules/:id', requireAdmin, [
 
 // POST /api/import-modules-csv
 router.post('/import-modules-csv', requireAdmin, upload.single('file'), catchAsync(async (req, res) => {
-  let filePath;
   try {
     if (!req.file) return res.status(400).json({ message: 'CSV file is required' });
-    filePath = req.file.path;
-    const content = fs.readFileSync(filePath, 'utf8');
-    try { fs.unlinkSync(filePath); } catch { logger.warn('Failed to cleanup temp CSV file'); }
+    const content = req.file.buffer.toString('utf8');
 
     const records = parse(content, { columns: true, skip_empty_lines: true });
 
@@ -123,7 +119,6 @@ router.post('/import-modules-csv', requireAdmin, upload.single('file'), catchAsy
     });
   } catch (err) {
     logger.error({ err }, 'Module CSV import failed');
-    if (filePath) try { fs.unlinkSync(filePath); } catch { logger.warn('Failed to cleanup temp CSV file on error'); }
     res.status(500).json({ message: 'Import failed' });
   }
 }));

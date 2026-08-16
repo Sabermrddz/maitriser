@@ -91,6 +91,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  color: var(--dash-sidebar-text);
 }
 
 .dash-logo-icon {
@@ -101,7 +102,7 @@
 .dash-logo-text {
   font-family: var(--dash-font);
   font-weight: 700;
-  font-size: 1.15rem;
+  font-size: 1.3rem;
   letter-spacing: 0.5px;
   color: var(--dash-sidebar-text);
   transition: opacity var(--dash-transition);

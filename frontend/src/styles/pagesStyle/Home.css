@@ -1,9 +1,11 @@
 @import "tailwindcss";
+@import url('https://fonts.cdnfonts.com/css/rtl-saudi');
 
 :root {
   --jet-black: #00262F;
   --turf-green: #007355;
   --accent: #007355;
+  --accent-text: #4ECBA5;
   --yellow-green: var(--accent);
   --accent-dim: rgba(0, 115, 85, 0.55);
   --mint-cream: #E8F1F0;
@@ -16,6 +18,11 @@
   color: var(--mint-cream);
   font-family: 'Family Delight', sans-serif;
   overflow-x: hidden;
+}
+
+.landing-root h1, .landing-root h2, .landing-root h3,
+.landing-root h4, .landing-root h5, .landing-root h6 {
+  color: inherit;
 }
 
 /* ---------- REVEAL ---------- */
@@ -53,7 +60,7 @@
 }
 
 .landing-brand span {
-  font-family: 'Family Delight', sans-serif;
+  font-family: 'RTL-Saudi', sans-serif;
   font-weight: 700;
   font-size: 18px;
   letter-spacing: 0.02em;
@@ -101,7 +108,7 @@
 
 .landing-btn-solid {
   background: var(--accent);
-  color: var(--jet-black);
+  color: var(--mint-cream);
   font-weight: 600;
   font-size: 14.5px;
   padding: 11px 20px;
@@ -138,7 +145,7 @@
   margin-top: 26px;
 }
 
-.hl-accent { color: var(--accent); }
+.hl-accent { color: var(--accent-text); }
 
 .landing-hero-sub {
   margin-top: 26px;
@@ -158,7 +165,7 @@
 
 .landing-btn-primary {
   background: var(--accent);
-  color: var(--jet-black);
+  color: var(--mint-cream);
   font-weight: 700;
   font-size: 15.5px;
   padding: 15px 28px;
@@ -272,7 +279,7 @@
   font-size: 12.5px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 .landing-section-head h2 {
@@ -314,7 +321,7 @@
   font-size: 11.5px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--accent);
+  color: var(--accent-text);
   opacity: 0.85;
 }
 
@@ -332,6 +339,25 @@
   line-height: 1.6;
   color: var(--mint-dim);
   max-width: 34ch;
+}
+
+.landing-strip-img {
+  width: 100%;
+  height: 180px;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.landing-strip-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+}
+
+.landing-strip-item:hover .landing-strip-img img {
+  transform: scale(1.05);
 }
 
 /* ---------- ECOS DEEP-DIVE ---------- */
@@ -410,7 +436,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 600;
 }
 
@@ -419,7 +445,6 @@
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
-  animation: pulse 1.4s ease-in-out infinite;
 }
 
 .landing-ecos-patient {
@@ -479,6 +504,32 @@
   color: var(--mint-dim);
 }
 
+/* ---------- ECOS VISUAL LAYOUT ---------- */
+.landing-ecos-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.landing-ecos-img {
+  width: 100%;
+  height: 220px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(0, 115, 85, 0.25);
+}
+
+.landing-ecos-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.landing-ecos-visual:hover .landing-ecos-img img {
+  transform: scale(1.04);
+}
+
 /* ---------- PROOF / TESTIMONIALS ---------- */
 /* ---------- PRICING ---------- */
 .landing-pricing {
@@ -520,7 +571,7 @@
   top: -13px;
   left: 28px;
   background: var(--accent);
-  color: var(--jet-black);
+  color: var(--mint-cream);
   font-family: 'Family Delight', sans-serif;
   font-size: 11px;
   letter-spacing: 0.06em;
@@ -587,7 +638,7 @@
   font-weight: 600;
   font-size: 14.5px;
   background: var(--accent);
-  color: var(--jet-black);
+  color: var(--mint-cream);
   border: none;
   cursor: pointer;
   font-family: inherit;
@@ -624,7 +675,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--accent);
+  color: var(--accent-text);
   font-family: 'Family Delight', sans-serif;
   font-weight: 600;
   font-size: 16.5px;
@@ -739,7 +790,7 @@
 }
 
 .landing-footer-links a:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 
 /* ---------- RESPONSIVE ---------- */

@@ -190,7 +190,7 @@ const ModuleManagement = () => {
                       <button onClick={async () => {
                         try {
                           const res = await authFetch(`/api/course-pdfs/${encodeURIComponent(pdfDoc.filename)}`);
-                          if (res.ok) { const { url } = await res.json(); window.open(url, '_blank'); }
+                           if (res.ok) { const { url } = await res.json(); window.open(url, '_blank', 'noopener,noreferrer'); }
                         } catch { notify(t('admin.module.networkError'), 'error'); }
                       }} style={{ color: 'var(--dc-accent)', fontSize: '0.85rem', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }} title={pdfDoc.name}>
                         <FaFilePdf />

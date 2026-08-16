@@ -30,22 +30,27 @@ export default function EcosSection() {
         </ul>
       </div>
 
-      <div className="landing-ecos-card reveal">
-        <div className="landing-ecos-card-top">
-          <span>{t('landing.ecos.card.station')}</span>
-          <span className="landing-ecos-timer">
-            <span className="landing-ring-dot"></span> {t('landing.ecos.card.timer')}
-          </span>
+      <div className="landing-ecos-visual reveal">
+        <div className="landing-ecos-card">
+          <div className="landing-ecos-card-top">
+            <span>{t('landing.ecos.card.station')}</span>
+            <span className="landing-ecos-timer">
+              <span className="landing-ring-dot"></span> {t('landing.ecos.card.timer')}
+            </span>
+          </div>
+          <div className="landing-ecos-patient">
+            <span className="landing-ecos-label">{t('landing.ecos.card.vignette')}</span>
+            <p>{t('landing.ecos.card.vignette.text')}</p>
+          </div>
+          <div className="landing-ecos-checklist">
+            <div className="landing-check-row"><span className="landing-check-box done" /> {t('landing.ecos.card.item.1')}</div>
+            <div className="landing-check-row"><span className="landing-check-box done" /> {t('landing.ecos.card.item.2')}</div>
+            <div className="landing-check-row dim"><span className="landing-check-box" /> {t('landing.ecos.card.item.3')}</div>
+            <div className="landing-check-row dim"><span className="landing-check-box" /> {t('landing.ecos.card.item.4')}</div>
+          </div>
         </div>
-        <div className="landing-ecos-patient">
-          <span className="landing-ecos-label">{t('landing.ecos.card.vignette')}</span>
-          <p>{t('landing.ecos.card.vignette.text')}</p>
-        </div>
-        <div className="landing-ecos-checklist">
-          <div className="landing-check-row"><span className="landing-check-box done" /> {t('landing.ecos.card.item.1')}</div>
-          <div className="landing-check-row"><span className="landing-check-box done" /> {t('landing.ecos.card.item.2')}</div>
-          <div className="landing-check-row dim"><span className="landing-check-box" /> {t('landing.ecos.card.item.3')}</div>
-          <div className="landing-check-row dim"><span className="landing-check-box" /> {t('landing.ecos.card.item.4')}</div>
+        <div className="landing-ecos-img">
+          <img src="https://images.unsplash.com/photo-1583912086096-8c60d75a53f9?w=500&h=400&fit=crop&auto=format" alt="Vintage medical painting" loading="lazy" />
         </div>
       </div>
     </section>

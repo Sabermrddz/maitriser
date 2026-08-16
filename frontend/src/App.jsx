@@ -250,6 +250,7 @@ const AppContent = () => {
   if (isAdminRoute) {
     return (
       <ErrorBoundary>
+      <Suspense fallback={<Fallback />}>
       <Routes>
         <Route path="/admin/setup" element={<AdminSetup />} />
         <Route element={<AdminProtectedRoute />}>
@@ -268,6 +269,7 @@ const AppContent = () => {
           </Route>
         </Route>
       </Routes>
+      </Suspense>
       </ErrorBoundary>
     );
   }

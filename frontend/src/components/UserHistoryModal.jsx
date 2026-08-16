@@ -25,7 +25,7 @@ const UserHistoryModal = ({ user, onClose }) => {
       const d = await res.json();
       setResults(d.data || []);
       setPage(d.page || 1);
-      setTotalPages(d.pages || 1);
+      setTotalPages(d.totalPages || 1);
     } catch (err) {
       logger.error({ err }, 'UserHistoryModal fetchResults failed');
       setError(err.message);

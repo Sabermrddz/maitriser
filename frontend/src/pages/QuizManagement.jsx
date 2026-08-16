@@ -20,6 +20,9 @@ const emptyForm = () => ({
   questionText: '',
   options: ['', '', '', ''], correctIndices: [],
   explanation: '',
+  optionExplanations: [],  // [{letter, whyTrue, whyFalse}]
+  keyConcepts: [],
+  commonTraps: [],
 });
 
 const OptionItem = ({ i, opt, onUpdate }) => {
@@ -72,7 +75,7 @@ const QuizManagement = () => {
   const [questionImage, setQuestionImage]   = useState(null);
   const [imagePreview, setImagePreview]     = useState(null);
   const [removeImage, setRemoveImage]       = useState(false);
-  const emptyQuiz = () => ({ questionText: '', options: ['', '', '', ''], correctIndices: [], explanation: '' });
+  const emptyQuiz = () => ({ questionText: '', options: ['', '', '', ''], correctIndices: [], explanation: '', optionExplanations: [], keyConcepts: [], commonTraps: [] });
   const [caseForm, setCaseForm]             = useState({ year: '', moduleId: '', discipline: '', title: '', description: '', course: '', quizzes: [emptyQuiz(), emptyQuiz(), emptyQuiz()] });
   const [caseModuleCourses, setCaseModuleCourses] = useState([]);
 
@@ -138,7 +141,7 @@ const QuizManagement = () => {
       const d = await res.json();
       setQuizzes(d.data || (Array.isArray(d) ? d : []));
       setPage(d.page || 1);
-      setTotalPages(d.pages || 1);
+      setTotalPages(d.totalPages || 1);
       setError('');
     } catch (e) { logger.error({ err: e }, 'QuizManagement fetchQuizzes failed'); setError('Failed to load quizzes'); }
     finally { setLoading(false); }
@@ -167,7 +170,7 @@ const QuizManagement = () => {
   const handleSubmit = async (published) => {
     play('submit');
     if (submittingRef.current) return;
-    const { moduleId, course, questionText, options, correctIndices, explanation } = form;
+    const { moduleId, course, questionText, options, correctIndices, explanation, optionExplanations, keyConcepts, commonTraps } = form;
     if (!moduleId || !questionText) return notify(t('admin.quiz.fillRequiredFields'), 'warning');
       if (options.some((o) => !o.trim())) return notify(t('admin.quiz.optionsMustHaveText'), 'warning');
       if (correctIndices.length === 0) return notify(t('admin.quiz.selectCorrectAnswer'), 'warning');
@@ -189,11 +192,14 @@ const QuizManagement = () => {
         fd.append('course', course || '');
         fd.append('published', String(published));
         fd.append('explanation', explanation || '');
+        fd.append('optionExplanations', JSON.stringify(optionExplanations || []));
+        fd.append('keyConcepts', JSON.stringify(keyConcepts || []));
+        fd.append('commonTraps', JSON.stringify(commonTraps || []));
         if (questionImage) fd.append('questionImage', questionImage);
         if (editId && removeImage) fd.append('removeImage', 'true');
         res = await authFetch(url, { method, body: fd });
       } else {
-        const body = { moduleId, course: course || '', questionText, options, correctAnswers, explanation, published };
+        const body = { moduleId, course: course || '', questionText, options, correctAnswers, explanation, optionExplanations: optionExplanations || [], keyConcepts: keyConcepts || [], commonTraps: commonTraps || [], published };
         res = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       }
       const data = res.ok ? await res.json() : null;
@@ -241,6 +247,9 @@ const QuizManagement = () => {
       options: [...opts],
       correctIndices,
       explanation: quiz.explanation || quiz.question?.explanation || '',
+      optionExplanations: quiz.optionExplanations || [],
+      keyConcepts: quiz.keyConcepts || [],
+      commonTraps: quiz.commonTraps || [],
     });
     if (quiz.question?.questionImage) {
       setImagePreview(`${API_BASE_URL}/api/quiz-images/${quiz.question.questionImage}`);
@@ -254,6 +263,26 @@ const QuizManagement = () => {
   };
 
   const resetForm = () => { setForm(emptyForm()); setEditId(null); setFormKey((k) => k + 1); setQuestionImage(null); setImagePreview(null); setRemoveImage(false); };
+
+  const updateOptionExplanation = (letter, field, value) => {
+    setForm((f) => {
+      const existing = f.optionExplanations.find((e) => e.letter === letter);
+      const updated = existing
+        ? f.optionExplanations.map((e) => e.letter === letter ? { ...e, [field]: value } : e)
+        : [...f.optionExplanations, { letter, whyTrue: field === 'whyTrue' ? value : '', whyFalse: field === 'whyFalse' ? value : '' }];
+      return { ...f, optionExplanations: updated };
+    });
+  };
+
+  const addTag = (field) => {
+    setForm((f) => ({ ...f, [field]: [...(f[field] || []), ''] }));
+  };
+  const updateTag = (field, idx, val) => {
+    setForm((f) => ({ ...f, [field]: f[field].map((t, i) => i === idx ? val : t) }));
+  };
+  const removeTag = (field, idx) => {
+    setForm((f) => ({ ...f, [field]: f[field].filter((_, i) => i !== idx) }));
+  };
 
   // ── Bulk selection ────────────────────────────────────────────────────────────
   const toggleSelect = (id) => {
@@ -521,6 +550,87 @@ const QuizManagement = () => {
         <div className="qm-section">
           <label className="qm-label">{t('admin.quiz.explanation')}</label>
           <textarea className="qm-textarea" value={form.explanation} onChange={(e) => setField('explanation', e.target.value)} placeholder="Write explanation here..." rows={3} />
+        </div>
+
+        <div className="qm-section" style={{ background: 'var(--color-bg, #f0f4f8)', padding: 14, borderRadius: 8, border: '1px dashed var(--dc-border, #ccc)' }}>
+          <label className="qm-label" style={{ marginBottom: 12 }}>{t('admin.quiz.structuredExplanation', 'Explication structurée (optionnel)')}</label>
+
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted, #666)', marginBottom: 6 }}>
+              {t('admin.quiz.optionExplanations', 'Pourquoi chaque option est vraie/fausse')}
+            </div>
+            {LETTERS.slice(0, form.options.length).map((letter) => {
+              const expl = form.optionExplanations.find((e) => e.letter === letter) || {};
+              const hasText = expl.whyTrue || expl.whyFalse;
+              return (
+                <details key={letter} style={{ marginBottom: 6 }}>
+                  <summary style={{ fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '4px 0', color: hasText ? 'var(--teal-dark, #007355)' : 'var(--text-muted, #666)' }}>
+                    {letter}. {hasText ? `✓ ${expl.whyTrue || expl.whyFalse}` : t('admin.quiz.clickToExplain', 'Cliquer pour expliquer')}
+                  </summary>
+                  <div style={{ padding: '8px 0', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <input
+                      type="text"
+                      placeholder={t('admin.quiz.whyTrue', `Pourquoi ${letter} est vraie`)}
+                      value={expl.whyTrue || ''}
+                      onChange={(e) => updateOptionExplanation(letter, 'whyTrue', e.target.value)}
+                      style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--dc-border, #ccc)', borderRadius: 4, fontSize: '0.8rem', boxSizing: 'border-box' }}
+                    />
+                    <input
+                      type="text"
+                      placeholder={t('admin.quiz.whyFalse', `Pourquoi ${letter} est fausse`)}
+                      value={expl.whyFalse || ''}
+                      onChange={(e) => updateOptionExplanation(letter, 'whyFalse', e.target.value)}
+                      style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--dc-border, #ccc)', borderRadius: 4, fontSize: '0.8rem', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted, #666)', marginBottom: 6 }}>
+                {t('admin.quiz.keyConcepts', 'Concepts clés')}
+              </div>
+              {(form.keyConcepts || []).map((concept, i) => (
+                <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                  <input
+                    type="text"
+                    value={concept}
+                    onChange={(e) => updateTag('keyConcepts', i, e.target.value)}
+                    placeholder={t('admin.quiz.addConcept', 'Concept...')}
+                    style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--dc-border, #ccc)', borderRadius: 4, fontSize: '0.8rem', boxSizing: 'border-box' }}
+                  />
+                  <button type="button" onClick={() => removeTag('keyConcepts', i)} style={{ padding: '4px 8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.75rem' }}>×</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => addTag('keyConcepts')} style={{ fontSize: '0.75rem', color: 'var(--teal-dark, #007355)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                + {t('admin.quiz.addConcept', 'Ajouter un concept')}
+              </button>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted, #666)', marginBottom: 6 }}>
+                {t('admin.quiz.commonTraps', 'Pièges fréquents')}
+              </div>
+              {(form.commonTraps || []).map((trap, i) => (
+                <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                  <input
+                    type="text"
+                    value={trap}
+                    onChange={(e) => updateTag('commonTraps', i, e.target.value)}
+                    placeholder={t('admin.quiz.addTrap', 'Piège...')}
+                    style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--dc-border, #ccc)', borderRadius: 4, fontSize: '0.8rem', boxSizing: 'border-box' }}
+                  />
+                  <button type="button" onClick={() => removeTag('commonTraps', i)} style={{ padding: '4px 8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.75rem' }}>×</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => addTag('commonTraps')} style={{ fontSize: '0.75rem', color: 'var(--teal-dark, #007355)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                + {t('admin.quiz.addTrap', 'Ajouter un piège')}
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="qm-actions">

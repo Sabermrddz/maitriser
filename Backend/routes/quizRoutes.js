@@ -1,7 +1,7 @@
 import express from 'express';
 import { body, param } from 'express-validator';
 import multer from 'multer';
-import { requireAdmin } from '../controllers/authController.js';
+import { verifyToken, requireAdmin } from '../controllers/authController.js';
 import { validate } from '../middleware/validate.js';
 import {
   listQuizzes, getQuiz, getCase, quizCounts, startQuiz,
@@ -11,7 +11,7 @@ import {
 import { bulkPublish, bulkUnpublish, bulkDelete, importQuizzesCsv } from '../controllers/quizBulkController.js';
 
 const csvUpload = multer({
-  dest: 'uploads/',
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
     const ext = file.originalname.toLowerCase().split('.').pop();
@@ -49,6 +49,14 @@ router.post('/quizzes', requireAdmin, quizImageUpload.single('questionImage'), [
   body('course').optional().trim(),
   body('published').optional().isBoolean(),
   body('explanation').optional().trim(),
+  body('optionExplanations').optional().isArray(),
+  body('optionExplanations.*.letter').optional().isIn(['A','B','C','D','E']),
+  body('optionExplanations.*.whyTrue').optional().trim(),
+  body('optionExplanations.*.whyFalse').optional().trim(),
+  body('keyConcepts').optional().isArray(),
+  body('keyConcepts.*').optional().trim(),
+  body('commonTraps').optional().isArray(),
+  body('commonTraps.*').optional().trim(),
   body('timer').optional().isInt({ min: 0 }),
 ], validate, createQuiz);
 router.put('/quizzes/:id', requireAdmin, quizImageUpload.single('questionImage'), [
@@ -60,6 +68,14 @@ router.put('/quizzes/:id', requireAdmin, quizImageUpload.single('questionImage')
   body('course').optional().trim(),
   body('published').optional().isBoolean(),
   body('explanation').optional().trim(),
+  body('optionExplanations').optional().isArray(),
+  body('optionExplanations.*.letter').optional().isIn(['A','B','C','D','E']),
+  body('optionExplanations.*.whyTrue').optional().trim(),
+  body('optionExplanations.*.whyFalse').optional().trim(),
+  body('keyConcepts').optional().isArray(),
+  body('keyConcepts.*').optional().trim(),
+  body('commonTraps').optional().isArray(),
+  body('commonTraps.*').optional().trim(),
   body('timer').optional().isInt({ min: 0 }),
 ], validate, editQuiz);
 router.delete('/quizzes/:id', requireAdmin, [param('id').isMongoId()], validate, deleteQuiz);
@@ -70,6 +86,6 @@ router.post('/quizzes/bulk/unpublish', requireAdmin, [body('ids').isArray({ min:
 router.post('/quizzes/bulk/delete', requireAdmin, [body('ids').isArray({ min: 1 }), body('ids.*').isMongoId()], validate, bulkDelete);
 router.post('/quizzes/import-csv', requireAdmin, csvUpload.single('file'), importQuizzesCsv);
 
-router.get('/quiz-images/:filename', serveQuizImage);
+router.get('/quiz-images/:filename', verifyToken, serveQuizImage);
 
 export default router;

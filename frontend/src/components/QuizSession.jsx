@@ -255,6 +255,38 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
                   {r && r.explanation && (
                     <div className="explanation-box" style={{ marginTop: 8 }}>{r.explanation}</div>
                   )}
+                  {r && r.optionExplanations && r.optionExplanations.length > 0 && (
+                    <div className="explanation-box" style={{ marginTop: 8 }}>
+                      <strong style={{ display: 'block', marginBottom: 6 }}>{t('admin.quiz.optionExplanations', 'Pourquoi chaque option est vraie/fausse')}</strong>
+                      {r.optionExplanations.map((expl) => (
+                        <div key={expl.letter} style={{ marginBottom: 6, paddingLeft: 8, borderLeft: '3px solid var(--teal-dark, #007355)' }}>
+                          <div style={{ fontWeight: 700, fontSize: 13 }}>{expl.letter}.</div>
+                          {expl.whyTrue && <div style={{ fontSize: 12, color: '#16a34a' }}>✓ {expl.whyTrue}</div>}
+                          {expl.whyFalse && <div style={{ fontSize: 12, color: '#dc2626' }}>✗ {expl.whyFalse}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {r && r.keyConcepts && r.keyConcepts.length > 0 && (
+                    <div className="explanation-box" style={{ marginTop: 8 }}>
+                      <strong style={{ display: 'block', marginBottom: 4 }}>{t('admin.quiz.keyConcepts', 'Concepts clés')}</strong>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {r.keyConcepts.map((c, i) => (
+                          <span key={i} style={{ padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: 'rgba(0,115,85,0.08)', color: 'var(--teal-dark, #007355)' }}>{c}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {r && r.commonTraps && r.commonTraps.length > 0 && (
+                    <div className="explanation-box" style={{ marginTop: 8 }}>
+                      <strong style={{ display: 'block', marginBottom: 4 }}>{t('admin.quiz.commonTraps', 'Pièges fréquents')}</strong>
+                      <ul style={{ margin: 0, paddingLeft: 18 }}>
+                        {r.commonTraps.map((trap, i) => (
+                          <li key={i} style={{ fontSize: 12, marginBottom: 2, color: '#dc2626' }}>{trap}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -297,7 +329,7 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
           paddingBottom: 12, borderBottom: '1px solid var(--border-light)', marginBottom: 20,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <button className="btn-ghost" onClick={onBack} style={{ fontSize: 13 }}>← {t('moduleCard.back')}</button>
+            <button className="btn-ghost" onClick={onBack}>← {t('moduleCard.back')}</button>
             <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
               {t('customExam.questionProgress', { n: currentQuestion + 1, total: totalQ })}
             </span>
@@ -429,6 +461,38 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
                     {result.explanation}
                   </div>
                 )}
+                {result.optionExplanations && result.optionExplanations.length > 0 && (
+                  <div className="explanation-box" style={{ marginTop: 8 }}>
+                    <strong style={{ display: 'block', marginBottom: 6 }}>{t('admin.quiz.optionExplanations', 'Pourquoi chaque option est vraie/fausse')}</strong>
+                    {result.optionExplanations.map((expl) => (
+                      <div key={expl.letter} style={{ marginBottom: 6, paddingLeft: 8, borderLeft: '3px solid var(--teal-dark, #007355)' }}>
+                        <div style={{ fontWeight: 700, fontSize: 13 }}>{expl.letter}.</div>
+                        {expl.whyTrue && <div style={{ fontSize: 12, color: '#16a34a' }}>✓ {expl.whyTrue}</div>}
+                        {expl.whyFalse && <div style={{ fontSize: 12, color: '#dc2626' }}>✗ {expl.whyFalse}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {result.keyConcepts && result.keyConcepts.length > 0 && (
+                  <div className="explanation-box" style={{ marginTop: 8 }}>
+                    <strong style={{ display: 'block', marginBottom: 4 }}>{t('admin.quiz.keyConcepts', 'Concepts clés')}</strong>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {result.keyConcepts.map((c, i) => (
+                        <span key={i} style={{ padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: 'rgba(0,115,85,0.08)', color: 'var(--teal-dark, #007355)' }}>{c}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {result.commonTraps && result.commonTraps.length > 0 && (
+                  <div className="explanation-box" style={{ marginTop: 8 }}>
+                    <strong style={{ display: 'block', marginBottom: 4 }}>{t('admin.quiz.commonTraps', 'Pièges fréquents')}</strong>
+                    <ul style={{ margin: 0, paddingLeft: 18 }}>
+                      {result.commonTraps.map((trap, i) => (
+                        <li key={i} style={{ fontSize: 12, marginBottom: 2, color: '#dc2626' }}>{trap}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 {/* View Course button */}
                 {q.course && (
                   <button onClick={() => handleOpenPdf(q)}
@@ -522,7 +586,7 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
               </div>
             </div>
             <div className="pdf-console-body">
-              <iframe src={pdfPanelUrl} title={pdfPanelCourse} className="pdf-console-frame" />
+              <iframe src={pdfPanelUrl} title={pdfPanelCourse} className="pdf-console-frame" sandbox="allow-same-origin allow-popups" />
             </div>
           </div>
         )}

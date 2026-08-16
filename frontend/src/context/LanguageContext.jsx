@@ -33,8 +33,6 @@ export const LanguageProvider = ({ children }) => {
   const langData = locales[lang] || fr;
   const value = useMemo(() => ({ lang, setLang, langData }), [lang, setLang, langData]);
 
-  console.log('[i18n] LanguageProvider rendered', { lang, keys: Object.keys(langData).length });
-
   return (
     <LanguageContext.Provider value={value}>
       {children}

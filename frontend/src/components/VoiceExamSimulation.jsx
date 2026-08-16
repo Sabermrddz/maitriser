@@ -3,6 +3,7 @@ import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import VoiceExam from './VoiceExam.jsx';
 import { useTranslation } from '../context/LanguageContext';
 import { useToast } from './Toast';
+import { logger } from '../utils/logger';
 
 const VoiceExamSimulation = ({ exams, onBack }) => {
   const { t } = useTranslation();
@@ -54,7 +55,7 @@ const VoiceExamSimulation = ({ exams, onBack }) => {
         setCurrentStation((prev) => prev + 1);
       }
     } catch (err) {
-      console.error('Station submit failed', err);
+      logger.error({ err }, 'Station submit failed');
       notify(t('voiceExam.stationError'), 'error');
     } finally {
       setSubmitting(false);
@@ -72,7 +73,7 @@ const VoiceExamSimulation = ({ exams, onBack }) => {
       <div className="page-teal">
         <div className="card-teal" style={{ maxWidth: 480, margin: '0 auto' }}>
           <div style={{ marginBottom: 16 }}>
-            <button type="button" onClick={onBack} style={{ background: 'none', border: '1px solid var(--border-light)', borderRadius: 6, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--text-dark)' }}>
+            <button type="button" className="btn-ghost" onClick={onBack}>
               &larr; {t('voiceExam.back')}
             </button>
           </div>

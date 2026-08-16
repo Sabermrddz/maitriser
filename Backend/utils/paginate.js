@@ -8,6 +8,5 @@ export const paginatedResponse = (data, total, page, limit) => ({
   data,
   total,
   page,
-  pages: Math.ceil(total / limit),
   totalPages: Math.ceil(total / limit),
 });
