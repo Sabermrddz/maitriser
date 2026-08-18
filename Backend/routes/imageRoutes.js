@@ -1,7 +1,7 @@
 import express from 'express';
 import multer from 'multer';
 import { PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { requireAdmin } from '../controllers/authController.js';
+import { requireAdmin, verifyToken } from '../controllers/authController.js';
 import { catchAsync } from '../utils/asyncHandler.js';
 import { getR2Client, getBucket } from '../config/r2.js';
 import Quiz from '../models/quizModel.js';
@@ -21,7 +21,7 @@ const imageUpload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
-router.get('/admin/images', requireAdmin, catchAsync(async (req, res) => {
+router.get('/admin/images', verifyToken, requireAdmin, catchAsync(async (req, res) => {
   const s3 = getR2Client();
   if (!s3) return res.status(500).json({ message: 'Storage not configured' });
   const prefix = req.query.prefix || '';
@@ -38,7 +38,7 @@ router.get('/admin/images', requireAdmin, catchAsync(async (req, res) => {
   res.json(images);
 }));
 
-router.post('/admin/images', requireAdmin, imageUpload.single('file'), catchAsync(async (req, res) => {
+router.post('/admin/images', verifyToken, requireAdmin, imageUpload.single('file'), catchAsync(async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'Image file is required' });
   const s3 = getR2Client();
   if (!s3) return res.status(500).json({ message: 'Storage not configured' });
@@ -53,7 +53,7 @@ router.post('/admin/images', requireAdmin, imageUpload.single('file'), catchAsyn
   res.status(201).json({ key, size: req.file.size });
 }));
 
-router.delete('/admin/images', requireAdmin, catchAsync(async (req, res) => {
+router.delete('/admin/images', verifyToken, requireAdmin, catchAsync(async (req, res) => {
   const { key } = req.body;
   if (!key) return res.status(400).json({ message: 'Key is required' });
   const s3 = getR2Client();

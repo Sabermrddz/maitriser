@@ -16,10 +16,12 @@ router.post('/admin/claim', verifyToken, [
     const { code } = req.body;
     const secret = process.env.ADMIN_SECRET_CODE || '';
     const input = code || '';
-    const maxLen = Math.max(secret.length, input.length || 0);
-    const a = Buffer.alloc(maxLen, secret, 'utf-8');
-    const b = Buffer.alloc(maxLen, input, 'utf-8');
-    if (!crypto.timingSafeEqual(a, b)) {
+    if (!secret || secret.length !== input.length) {
+      return res.status(403).json({ message: 'Invalid admin code' });
+    }
+    const a = Buffer.from(secret, 'utf-8');
+    const b = Buffer.from(input, 'utf-8');
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
       return res.status(403).json({ message: 'Invalid admin code' });
     }
 

@@ -24,10 +24,12 @@ router.post(
   async (req, res) => {
     const secret = process.env.ADMIN_SECRET_CODE || '';
     const input = req.body.admin_secret || '';
-    const maxLen = Math.max(secret.length, input.length || 0);
-    const a = Buffer.alloc(maxLen, secret, 'utf-8');
-    const b = Buffer.alloc(maxLen, input, 'utf-8');
-    if (!crypto.timingSafeEqual(a, b)) {
+    if (!secret || secret.length !== input.length) {
+      return res.status(403).json({ message: 'Invalid admin secret.' });
+    }
+    const a = Buffer.from(secret, 'utf-8');
+    const b = Buffer.from(input, 'utf-8');
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
       return res.status(403).json({ message: 'Invalid admin secret.' });
     }
     const { email, password } = req.body;

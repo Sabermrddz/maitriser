@@ -25,7 +25,7 @@ const generatePdfId = async () => {
   return `PDF-${String(num).padStart(3, '0')}`;
 };
 
-router.post('/pdf-documents', requireAdmin, pdfUpload.single('file'), catchAsync(async (req, res) => {
+router.post('/pdf-documents', verifyToken, requireAdmin, pdfUpload.single('file'), catchAsync(async (req, res) => {
   if (!req.file) return res.status(400).json({ message: 'PDF file is required' });
   const { name } = req.body;
   if (!name) return res.status(400).json({ message: 'Name is required' });
@@ -56,7 +56,7 @@ router.get('/pdf-documents/by-pdf-id/:pdfId', verifyToken, catchAsync(async (req
   res.json(doc);
 }));
 
-router.delete('/pdf-documents/:id', requireAdmin, catchAsync(async (req, res) => {
+router.delete('/pdf-documents/:id', verifyToken, requireAdmin, catchAsync(async (req, res) => {
   const doc = await PdfDocument.findByIdAndDelete(req.params.id);
   if (!doc) return res.status(404).json({ message: 'PDF not found' });
   const s3 = getR2Client();

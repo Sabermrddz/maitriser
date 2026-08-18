@@ -319,7 +319,7 @@ router.post('/payments/payment-intent', verifyToken, receiptUpload.single('recei
 }));
 
 // ── Serve payment receipt images (authenticated) ────────────────────────────
-router.get('/payment-images/:filename', verifyToken, catchAsync(async (req, res) => {
+router.get('/payment-images/:filename', verifyToken, requireAdmin, catchAsync(async (req, res) => {
   const s3 = getR2Client();
   if (!s3) return res.status(500).json({ message: 'Storage not configured' });
   const key = `payment-receipts/${path.basename(req.params.filename)}`;

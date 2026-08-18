@@ -91,7 +91,6 @@ const QuizManagement = () => {
       if (form.discipline && m.discipline !== form.discipline) return false;
       return true;
     }));
-    setForm((f) => ({ ...f, moduleId: '' }));
   }, [form.selectedYear, form.discipline, modules]);
 
   useEffect(() => {
@@ -470,12 +469,12 @@ const QuizManagement = () => {
         <h2 className="qm-form-title">{editId ? t('admin.quiz.edit') : t('admin.quiz.addNew')}</h2>
 
         <div className="qm-filters">
-          <select value={form.discipline} onChange={(e) => { setField('discipline', e.target.value); setField('selectedYear', ''); }}>
+          <select value={form.discipline} onChange={(e) => { setField('discipline', e.target.value); setField('selectedYear', ''); setField('moduleId', ''); }}>
             <option value="">{t('admin.quiz.chooseDiscipline')}</option>
             <option value="medicine">{t('admin.quiz.medicine')}</option>
             <option value="pharmacy">{t('admin.quiz.pharmacy')}</option>
           </select>
-          <select value={form.selectedYear} onChange={(e) => setField('selectedYear', e.target.value)}>
+          <select value={form.selectedYear} onChange={(e) => { setField('selectedYear', e.target.value); setField('moduleId', ''); }}>
             <option value="">{t('admin.quiz.chooseYear')}</option>
             {YEARS.map((y) => <option key={y} value={y}>{t('pricing.year', { n: y })}</option>)}
           </select>

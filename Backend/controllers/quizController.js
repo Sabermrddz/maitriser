@@ -53,6 +53,7 @@ export const getQuiz = catchAsync(async (req, res) => {
 });
 
 export const getCase = catchAsync(async (req, res) => {
+  if (!await checkSubscription(req.user?.id)) return res.status(403).json({ message: 'Subscription required' });
   const c = await Case.findById(req.params.id);
   if (!c) return res.status(404).json({ message: 'Case not found' });
   const quizzes = await Quiz.find({ caseId: c._id }).populate('moduleId', 'name year');
@@ -219,6 +220,7 @@ export const startQuiz = catchAsync(async (req, res) => {
 });
 
 export const quizCounts = catchAsync(async (req, res) => {
+  if (!await checkSubscription(req.user?.id)) return res.status(403).json({ message: 'Subscription required' });
   const filter = { published: true };
   if (req.query.discipline) filter.discipline = String(req.query.discipline);
   if (req.query.year)       filter.year = Number(req.query.year);
@@ -257,6 +259,7 @@ export const quizCounts = catchAsync(async (req, res) => {
 });
 
 export const serveQuizImage = catchAsync(async (req, res) => {
+  if (!await checkSubscription(req.user?.id)) return res.status(403).json({ message: 'Subscription required' });
   const s3 = getR2Client();
   if (!s3) return res.status(500).json({ message: 'Storage not configured' });
   const key = `quiz-images/${path.basename(req.params.filename)}`;

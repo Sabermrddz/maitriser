@@ -47,7 +47,9 @@ const AdminSetup = () => {
     try {
       const token = await getToken();
       if (!token) { setError(t('admin.setup.sessionExpired')); setLoading(false); return; }
-      await axios.post(`${API_BASE_URL}/api/admin/claim`, { code });
+      await axios.post(`${API_BASE_URL}/api/admin/claim`, { code }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       try { localStorage.setItem('adminRole', 'admin'); } catch { /* incognito */ }
       navigate('/admin/dashboard');
     } catch (err) {
