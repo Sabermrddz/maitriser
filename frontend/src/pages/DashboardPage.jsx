@@ -4,6 +4,7 @@ import { FaLungs, FaBrain, FaHeart, FaVial, FaFileMedical, FaClipboardList, FaSt
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { useTranslation } from '../context/LanguageContext';
 import { formatDate } from '../utils/formatDate';
+import { formatYearLabel } from '../utils/formatYear';
 import { logger } from '../utils/logger';
 import { ECOS_YEARS } from '../constants';
 import useDocumentTitle from '../utils/useDocumentTitle';
@@ -181,7 +182,7 @@ const DashboardPage = () => {
             <section className="dash-hero">
               <div className="dash-hero-welcome">
                 <h1>{t('dashboard.hero.greeting')}{userName ? <span className="dash-hero-accent"> {userName}</span> : ''}</h1>
-                <p className="dash-subtitle">{userYear ? t('dashboard.hero.subtitleYear', { year: userYear, discipline: userDiscipline }) : t('dashboard.hero.subtitleDiscipline', { discipline: userDiscipline })}</p>
+                <p className="dash-subtitle">{userYear ? t('dashboard.hero.subtitleYear', { year: formatYearLabel(userYear), discipline: userDiscipline }) : t('dashboard.hero.subtitleDiscipline', { discipline: userDiscipline })}</p>
                 <p className="dash-motivation">{t('dashboard.hero.motivation')}</p>
               </div>
               <div className="dash-hero-progress">

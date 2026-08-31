@@ -223,7 +223,8 @@ export const quizCounts = catchAsync(async (req, res) => {
   if (!await checkSubscription(req.user?.id)) return res.status(403).json({ message: 'Subscription required' });
   const filter = { published: true };
   if (req.query.discipline) filter.discipline = String(req.query.discipline);
-  if (req.query.year)       filter.year = Number(req.query.year);
+  const isResidanat = Number(req.query.year) === 7 && String(req.query.discipline) === 'medicine';
+  if (!isResidanat && req.query.year) filter.year = Number(req.query.year);
 
   const counts = await Quiz.aggregate([
     { $match: filter },

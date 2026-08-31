@@ -4,6 +4,7 @@ import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { useToast } from '../components/Toast';
 import { useTranslation } from '../context/LanguageContext';
 import { formatDate } from '../utils/formatDate';
+import { formatYearLabel } from '../utils/formatYear';
 import { logger } from '../utils/logger';
 import useDocumentTitle from '../utils/useDocumentTitle';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js';
@@ -262,7 +263,7 @@ const ProfilePage = () => {
         <label className="profile-label">{t('profile.year')}</label>
         <select value={year} onChange={(e) => setYear(e.target.value)} className="profile-input">
           <option value="">{t('profile.discipline.none')}</option>
-          {[1,2,3,4,5,6,7].map(y => <option key={y} value={y}>{t('profile.year.nth', { n: y })}</option>)}
+          {[1,2,3,4,5,6,7].map(y => <option key={y} value={y}>{y === 7 ? 'Résidanat' : t('profile.year.nth', { n: y })}</option>)}
         </select>
 
         <button className="btn-primary profile-btn" onClick={handleSaveProfile} disabled={saving}>

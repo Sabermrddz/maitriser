@@ -11,6 +11,7 @@ import { logger } from '../utils/logger';
 import useDocumentTitle from '../utils/useDocumentTitle';
 import { useTranslation } from '../context/LanguageContext';
 import { ECOS_YEARS } from '../constants';
+import { formatYearLabel } from '../utils/formatYear';
 import '../styles/teal-theme.css';
 
 const VoiceExamPage = () => {
@@ -271,7 +272,7 @@ const VoiceExamPage = () => {
               <div key={exam._id} className="card-item" role="button" tabIndex={0} onClick={() => handleExamClick(exam)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleExamClick(exam); } }}>
                 <p style={{ fontSize: '11px', color: '#f97316', fontWeight: 'bold', margin: '0 0 4px' }}>{t('voiceExams.badge')}</p>
                 <div className="card-title" style={{ marginBottom: '4px' }}>{exam.title}</div>
-                <div className="card-meta">{t('voiceExams.yearMeta', { year: exam.year, module: exam.moduleId?.name || '' })}</div>
+                <div className="card-meta">{t('voiceExams.yearMeta', { year: formatYearLabel(exam.year), module: exam.moduleId?.name || '' })}</div>
               </div>
             ))}
           </div>

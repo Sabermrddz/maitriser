@@ -34,7 +34,8 @@ const upload = multer({
 // GET all modules (optionally filter by year) — cached 5 min
 router.get('/modules', cacheMiddleware(), catchAsync(async (req, res) => {
   const filter = {};
-  if (req.query.year)       filter.year       = Number(req.query.year);
+  const isResidanat = Number(req.query.year) === 7 && String(req.query.discipline) === 'medicine';
+  if (!isResidanat && req.query.year)       filter.year       = Number(req.query.year);
   if (req.query.discipline) filter.discipline = String(req.query.discipline);
   let modules = await Module.find(filter).sort({ year: 1, name: 1 });
   modules = modules.map(normalizeCourses);

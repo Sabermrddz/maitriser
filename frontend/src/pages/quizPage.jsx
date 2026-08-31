@@ -88,7 +88,9 @@ const QuizPage = () => {
 
   useEffect(() => {
     let userYear = ''; try { userYear = localStorage.getItem('userYear') || ''; } catch {}
-    let filtered = userYear ? modules.filter((m) => m.year === Number(userYear)) : modules;
+    let userDiscipline = ''; try { userDiscipline = localStorage.getItem('userDiscipline') || ''; } catch {}
+    const isResidanat = userYear === '7' && userDiscipline === 'medicine';
+    let filtered = (userYear && !isResidanat) ? modules.filter((m) => m.year === Number(userYear)) : modules;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       filtered = filtered.filter((m) => m.name.toLowerCase().includes(q));
