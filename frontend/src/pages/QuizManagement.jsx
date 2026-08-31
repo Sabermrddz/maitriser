@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { authFetch } from '../config/authFetch';
 import { API_BASE_URL } from '../config/api';
-import { FaTrash, FaEdit, FaSave, FaPaperPlane } from 'react-icons/fa';
+import { FaTrash, FaEdit, FaSave, FaPaperPlane, FaCheck } from 'react-icons/fa';
 import { useToast } from '../components/Toast';
 import { useSound } from '../context/SoundContext';
 import ConfirmModal from '../components/ConfirmModal';
@@ -25,7 +25,7 @@ const emptyForm = () => ({
   commonTraps: [],
 });
 
-const OptionItem = ({ i, opt, onUpdate }) => {
+const OptionItem = ({ i, opt, onUpdate, isCorrect }) => {
   const [text, setText] = useState(opt);
   useEffect(() => { setText(opt); }, [opt]);
 
@@ -36,9 +36,10 @@ const OptionItem = ({ i, opt, onUpdate }) => {
   };
 
   return (
-    <div className="option-row">
+    <div className={`option-row${isCorrect ? ' correct' : ''}`}>
       <span className="option-letter">{LETTERS[i]}.</span>
       <input type="text" className="option-input" value={text} onChange={handleChange} placeholder={`Option ${LETTERS[i]}`} />
+      {isCorrect && <span className="correct-badge"><FaCheck /></span>}
     </div>
   );
 };
@@ -259,6 +260,7 @@ const QuizManagement = () => {
     }
     setQuestionImage(null);
     setFormKey((k) => k + 1);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const resetForm = () => { setForm(emptyForm()); setEditId(null); setFormKey((k) => k + 1); setQuestionImage(null); setImagePreview(null); setRemoveImage(false); };
@@ -315,8 +317,8 @@ const QuizManagement = () => {
       let data;
       try { data = JSON.parse(text); } catch { data = { message: `HTTP ${res.status}: ${text.substring(0, 100)}` }; }
       if (res.ok) { notify(data.message, 'success'); setSelectedIds(new Set()); fetchQuizzes(); }
-      else notify(`Erreur (${res.status}): ${data.message}`, 'error');
-    } catch (e) { logger.error({ err: e }, 'QuizManagement handleBulkAction failed'); notify(`Action groupée échouée: ${e.message}`, 'error'); }
+      else notify(`${t('admin.quiz.error', 'Erreur')} (${res.status}): ${data.message}`, 'error');
+    } catch (e) { logger.error({ err: e }, 'QuizManagement handleBulkAction failed'); notify(`${t('admin.quiz.bulkActionFailed', 'Action groupée échouée')}: ${e.message}`, 'error'); }
     finally { setBulkProcessing(false); submittingRef.current = false; setSubmitting(false); }
   };
 
@@ -332,8 +334,8 @@ const QuizManagement = () => {
       let data;
       try { data = JSON.parse(text); } catch { data = { message: `HTTP ${res.status}: ${text.substring(0, 100)}` }; }
       if (res.ok) { notify(data.message, 'success'); setSelectedIds(new Set()); fetchQuizzes(); }
-      else notify(`Erreur (${res.status}): ${data.message}`, 'error');
-    } catch (e) { logger.error({ err: e }, 'QuizManagement confirmBulkDelete failed'); notify(`Suppression groupée échouée: ${e.message}`, 'error'); }
+      else notify(`${t('admin.quiz.error', 'Erreur')} (${res.status}): ${data.message}`, 'error');
+    } catch (e) { logger.error({ err: e }, 'QuizManagement confirmBulkDelete failed'); notify(`${t('admin.quiz.bulkDeleteFailed', 'Suppression groupée échouée')}: ${e.message}`, 'error'); }
     finally { setBulkProcessing(false); setBulkDeleteTarget(null); submittingRef.current = false; setSubmitting(false); }
   };
 
@@ -519,7 +521,7 @@ const QuizManagement = () => {
             <span className="col-text">Option</span>
           </div>
           <div key={formKey}>
-            {form.options.map((opt, i) => (<OptionItem key={i} i={i} opt={opt} onUpdate={updateOption} />))}
+            {form.options.map((opt, i) => (<OptionItem key={i} i={i} opt={opt} onUpdate={updateOption} isCorrect={form.correctIndices.includes(i)} />))}
           </div>
           <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.85rem' }}>
             <label style={{ fontWeight: 600 }}>{t('admin.quiz.optionsCount')}</label>
@@ -541,9 +543,12 @@ const QuizManagement = () => {
           <div className="qm-answer-letters">
             {LETTERS.slice(0, form.options.length).map((l, i) => (
               <button key={i} type="button" className={`letter-btn ${form.correctIndices.includes(i) ? 'selected' : ''}`}
-                onClick={() => toggleCorrect(i, !form.correctIndices.includes(i))}>{l}</button>
+                onClick={() => toggleCorrect(i, !form.correctIndices.includes(i))}>
+                {form.correctIndices.includes(i) ? <FaCheck /> : l}
+              </button>
             ))}
           </div>
+          <span className="qm-hint">{t('admin.quiz.correctHint', 'Click letters to toggle correct answers')}</span>
         </div>
 
         <div className="qm-section">

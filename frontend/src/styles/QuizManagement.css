@@ -218,6 +218,9 @@
   cursor: pointer;
   color: var(--dc-text-muted);
   transition: all 0.15s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .letter-btn:hover {
   border-color: var(--dc-accent-light);
@@ -227,6 +230,29 @@
   background: var(--dc-accent);
   border-color: var(--dc-accent);
   color: var(--dc-white);
+  box-shadow: 0 2px 8px rgba(0, 115, 85, 0.3);
+  transform: scale(1.05);
+}
+
+.qm-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  color: var(--dc-text-muted);
+  font-style: italic;
+}
+
+.option-row.correct {
+  border-left: 3px solid var(--dc-accent);
+  background: rgba(0, 115, 85, 0.04);
+  padding-left: 8px;
+  border-radius: 4px;
+}
+
+.correct-badge {
+  color: var(--dc-accent);
+  font-size: 0.8rem;
+  flex-shrink: 0;
 }
 
 .qm-actions {

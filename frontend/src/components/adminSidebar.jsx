@@ -1,6 +1,6 @@
 import React from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { FaHome, FaClipboardList, FaUsers, FaLayerGroup, FaMicrophone, FaComment, FaDollarSign, FaFilePdf, FaImage, FaSun, FaMoon, FaGlobe, FaSignOutAlt, FaUser, FaChevronLeft } from "react-icons/fa";
+import { FaHome, FaClipboardList, FaUsers, FaLayerGroup, FaMicrophone, FaComment, FaDollarSign, FaFilePdf, FaImage, FaSun, FaMoon, FaGlobe, FaSignOutAlt, FaUser, FaChevronLeft, FaArrowLeft } from "react-icons/fa";
 import { useSound } from '../context/SoundContext';
 import { useTranslation } from '../context/LanguageContext';
 import { useTheme } from '../context/ThemeContext';
@@ -63,6 +63,13 @@ const Sidebar = ({ sidebarOpen, toggleSidebar }) => {
           className="animated-list-sidebar"
         />
       </nav>
+
+      <div className="sidebar-back-link">
+        <NavLink to="/dashboard" onClick={() => play('navigate')}>
+          <span className="sidebar-icon"><FaArrowLeft /></span>
+          <span className="sidebar-text">{t('admin.sidebar.backToApp', 'View as Student')}</span>
+        </NavLink>
+      </div>
 
       <div className="sidebar-footer">
         <div className="sidebar-user" onClick={() => { play('navigate'); navigate('/admin/profile'); }} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); play('navigate'); navigate('/admin/profile'); } }}>

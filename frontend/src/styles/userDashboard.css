@@ -625,6 +625,8 @@
 
 .dash-module-card {
   flex: 0 0 20%;
+  min-width: 180px;
+  max-width: 220px;
   scroll-snap-align: start;
   scroll-snap-stop: normal;
   background: var(--dash-card-bg);

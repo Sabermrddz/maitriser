@@ -56,7 +56,7 @@ router.get('/voice-exams', verifyToken, cacheMiddleware(), catchAsync(async (req
 
   const user = await User.findById(req.user.id || req.user._id).select('discipline').lean();
   const allowedDisciplines = ['medicine'];
-  const allowedYears = ['5','6','7'];
+  const allowedYears = ['4','5','6','7'];
   if (!allowedDisciplines.includes(user?.discipline) || !allowedYears.includes(req.query.year)) {
     return res.json([]);
   }

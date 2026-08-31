@@ -262,10 +262,10 @@ const AdminPricingPage = () => {
                       <td>Y{p.year}</td>
                       <td>{p.price === 0 ? t('admin.pricing.free') : p.price}</td>
                       <td style={{ fontSize: '0.78rem' }}>
-                        Q:{p.included?.quizzes ? '&#10003;' : '&#8212;'} V:{p.included?.voiceExams ? '&#10003;' : '&#8212;'}
+                        Q:{p.included?.quizzes ? '✓' : '—'} V:{p.included?.voiceExams ? '✓' : '—'}
                       </td>
                       <td style={{ textTransform: 'capitalize' }}>{p.interval}</td>
-                      <td>{p.isActive ? '&#10003;' : '&#8212;'}</td>
+                      <td>{p.isActive ? '✓' : '—'}</td>
                       <td>{p.sortOrder}</td>
                       <td>
                         <button onClick={() => openEditPlan(p)} style={{ marginRight: 6 }}>&#9998;</button>
@@ -337,7 +337,7 @@ const AdminPricingPage = () => {
 
                 <div className="modal-buttons">
                   <button onClick={() => setShowPlanModal(false)} disabled={saving}>{t('cancel')}</button>
-                  <button onClick={handleSavePlan} disabled={saving}>{saving ? t('loading') : (editPlanId ? t('admin.mockExam.update') : t('admin.quiz.createCaseBtn'))}</button>
+                  <button onClick={handleSavePlan} disabled={saving}>{saving ? t('loading') : (editPlanId ? t('admin.pricing.update', 'Update') : t('admin.pricing.create', 'Create'))}</button>
                 </div>
               </div>
             </div>

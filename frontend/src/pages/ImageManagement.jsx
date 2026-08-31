@@ -7,6 +7,7 @@ import { useSound } from '../context/SoundContext';
 import { useTranslation } from '../context/LanguageContext';
 import { formatDate } from '../utils/formatDate';
 import Spinner from '../components/Spinner';
+import ConfirmModal from '../components/ConfirmModal';
 import { logger } from '../utils/logger';
 import useDocumentTitle from '../utils/useDocumentTitle';
 import '../styles/sharedAdmin.css';
@@ -19,6 +20,7 @@ const ImageManagement = () => {
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
   const fileRef = useRef(null);
 
   const fetchImages = async () => {
@@ -60,6 +62,12 @@ const ImageManagement = () => {
       if (res.ok) { notify('Image deleted', 'success'); fetchImages(); }
       else notify('Delete failed', 'error');
     } catch (e) { logger.error({ err: e }, 'ImageManagement delete failed'); notify('Network error', 'error'); }
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await handleDelete(deleteTarget);
+    setDeleteTarget(null);
   };
 
   const formatSize = (bytes) => {
@@ -119,13 +127,22 @@ const ImageManagement = () => {
                 <td>{formatSize(img.size)}</td>
                 <td>{img.lastModified ? formatDate(img.lastModified, lang) : '—'}</td>
                 <td>
-                  <button onClick={() => handleDelete(img.key)} style={{ color: 'var(--color-danger)' }}><FaTrash /></button>
+                  <button onClick={() => setDeleteTarget(img.key)} style={{ color: 'var(--color-danger)' }}><FaTrash /></button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <ConfirmModal
+        open={!!deleteTarget}
+        title="Delete Image"
+        message={`Delete "${deleteTarget}"?`}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+        confirmText="Delete"
+      />
     </div>
   );
 };
