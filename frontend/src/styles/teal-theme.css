@@ -102,6 +102,7 @@ h1, h2, h3, h4, h5, h6 {
 .page-teal {
   min-height: 100vh;
   overflow-y: auto;
+  overflow-x: hidden;
   background: var(--color-bg);
   padding: 12px 24px 32px 24px;
   box-sizing: border-box;
@@ -124,6 +125,8 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--text-dark);
   margin: 0 0 24px;
   letter-spacing: var(--tracking-tight);
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* Filters row */
@@ -442,6 +445,8 @@ h1, h2, h3, h4, h5, h6 {
   font-size: var(--text-base);
   color: var(--text-dark);
   margin: 0 0 6px;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 .card-item .card-meta {
   font-size: var(--text-sm);
