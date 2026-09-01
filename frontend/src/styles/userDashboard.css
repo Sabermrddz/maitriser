@@ -57,6 +57,7 @@
   position: relative;
   z-index: 1;
   font-family: var(--dash-font);
+  overflow-x: hidden;
 }
 
 /* ── Sidebar ──────────────────────────────────────── */
@@ -606,6 +607,7 @@
 /* ── Modules carousel ─────────────────────────────── */
 .dash-carousel-section {
   position: relative;
+  overflow: hidden;
 }
 
 .dash-modules-track {
@@ -624,9 +626,7 @@
 .dash-modules-track::-webkit-scrollbar { display: none; }
 
 .dash-module-card {
-  flex: 0 0 20%;
-  min-width: 180px;
-  max-width: 220px;
+  flex: 0 0 clamp(140px, calc((100% - 32px) / 3), 240px);
   scroll-snap-align: start;
   scroll-snap-stop: normal;
   background: var(--dash-card-bg);
@@ -1135,7 +1135,7 @@
   .dash-topbar { padding: 12px 16px; flex-wrap: wrap; }
   .dash-workspace { padding: 0 12px 20px; }
   .dash-modules-track { gap: 12px; scroll-padding: 0 12px; padding: 4px 12px; margin: 0 -12px; }
-  .dash-module-card { flex: 0 0 20%; padding: 14px; min-width: 160px; }
+  .dash-module-card { padding: 14px; }
   .dash-search { width: 100%; order: 2; }
   .dash-sidebar-footer .dash-premium-box { display: none; }
   .dash-hero { padding: 20px 16px; }
