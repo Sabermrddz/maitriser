@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaLungs, FaBrain, FaHeart, FaVial, FaFileMedical, FaClipboardList, FaStethoscope, FaGraduationCap, FaChevronRight, FaUser, FaChevronDown } from "react-icons/fa";
+import { FaLungs, FaBrain, FaHeart, FaVial, FaFileMedical, FaClipboardList, FaStethoscope, FaGraduationCap, FaChevronRight, FaUser, FaChevronDown, FaBone, FaFlask, FaAtom, FaMicroscope, FaHeartbeat, FaBacteria, FaShieldAlt, FaPills, FaSearch, FaCamera, FaUserMd, FaBaby, FaCut, FaRadiation, FaHospital, FaAmbulance, FaBalanceScale, FaLeaf, FaPrescriptionBottle, FaSkullCrossbones, FaGlobeAmericas } from "react-icons/fa";
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { useTranslation } from '../context/LanguageContext';
 import { formatDate } from '../utils/formatDate';
@@ -17,10 +17,34 @@ const R = 50;
 const CIRCUMFERENCE = 2 * Math.PI * R;
 
 const moduleIconMap = {
-  pneumologie: <FaLungs />, pneumo: <FaLungs />, poumon: <FaLungs />,
-  neurologie: <FaBrain />, neuro: <FaBrain />, cerveau: <FaBrain />,
+  anatomie: <FaBone />,
+  biochimie: <FaFlask />,
+  biophysique: <FaAtom />,
+  histologie: <FaMicroscope />,
+  physiologie: <FaHeartbeat />,
+  microbiologie: <FaBacteria />, bactériologie: <FaBacteria />, virologie: <FaBacteria />, parasitologie: <FaBacteria />,
+  immunologie: <FaShieldAlt />,
+  sémiologie: <FaStethoscope />,
+  pharmacologie: <FaPills />,
+  anatomopathologie: <FaSearch />,
+  radiologie: <FaCamera />, imagerie: <FaCamera />,
+  'médecine interne': <FaUserMd />, interne: <FaUserMd />,
+  pédiatrie: <FaBaby />, néonatologie: <FaBaby />,
+  chirurgie: <FaCut />,
   cardiologie: <FaHeart />, cardio: <FaHeart />, coeur: <FaHeart />, cœur: <FaHeart />,
+  neurologie: <FaBrain />, neuro: <FaBrain />, cerveau: <FaBrain />,
+  oncologie: <FaRadiation />, cancer: <FaRadiation />,
+  réanimation: <FaHospital />,
+  urgences: <FaAmbulance />,
+  éthique: <FaBalanceScale />, déontologie: <FaBalanceScale />,
+  internat: <FaGraduationCap />, préparation: <FaGraduationCap />,
+  pneumologie: <FaLungs />, pneumo: <FaLungs />, poumon: <FaLungs />,
   gastro: <FaVial />, gastroentérologie: <FaVial />, digestion: <FaVial />,
+  chimie: <FaFlask />,
+  botanique: <FaLeaf />, plantes: <FaLeaf />,
+  pharmacie: <FaPrescriptionBottle />, galénique: <FaPrescriptionBottle />, officine: <FaPrescriptionBottle />, hospitalière: <FaPrescriptionBottle />,
+  toxicologie: <FaSkullCrossbones />,
+  'santé publique': <FaGlobeAmericas />, épidémiologie: <FaGlobeAmericas />,
 };
 
 const fallbackIcon = <FaFileMedical />;
