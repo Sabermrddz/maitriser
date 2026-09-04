@@ -23,6 +23,7 @@ const emptyForm = () => ({
   optionExplanations: [],  // [{letter, whyTrue, whyFalse}]
   keyConcepts: [],
   commonTraps: [],
+  tags: [],
 });
 
 const OptionItem = ({ i, opt, onUpdate, isCorrect }) => {
@@ -76,7 +77,7 @@ const QuizManagement = () => {
   const [questionImage, setQuestionImage]   = useState(null);
   const [imagePreview, setImagePreview]     = useState(null);
   const [removeImage, setRemoveImage]       = useState(false);
-  const emptyQuiz = () => ({ questionText: '', options: ['', '', '', ''], correctIndices: [], explanation: '', optionExplanations: [], keyConcepts: [], commonTraps: [] });
+  const emptyQuiz = () => ({ questionText: '', options: ['', '', '', ''], correctIndices: [], explanation: '', optionExplanations: [], keyConcepts: [], commonTraps: [], tags: [] });
   const [caseForm, setCaseForm]             = useState({ year: '', moduleId: '', discipline: '', title: '', description: '', course: '', quizzes: [emptyQuiz(), emptyQuiz(), emptyQuiz()] });
   const [caseModuleCourses, setCaseModuleCourses] = useState([]);
 
@@ -170,7 +171,7 @@ const QuizManagement = () => {
   const handleSubmit = async (published) => {
     play('submit');
     if (submittingRef.current) return;
-    const { moduleId, course, questionText, options, correctIndices, explanation, optionExplanations, keyConcepts, commonTraps } = form;
+    const { moduleId, course, questionText, options, correctIndices, explanation, optionExplanations, keyConcepts, commonTraps, tags } = form;
     if (!moduleId || !questionText) return notify(t('admin.quiz.fillRequiredFields'), 'warning');
       if (options.some((o) => !o.trim())) return notify(t('admin.quiz.optionsMustHaveText'), 'warning');
       if (correctIndices.length === 0) return notify(t('admin.quiz.selectCorrectAnswer'), 'warning');
@@ -195,11 +196,12 @@ const QuizManagement = () => {
         fd.append('optionExplanations', JSON.stringify(optionExplanations || []));
         fd.append('keyConcepts', JSON.stringify(keyConcepts || []));
         fd.append('commonTraps', JSON.stringify(commonTraps || []));
+        fd.append('tags', JSON.stringify(tags || []));
         if (questionImage) fd.append('questionImage', questionImage);
         if (editId && removeImage) fd.append('removeImage', 'true');
         res = await authFetch(url, { method, body: fd });
       } else {
-        const body = { moduleId, course: course || '', questionText, options, correctAnswers, explanation, optionExplanations: optionExplanations || [], keyConcepts: keyConcepts || [], commonTraps: commonTraps || [], published };
+        const body = { moduleId, course: course || '', questionText, options, correctAnswers, explanation, optionExplanations: optionExplanations || [], keyConcepts: keyConcepts || [], commonTraps: commonTraps || [], tags: tags || [], published };
         res = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       }
       const data = res.ok ? await res.json() : null;
@@ -250,6 +252,7 @@ const QuizManagement = () => {
       optionExplanations: quiz.optionExplanations || [],
       keyConcepts: quiz.keyConcepts || [],
       commonTraps: quiz.commonTraps || [],
+      tags: quiz.tags || [],
     });
     if (quiz.question?.questionImage) {
       setImagePreview(`${API_BASE_URL}/api/quiz-images/${quiz.question.questionImage}`);
@@ -632,6 +635,27 @@ const QuizManagement = () => {
               ))}
               <button type="button" onClick={() => addTag('commonTraps')} style={{ fontSize: '0.75rem', color: 'var(--teal-dark, #007355)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
                 + {t('admin.quiz.addTrap', 'Ajouter un piège')}
+              </button>
+            </div>
+
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-muted, #666)', marginBottom: 6 }}>
+                {t('admin.quiz.tags', 'Tags')}
+              </div>
+              {(form.tags || []).map((tag, i) => (
+                <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
+                  <input
+                    type="text"
+                    value={tag}
+                    onChange={(e) => updateTag('tags', i, e.target.value)}
+                    placeholder={t('admin.quiz.addTag', 'Tag...')}
+                    style={{ flex: 1, padding: '4px 8px', border: '1px solid var(--dc-border, #ccc)', borderRadius: 4, fontSize: '0.8rem', boxSizing: 'border-box' }}
+                  />
+                  <button type="button" onClick={() => removeTag('tags', i)} style={{ padding: '4px 8px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: '0.75rem' }}>×</button>
+                </div>
+              ))}
+              <button type="button" onClick={() => addTag('tags')} style={{ fontSize: '0.75rem', color: 'var(--teal-dark, #007355)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                + {t('admin.quiz.addTag', 'Ajouter un tag')}
               </button>
             </div>
           </div>
