@@ -71,6 +71,11 @@ export const importQuizzesCsv = catchAsync(async (req, res) => {
           moduleId: module._id,
           year: module.year,
           discipline: module.discipline,
+          course: row.course?.trim() || '',
+          explanation: row.explanation?.trim() || '',
+          keyConcepts: row.keyConcepts ? row.keyConcepts.split('|').map((s) => s.trim()).filter(Boolean) : [],
+          commonTraps: row.commonTraps ? row.commonTraps.split('|').map((s) => s.trim()).filter(Boolean) : [],
+          tags: row.tags ? row.tags.split('|').map((s) => s.trim()).filter(Boolean) : [],
           question: {
             questionText: row.questionText.trim(),
             options: row.options.split('|').map((o) => o.trim()),
