@@ -19,7 +19,7 @@ const QuizCard = () => {
   const { t } = useTranslation();
 
   const [quizData, setQuizData]   = useState(
-    state ? { quizId: state.quizId, quizName: state.quizName, question: state.question, caseId: state.caseId || null, course: state.course || '', moduleId: state.moduleId || null } : null
+    state ? { quizId: state.quizId, quizName: state.quizName, tags: state.tags || [], question: state.question, caseId: state.caseId || null, course: state.course || '', moduleId: state.moduleId || null } : null
   );
   const [loading, setLoading]     = useState(!state);
   const [selected, setSelected]   = useState([]);
@@ -100,6 +100,7 @@ const QuizCard = () => {
         setQuizData({
           quizId:   data._id,
           quizName: data.question?.questionText || data.quizId,
+          tags: data.tags || [],
           question: {
             questionText: data.question?.questionText,
             options:      data.question?.options || [],
@@ -258,6 +259,14 @@ const QuizCard = () => {
             </span>
           )}
         </div>
+
+        {quizData.tags && quizData.tags.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+            {quizData.tags.map((tag, i) => (
+              <span key={i} style={{ padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: 'rgba(251,146,60,0.1)', color: '#ea580c' }}>{tag}</span>
+            ))}
+          </div>
+        )}
 
         {studyMode && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-light)', marginBottom: '10px' }}>🔍 {t('quizcard.studyMode')}</div>}
 

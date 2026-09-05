@@ -93,7 +93,7 @@ const uploadImageToR2 = async (buffer, originalname) => {
 };
 
 export const createQuiz = catchAsync(async (req, res) => {
-  const { moduleId, questionText, options, correctAnswers, course, published, explanation, timer } = req.body;
+  const { moduleId, questionText, options, correctAnswers, course, published, explanation, timer, optionExplanations, keyConcepts, commonTraps, tags } = req.body;
   if (!moduleId || !questionText || !options?.length || !correctAnswers?.length)
     return res.status(400).json({ message: 'All fields are required' });
 
@@ -107,13 +107,14 @@ export const createQuiz = catchAsync(async (req, res) => {
   }
   const quiz = await Quiz.create({
     quizId, moduleId, year: module.year, discipline: module.discipline, course, published, explanation, timer,
+    optionExplanations: optionExplanations || [], keyConcepts: keyConcepts || [], commonTraps: commonTraps || [], tags: tags || [],
     question: { questionText, questionImage, options, correctAnswers },
   });
   return res.status(201).json({ message: 'Quiz created successfully', quiz });
 });
 
 export const editQuiz = catchAsync(async (req, res) => {
-  const { moduleId, questionText, options, correctAnswers, course, published, explanation, timer } = req.body;
+  const { moduleId, questionText, options, correctAnswers, course, published, explanation, timer, optionExplanations, keyConcepts, commonTraps, tags } = req.body;
   let year, discipline;
   if (moduleId) {
     const module = await Module.findById(moduleId);
@@ -130,6 +131,10 @@ export const editQuiz = catchAsync(async (req, res) => {
     ...(published !== undefined && { published }),
     ...(explanation !== undefined && { explanation }),
     ...(timer !== undefined && { timer }),
+    ...(optionExplanations !== undefined && { optionExplanations }),
+    ...(keyConcepts !== undefined && { keyConcepts }),
+    ...(commonTraps !== undefined && { commonTraps }),
+    ...(tags !== undefined && { tags }),
     ...(questionText && { 'question.questionText': questionText }),
     ...(options && { 'question.options': options }),
     ...(correctAnswers && { 'question.correctAnswers': correctAnswers }),

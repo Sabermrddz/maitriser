@@ -17,6 +17,7 @@ const quizSchema = new mongoose.Schema({
   }],
   keyConcepts: { type: [String], default: [] },
   commonTraps: { type: [String], default: [] },
+  tags: { type: [String], default: [] },
   timer:    { type: Number, default: null },
   caseId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Case', default: null },
   question: {
