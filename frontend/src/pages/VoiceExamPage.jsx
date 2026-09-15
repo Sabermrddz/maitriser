@@ -144,6 +144,8 @@ const VoiceExamPage = () => {
     setShowCustomSetup(false);
   };
 
+  if (!canAccessEcos) return null;
+
   if (customSession) {
     return (
       <EcosCustomizedSession
@@ -216,21 +218,21 @@ const VoiceExamPage = () => {
   return (
     <div className="page-teal">
       <div className="card-teal">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-          <h2 style={{ margin: 0 }}>{t('voiceExams.title')}</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+          <h2 style={{ margin: 0, fontSize: '1.5rem' }}>{t('voiceExams.title')}</h2>
           {exams.length > 0 && (
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button
                 type="button"
+                className="btn-outline"
                 onClick={handleCustomEcos}
-                style={{ padding: '8px 18px', borderRadius: 6, border: '1px solid var(--teal-dark)', background: 'transparent', color: 'var(--teal-dark)', fontWeight: 'bold', cursor: 'pointer', fontSize: 13 }}
               >
                 {t('ecosCustomSetup.title')}
               </button>
               <button
                 type="button"
+                className="btn-primary"
                 onClick={handleStartSimulation}
-                style={{ padding: '8px 18px', borderRadius: 6, border: 'none', background: 'var(--teal-dark)', color: '#fff', fontWeight: 'bold', cursor: 'pointer', fontSize: 13 }}
               >
                 {t('voiceExams.startSimulation')}
               </button>
@@ -270,8 +272,8 @@ const VoiceExamPage = () => {
           <div className="grid-cards">
             {exams.map((exam) => (
               <div key={exam._id} className="card-item" role="button" tabIndex={0} onClick={() => handleExamClick(exam)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleExamClick(exam); } }}>
-                <p style={{ fontSize: '11px', color: '#f97316', fontWeight: 'bold', margin: '0 0 4px' }}>{t('voiceExams.badge')}</p>
-                <div className="card-title" style={{ marginBottom: '4px' }}>{exam.title}</div>
+                <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, color: '#f97316', background: 'rgba(249,115,22,0.1)', padding: '3px 10px', borderRadius: 20, marginBottom: 8, letterSpacing: '0.5px' }}>{t('voiceExams.badge')}</span>
+                <div className="card-title">{exam.title}</div>
                 <div className="card-meta">{t('voiceExams.yearMeta', { year: formatYearLabel(exam.year), module: exam.moduleId?.name || '' })}</div>
               </div>
             ))}
@@ -280,15 +282,12 @@ const VoiceExamPage = () => {
       </div>
 
       {setupExam && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-        }} onClick={() => setSetupExam(null)}>
-          <div className="card-teal" style={{ maxWidth: 400, width: '100%', padding: 24 }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ marginBottom: 16 }}>{t('voiceExams.setupTitle')}</h3>
-            <p style={{ fontSize: 13, marginBottom: 16, color: 'var(--text-muted)' }}>{setupExam.title}</p>
+        <div className="ecos-overlay" onClick={() => setSetupExam(null)}>
+          <div className="ecos-modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginBottom: 8 }}>{t('voiceExams.setupTitle')}</h3>
+            <p style={{ fontSize: 13, marginBottom: 20, color: 'var(--text-muted)' }}>{setupExam.title}</p>
 
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 24 }}>
               <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
                 {t('voiceExams.minutesLabel')}
               </label>
@@ -301,23 +300,15 @@ const VoiceExamPage = () => {
                   const v = parseInt(e.target.value, 10);
                   if (!isNaN(v)) setExamDuration(Math.max(1, Math.min(v, 120)));
                 }}
-                style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border-light)', fontSize: 14, boxSizing: 'border-box', background: 'var(--card-bg)', color: 'var(--text-dark)' }}
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, boxSizing: 'border-box', background: 'var(--card-bg)', color: 'var(--text-dark)' }}
               />
             </div>
 
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                type="button"
-                onClick={handleStartExam}
-                style={{ padding: '10px 24px', borderRadius: 6, border: 'none', background: 'var(--teal-dark)', color: '#fff', fontWeight: 'bold', cursor: 'pointer', flex: 1 }}
-              >
+            <div className="ecos-footer">
+              <button type="button" className="btn-primary" onClick={handleStartExam}>
                 {t('voiceExams.startExam')}
               </button>
-              <button
-                type="button"
-                onClick={() => setSetupExam(null)}
-                style={{ padding: '10px 24px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontWeight: 600 }}
-              >
+              <button type="button" className="btn-ghost" onClick={() => setSetupExam(null)}>
                 {t('voiceExams.cancel')}
               </button>
             </div>
