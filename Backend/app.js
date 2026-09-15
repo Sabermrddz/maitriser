@@ -30,6 +30,7 @@ import { verifyToken, requireAdmin } from './controllers/authController.js';
 import { auditMutations } from './utils/audit.js';
 
 const app = express();
+app.set('trust proxy', 1);
 
 if (process.env.SENTRY_DSN) {
   Sentry.init({
