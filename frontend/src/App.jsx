@@ -13,13 +13,13 @@ import { LanguageProvider, useTranslation } from './context/LanguageContext';
 import { SoundProvider } from './context/SoundContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
 import CookieConsent from './components/CookieConsent';
-import FeedbackButton from './components/FeedbackButton';
+
 import ProfileGuardModal from './components/ProfileGuardModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import AnimatedLoading from './components/AnimatedLoading';
 import { logger } from './utils/logger';
 import { API_BASE_URL } from './config/api';
-import { setToken } from './utils/tokenStore';
+import { setToken, getToken, clearToken } from './utils/tokenStore';
 import axios from 'axios';
 import useClerkToken from './hooks/useClerkToken';
 
@@ -130,7 +130,6 @@ const UserLayout = () => {
             <Route path="*" element={<NotFound />} />
           </Routes>
           </ErrorBoundary>
-          <FeedbackButton />
           </Suspense>
 
           {!isAppPath && !isHome && <FooterPage />}
@@ -243,6 +242,25 @@ const AppContent = () => {
     sync();
     return () => { syncRef.current?.abort(); };
   }, [ready, isSignedIn, sync]);
+
+  useEffect(() => {
+    if (!ready || !isSignedIn) return;
+    const interval = setInterval(async () => {
+      try {
+        const token = getToken();
+        if (!token) return;
+        const res = await fetch(`${API_BASE_URL}/api/auth/verify`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.status === 409 || res.status === 401) {
+          clearToken();
+          try { localStorage.removeItem('userId'); } catch {}
+          window.location.href = '/login?conflict=1';
+        }
+      } catch { /* network error — skip this cycle */ }
+    }, 60_000);
+    return () => clearInterval(interval);
+  }, [ready, isSignedIn]);
 
   if (!ready) return <LoadingPage />;
   if (syncError) return <SyncErrorPage error={syncError} onRetry={sync} onSignOut={() => signOut()} />;

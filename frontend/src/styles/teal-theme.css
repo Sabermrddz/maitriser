@@ -194,6 +194,36 @@ h1, h2, h3, h4, h5, h6 {
   transform: none;
 }
 
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  background: transparent;
+  color: var(--teal-dark, #03383E);
+  border: 1.5px solid var(--teal-accent, #88D62B);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-base);
+  font-weight: 600;
+  font-family: var(--font-family);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 40px;
+}
+.btn-outline:hover {
+  background: rgba(136, 214, 43, 0.1);
+  transform: translateY(-1px);
+}
+.btn-outline:active {
+  transform: translateY(0);
+}
+.btn-outline:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+
 /* Feedback FAB — floating action button */
 .feedback-fab {
   position: fixed;

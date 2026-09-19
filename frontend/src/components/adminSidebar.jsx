@@ -7,6 +7,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useClerk } from "@clerk/react";
 import AnimatedList from './AnimatedList';
 import BrandLogo from './BrandLogo';
+import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import "../styles/sidebar.css";
 
 const Sidebar = ({ sidebarOpen, toggleSidebar }) => {
@@ -19,9 +20,10 @@ const Sidebar = ({ sidebarOpen, toggleSidebar }) => {
   const userRole = (() => { try { return localStorage.getItem('userRole'); } catch { return null; } })();
   const userName = (() => { try { return localStorage.getItem('userName'); } catch { return ''; } })();
 
-  const handleLogout = () => {
-    clerk.signOut();
+  const handleLogout = async () => {
+    try { await fetchWithAuth(`${API_BASE_URL}/api/auth/logout`, { method: 'POST' }); } catch { /* best-effort */ }
     try { localStorage.removeItem('userId'); } catch {}
+    clerk.signOut();
     navigate('/login');
   };
 

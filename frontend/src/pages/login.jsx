@@ -36,13 +36,22 @@ const BrandHeader = () => (
 const Login = () => {
   const { t } = useTranslation();
   useDocumentTitle(t('login.title'));
-  const { isSignedIn, isLoaded } = useAuth();
+  const { isSignedIn, isLoaded, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [conflict] = useState(() => searchParams.get('conflict') === '1');
   const [waiting, setWaiting] = useState(false);
   const [syncFailed, setSyncFailed] = useState(false);
   const pollCountRef = useRef(0);
+  const conflictHandledRef = useRef(false);
+
+  useEffect(() => {
+    if (!isLoaded || !conflict || conflictHandledRef.current) return;
+    if (isSignedIn) {
+      conflictHandledRef.current = true;
+      signOut();
+    }
+  }, [isLoaded, isSignedIn, conflict, signOut]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;

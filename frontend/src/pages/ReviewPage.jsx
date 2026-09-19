@@ -26,7 +26,7 @@ const ReviewPage = () => {
       const res = await fetchWithAuth(`${API_BASE_URL}/api/results/${userId}`, signal ? { signal } : undefined);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      const results = Array.isArray(data) ? data : [];
+      const results = data.data || [];
       const seen = new Set();
       const wrong = results
         .filter((r) => r.score === 0 && r.quizId && r.quizId._id)

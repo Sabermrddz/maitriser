@@ -9,6 +9,7 @@ import { logger } from '../utils/logger';
 import { ECOS_YEARS } from '../constants';
 import useDocumentTitle from '../utils/useDocumentTitle';
 import PageHeader from '../components/PageHeader';
+import FeedbackButton from '../components/FeedbackButton';
 import "../styles/teal-theme.css";
 import "../styles/userDashboard.css";
 import "../styles/PageHeader.css";
@@ -97,7 +98,7 @@ const DashboardPage = () => {
 
         if (resultsRes?.ok) {
           const data = await resultsRes.json();
-          setResults(Array.isArray(data) ? data : (data.results || []));
+          setResults(Array.isArray(data) ? data : (data.data || []));
         }
 
         if (subRes?.ok) {
@@ -107,7 +108,7 @@ const DashboardPage = () => {
 
         if (vrRes?.ok) {
           const data = await vrRes.json();
-          setVoiceResults(Array.isArray(data) ? data : (data.results || []));
+          setVoiceResults(Array.isArray(data) ? data : (data.data || []));
         }
       } catch (err) {
         if (!cancelled) logger.error({ err }, 'Dashboard fetch error');
@@ -167,7 +168,7 @@ const DashboardPage = () => {
   const userDiscipline = profile?.discipline || discipline || t('dashboard.fallbackDiscipline');
   const userYear = profile?.year || year || '';
   const subActive = subscription?.status === 'active';
-  const isPremium = subActive && new Date(subscription.endDate) > new Date();
+  const isPremium = subActive && new Date(subscription?.endDate) > new Date();
 
   const topBarRight = (
     <div className="dash-top-profile" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
@@ -196,6 +197,7 @@ const DashboardPage = () => {
   }
 
   return (
+    <>
     <div className="dash-root">
       <div className="dash-main">
         <PageHeader className="dash-topbar" right={topBarRight} />
@@ -358,6 +360,8 @@ const DashboardPage = () => {
         </div>
       </div>
     </div>
+    <FeedbackButton />
+    </>
   );
 };
 

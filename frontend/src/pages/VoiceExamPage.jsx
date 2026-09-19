@@ -6,7 +6,7 @@ import VoiceExamSimulation from '../components/VoiceExamSimulation.jsx';
 import EcosCustomizedSetup from '../components/EcosCustomizedSetup';
 import EcosCustomizedSession from '../components/EcosCustomizedSession';
 import PremiumGateModal from '../components/PremiumGateModal';
-import { SkeletonCard, SkeletonFilters } from '../components/LoadingSkeleton';
+import { SkeletonCard } from '../components/LoadingSkeleton';
 import { logger } from '../utils/logger';
 import useDocumentTitle from '../utils/useDocumentTitle';
 import { useTranslation } from '../context/LanguageContext';
@@ -24,16 +24,19 @@ const VoiceExamPage = () => {
     if (!canAccessEcos) navigate('/dashboard', { replace: true });
   }, [canAccessEcos, navigate]);
 
+  const [view, setView]                           = useState('modules');
   const [subscription, setSubscription]           = useState(null);
   const [modules, setModules]                     = useState([]);
+  const [selectedModule, setSelectedModule]       = useState(null);
   const [selectedModuleId, setSelectedModuleId]   = useState('');
   const [exams, setExams]                         = useState([]);
+  const [allExams, setAllExams]                   = useState([]);
   const [activeExam, setActiveExam]               = useState(null);
   const [examDuration, setExamDuration]           = useState(10);
   const [setupExam, setSetupExam]                 = useState(null);
   const [simulationExams, setSimulationExams]     = useState(null);
   const [loadingModules, setLoadingModules]       = useState(true);
-  const [loadingExams, setLoadingExams]           = useState(true);
+  const [loadingExams, setLoadingExams]           = useState(false);
   const [modulesError, setModulesError]           = useState(null);
   const [examsError, setExamsError]               = useState(null);
   const [showCustomSetup, setShowCustomSetup]     = useState(false);
@@ -57,8 +60,11 @@ const VoiceExamPage = () => {
     setModulesError(null);
     try {
       let discipline = 'medicine'; try { discipline = localStorage.getItem('userDiscipline') || 'medicine'; } catch { /* incognito */ }
-      const url = `${API_BASE_URL}/api/modules?discipline=${discipline}`;
-      const res = await fetchWithAuth(url);
+      let year = ''; try { year = localStorage.getItem('userYear') || ''; } catch { /* incognito */ }
+      const params = new URLSearchParams();
+      if (discipline) params.set('discipline', discipline);
+      if (year) params.set('year', year);
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/modules?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setModules(await res.json());
     } catch (err) {
@@ -70,6 +76,7 @@ const VoiceExamPage = () => {
   }, []);
 
   const fetchExams = useCallback(async (signal) => {
+    if (!selectedModuleId) { setExams([]); return; }
     setLoadingExams(true);
     setExamsError(null);
     try {
@@ -92,6 +99,7 @@ const VoiceExamPage = () => {
 
   useEffect(() => { fetchModules(); }, [fetchModules]);
   useEffect(() => {
+    if (!selectedModuleId) return;
     const controller = new AbortController();
     fetchExams(controller.signal);
     return () => controller.abort();
@@ -131,6 +139,16 @@ const VoiceExamPage = () => {
   const handleCustomEcos = async () => {
     const hasSub = await checkSubscription();
     if (!hasSub) { setShowPremiumGate(true); return; }
+    try {
+      let year = ''; try { year = localStorage.getItem('userYear') || ''; } catch { /* incognito */ }
+      const params = new URLSearchParams();
+      if (year) params.set('year', year);
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/voice-exams?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setAllExams(Array.isArray(data) ? data : (data.data || []));
+      }
+    } catch { /* non-critical */ }
     setShowCustomSetup(true);
   };
 
@@ -142,6 +160,19 @@ const VoiceExamPage = () => {
   const handleCustomBack = () => {
     setCustomSession(null);
     setShowCustomSetup(false);
+  };
+
+  const handleModuleClick = (mod) => {
+    setSelectedModule(mod);
+    setSelectedModuleId(mod._id);
+    setView('exams');
+  };
+
+  const handleBackToModules = () => {
+    setView('modules');
+    setSelectedModule(null);
+    setSelectedModuleId('');
+    setExams([]);
   };
 
   if (!canAccessEcos) return null;
@@ -158,11 +189,10 @@ const VoiceExamPage = () => {
   }
 
   if (showCustomSetup) {
-    const yearModules = modules.filter((m) => !userYear || !m.year || String(m.year) === String(userYear));
     return (
       <EcosCustomizedSetup
-        modules={yearModules}
-        allExams={exams}
+        modules={modules}
+        allExams={allExams}
         onStart={handleCustomStart}
         onBack={() => setShowCustomSetup(false)}
       />
@@ -215,30 +245,94 @@ const VoiceExamPage = () => {
     );
   }
 
-  return (
-    <div className="page-teal">
-      <div className="card-teal">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: '1.5rem' }}>{t('voiceExams.title')}</h2>
-          {exams.length > 0 && (
+  if (view === 'exams' && selectedModule) {
+    return (
+      <div className="page-teal">
+        <div className="card-teal">
+          <button className="btn-ghost" onClick={handleBackToModules} style={{ marginBottom: 12 }}>
+            &larr; {t('moduleCard.back')}
+          </button>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
+            <h2 style={{ margin: 0, fontSize: '1.5rem' }}>{selectedModule.name}</h2>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                className="btn-outline"
-                onClick={handleCustomEcos}
-              >
+              <button type="button" className="btn-outline" onClick={handleCustomEcos}>
                 {t('ecosCustomSetup.title')}
               </button>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={handleStartSimulation}
-              >
+              <button type="button" className="btn-primary" onClick={handleStartSimulation}>
                 {t('voiceExams.startSimulation')}
               </button>
             </div>
+          </div>
+
+          {examsError ? (
+            <div className="empty-state" style={{ color: '#e74c3c' }}>
+              <p>{t('voiceExams.examLoadError', { error: examsError })}</p>
+              <button type="button" className="btn-primary" onClick={() => fetchExams()} style={{ marginTop: '12px' }}>{t('voiceExams.retry')}</button>
+            </div>
+          ) : loadingExams ? (
+            <div className="grid-cards"><SkeletonCard count={6} /></div>
+          ) : exams.length === 0 ? (
+            <div className="empty-state">
+              <p>{t('voiceExams.noExams')}</p>
+              <p style={{ color: '#888', fontSize: '13px', marginTop: '4px' }}>{t('voiceExams.noExamsHint')}</p>
+            </div>
+          ) : (
+            <div className="grid-cards">
+              {exams.map((exam) => (
+                <div key={exam._id} className="card-item" role="button" tabIndex={0} onClick={() => handleExamClick(exam)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleExamClick(exam); } }}>
+                  <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, color: '#f97316', background: 'rgba(249,115,22,0.1)', padding: '3px 10px', borderRadius: 20, marginBottom: 8, letterSpacing: '0.5px' }}>{t('voiceExams.badge')}</span>
+                  <div className="card-title">{exam.title}</div>
+                  <div className="card-meta">{t('voiceExams.yearMeta', { year: formatYearLabel(exam.year), module: exam.moduleId?.name || '' })}</div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
+
+        {setupExam && (
+          <div className="ecos-overlay" onClick={() => setSetupExam(null)}>
+            <div className="ecos-modal" style={{ maxWidth: 400 }} onClick={(e) => e.stopPropagation()}>
+              <h3 style={{ marginBottom: 8 }}>{t('voiceExams.setupTitle')}</h3>
+              <p style={{ fontSize: 13, marginBottom: 20, color: 'var(--text-muted)' }}>{setupExam.title}</p>
+
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                  {t('voiceExams.minutesLabel')}
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={120}
+                  value={examDuration}
+                  onChange={(e) => {
+                    const v = parseInt(e.target.value, 10);
+                    if (!isNaN(v)) setExamDuration(Math.max(1, Math.min(v, 120)));
+                  }}
+                  style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--border-light)', fontSize: 14, boxSizing: 'border-box', background: 'var(--card-bg)', color: 'var(--text-dark)' }}
+                />
+              </div>
+
+              <div className="ecos-footer">
+                <button type="button" className="btn-primary" onClick={handleStartExam}>
+                  {t('voiceExams.startExam')}
+                </button>
+                <button type="button" className="btn-ghost" onClick={() => setSetupExam(null)}>
+                  {t('voiceExams.cancel')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <PremiumGateModal open={showPremiumGate} onClose={() => setShowPremiumGate(false)} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="page-teal">
+      <div className="card-teal">
+        <h2 style={{ margin: '0 0 20px', fontSize: '1.5rem' }}>{t('voiceExams.title')}</h2>
 
         {modulesError ? (
           <div className="empty-state" style={{ color: '#e74c3c' }}>
@@ -246,35 +340,23 @@ const VoiceExamPage = () => {
             <button type="button" className="btn-primary" onClick={fetchModules} style={{ marginTop: '12px' }}>{t('voiceExams.retry')}</button>
           </div>
         ) : loadingModules ? (
-          <SkeletonFilters count={2} />
-        ) : (
-          <div className="filters-row">
-            <select value={selectedModuleId} onChange={(e) => setSelectedModuleId(e.target.value)}>
-              <option value="">{t('voiceExams.allSpecialties')}</option>
-              {modules.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
-            </select>
-          </div>
-        )}
-
-        {examsError ? (
-          <div className="empty-state" style={{ color: '#e74c3c' }}>
-            <p>{t('voiceExams.examLoadError', { error: examsError })}</p>
-            <button type="button" className="btn-primary" onClick={fetchExams} style={{ marginTop: '12px' }}>{t('voiceExams.retry')}</button>
-          </div>
-        ) : loadingExams ? (
           <div className="grid-cards"><SkeletonCard count={6} /></div>
-        ) : exams.length === 0 ? (
+        ) : modules.length === 0 ? (
           <div className="empty-state">
             <p>{t('voiceExams.noExams')}</p>
             <p style={{ color: '#888', fontSize: '13px', marginTop: '4px' }}>{t('voiceExams.noExamsHint')}</p>
           </div>
         ) : (
           <div className="grid-cards">
-            {exams.map((exam) => (
-              <div key={exam._id} className="card-item" role="button" tabIndex={0} onClick={() => handleExamClick(exam)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleExamClick(exam); } }}>
-                <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, color: '#f97316', background: 'rgba(249,115,22,0.1)', padding: '3px 10px', borderRadius: 20, marginBottom: 8, letterSpacing: '0.5px' }}>{t('voiceExams.badge')}</span>
-                <div className="card-title">{exam.title}</div>
-                <div className="card-meta">{t('voiceExams.yearMeta', { year: formatYearLabel(exam.year), module: exam.moduleId?.name || '' })}</div>
+            {modules.map((mod) => (
+              <div key={mod._id} className="card-item" role="button" tabIndex={0}
+                onClick={() => handleModuleClick(mod)}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleModuleClick(mod); } }}
+                style={{ cursor: 'pointer' }}>
+                <div className="card-title">{mod.name}</div>
+                <div className="card-meta" style={{ marginTop: 4 }}>
+                  {t('moduleCard.courseCount', { count: (mod.courses || []).length })}
+                </div>
               </div>
             ))}
           </div>

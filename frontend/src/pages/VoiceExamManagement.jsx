@@ -41,7 +41,7 @@ const VoiceExamManagement = () => {
   const submittingRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => { fetchModules(); fetchExams(); }, []);
+  useEffect(() => { fetchModules(); }, []);
 
   useEffect(() => { fetchExams(); }, [filterYear, filterModule]);
 
