@@ -586,7 +586,7 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
               </div>
             </div>
             <div className="pdf-console-body">
-              <iframe src={pdfPanelUrl} title={pdfPanelCourse} className="pdf-console-frame" sandbox="allow-same-origin allow-popups" />
+              <iframe src={pdfPanelUrl} title={pdfPanelCourse} className="pdf-console-frame" sandbox="allow-same-origin allow-scripts allow-popups" />
             </div>
           </div>
         )}

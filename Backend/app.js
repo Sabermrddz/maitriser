@@ -55,6 +55,7 @@ app.use(helmet({
       fontSrc: ["'self'", 'https://fonts.gstatic.com'],
       imgSrc: ["'self'", 'data:', 'blob:'],
       connectSrc: ["'self'", 'ws:', 'wss:'],
+      frameSrc: ["'self'", 'https://*.backblazeb2.com'],
       frameAncestors: ["'none'"],
       baseUri: ["'none'"],
       formAction: ["'self'"],

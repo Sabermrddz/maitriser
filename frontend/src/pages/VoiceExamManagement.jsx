@@ -66,7 +66,7 @@ const VoiceExamManagement = () => {
   const fetchExams = async () => {
     let url = '/api/voice-exams?';
     if (filterModule) url += `moduleId=${filterModule}`;
-    else if (filterYear) url += `year=${filterYear}`;
+    if (filterYear) url += `${url.includes('=') ? '&' : ''}year=${filterYear}`;
     try {
       setLoading(true);
       const res = await authFetch(url);

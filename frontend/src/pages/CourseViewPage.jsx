@@ -127,7 +127,7 @@ const CourseViewPage = () => {
           </div>
           <div className="pdf-console-body">
             {pdfUrl ? (
-              <iframe src={pdfUrl} title={decodedName} className="pdf-console-frame" sandbox="allow-same-origin allow-popups" />
+              <iframe src={pdfUrl} title={decodedName} className="pdf-console-frame" sandbox="allow-same-origin allow-scripts allow-popups" />
             ) : (
               <div className="pdf-console-empty">{t('quizcard.courseNotAvailable')}</div>
             )}

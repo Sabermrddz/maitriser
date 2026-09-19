@@ -32,6 +32,14 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 },
 });
 
+const handleMulterError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ message: 'File too large (max 10MB)' });
+    return res.status(400).json({ message: err.message });
+  }
+  next(err);
+};
+
 const uploadImagesToR2 = async (files) => {
   const s3 = getR2Client();
   if (!s3 || !files || files.length === 0) return [];
@@ -51,7 +59,7 @@ const uploadImagesToR2 = async (files) => {
 };
 
 router.get('/voice-exams', verifyToken, cacheMiddleware(), catchAsync(async (req, res) => {
-  if (!req.query.year) return res.json([]);
+  if (!req.query.year && !req.query.moduleId) return res.json([]);
   if (!await checkSubscription(req.user?.id)) return res.json([]);
 
   const user = await User.findById(req.user.id || req.user._id).select('discipline').lean();
@@ -98,7 +106,7 @@ router.get('/voice-exams/:id', verifyToken, [
   res.json(exam);
 }));
 
-router.post('/voice-exams', requireAdmin, upload.array('images', 10), catchAsync(async (req, res) => {
+router.post('/voice-exams', requireAdmin, upload.array('images', 10), handleMulterError, catchAsync(async (req, res) => {
   let { title, moduleId, course, clinicalCasePrompt, questions } = req.body;
   if (!title || !moduleId || !clinicalCasePrompt)
     return res.status(400).json({ message: 'title, moduleId, and clinicalCasePrompt are required' });
@@ -111,8 +119,8 @@ router.post('/voice-exams', requireAdmin, upload.array('images', 10), catchAsync
   if (questions.length > 50)
     return res.status(400).json({ message: 'Maximum 50 questions per exam' });
   for (const [i, q] of questions.entries()) {
-    if (!q || typeof q !== 'object' || !q.question || !Array.isArray(q.options) || q.options.length < 2)
-      return res.status(400).json({ message: `Question ${i + 1} is missing required fields (question, options)` });
+    if (!q || typeof q !== 'object' || !q.questionText)
+      return res.status(400).json({ message: `Question ${i + 1} is missing questionText` });
   }
 
   const module = await Module.findById(moduleId);
@@ -128,7 +136,7 @@ router.post('/voice-exams', requireAdmin, upload.array('images', 10), catchAsync
   res.status(201).json({ message: 'Voice exam created successfully', exam });
 }));
 
-router.put('/voice-exams/:id', requireAdmin, upload.array('images', 10), [
+router.put('/voice-exams/:id', requireAdmin, upload.array('images', 10), handleMulterError, [
   param('id').isMongoId(),
 ], validate, catchAsync(async (req, res) => {
   let { title, moduleId, course, clinicalCasePrompt, questions, existingImages } = req.body;
