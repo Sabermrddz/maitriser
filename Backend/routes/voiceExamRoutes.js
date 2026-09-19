@@ -136,6 +136,128 @@ router.post('/voice-exams', requireAdmin, upload.array('images', 10), handleMult
   res.status(201).json({ message: 'Voice exam created successfully', exam });
 }));
 
+const csvUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (_req, file, cb) => {
+    const ext = '.' + file.originalname.toLowerCase().split('.').pop();
+    if (ext === '.csv' && file.mimetype === 'text/csv') cb(null, true);
+    else if (ext === '.csv') cb(null, true);
+    else cb(new Error('Only CSV files are allowed'));
+  },
+  limits: { fileSize: 5 * 1024 * 1024 },
+});
+
+router.post('/voice-exams/import-csv', requireAdmin, csvUpload.single('file'), handleMulterError, catchAsync(async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: 'CSV file is required' });
+
+  const { parse } = await import('csv-parse/sync');
+  const content = req.file.buffer.toString('utf8');
+  const records = parse(content, { columns: true, skip_empty_lines: true, bom: true });
+
+  if (records.length === 0) return res.status(400).json({ message: 'CSV is empty' });
+
+  const requiredCols = ['examTitle', 'questionText'];
+  const missing = requiredCols.filter((c) => !Object.keys(records[0]).some((k) => k.trim().toLowerCase() === c));
+  if (missing.length > 0) return res.status(400).json({ message: `Missing required columns: ${missing.join(', ')}` });
+
+  const results = { created: 0, questionsImported: 0, skipped: [], errors: [] };
+
+  const moduleKeys = [...new Set(records.map((r) => {
+    const name = r.moduleName?.trim() || '';
+    const year = Number(r.year) || 0;
+    return `${name}|${year}`;
+  }).filter((k) => k !== '|0'))];
+
+  const modules = await Module.find({ $or: moduleKeys.map((k) => {
+    const [name, year] = k.split('|');
+    return { name, year: Number(year) };
+  }) });
+  const moduleMap = {};
+  modules.forEach((m) => { moduleMap[`${m.name}|${m.year}`] = m; });
+
+  const examsByName = {};
+  for (const row of records) {
+    try {
+      const examTitle = row.examTitle?.trim();
+      const questionText = row.questionText?.trim();
+      if (!examTitle) { results.errors.push(`Row ${results.errors.length + results.questionsImported + 1}: missing examTitle`); continue; }
+      if (!questionText) { results.errors.push(`Row "${examTitle}": missing questionText`); continue; }
+
+      const moduleName = row.moduleName?.trim() || '';
+      const year = Number(row.year) || 0;
+      const moduleKey = `${moduleName}|${year}`;
+      const module = moduleMap[moduleKey];
+
+      let criteria = [];
+      if (row.criteria?.trim()) {
+        const groups = row.criteria.split(';');
+        for (const group of groups) {
+          const trimmed = group.trim();
+          if (!trimmed) continue;
+          const colonIdx = trimmed.indexOf(':');
+          if (colonIdx > 0) {
+            const label = trimmed.slice(0, colonIdx).trim();
+            const kws = trimmed.slice(colonIdx + 1).split('|').map((k) => k.trim()).filter(Boolean);
+            if (label) criteria.push({ label, keywords: kws });
+          } else {
+            criteria.push({ label: trimmed, keywords: [] });
+          }
+        }
+      }
+
+      const question = { questionText, idealAnswer: row.idealAnswer?.trim() || '', criteria };
+
+      if (!examsByName[examTitle]) {
+        examsByName[examTitle] = {
+          title: examTitle,
+          moduleId: module?._id || null,
+          year: module?.year || year,
+          course: row.course?.trim() || '',
+          clinicalCasePrompt: row.clinicalCasePrompt?.trim() || '',
+          questions: [],
+        };
+      }
+      examsByName[examTitle].questions.push(question);
+      results.questionsImported++;
+    } catch (e) {
+      results.errors.push(`Row import error: ${e.message}`);
+    }
+  }
+
+  for (const [title, data] of Object.entries(examsByName)) {
+    try {
+      if (!data.moduleId) {
+        results.skipped.push(`${title} (module not found)`);
+        continue;
+      }
+      if (!data.clinicalCasePrompt) {
+        data.clinicalCasePrompt = data.questions.map((q) => q.questionText).join('\n\n');
+      }
+      const examId = await genExamId();
+      await VoiceExam.create({
+        examId,
+        title: data.title,
+        moduleId: data.moduleId,
+        course: data.course,
+        year: data.year,
+        discipline: 'medicine',
+        clinicalCasePrompt: data.clinicalCasePrompt,
+        questions: data.questions,
+        images: [],
+      });
+      results.created++;
+    } catch (e) {
+      results.errors.push(`Exam "${title}": ${e.message}`);
+    }
+  }
+
+  delPattern('GET:/api/voice-exams');
+  res.status(201).json({
+    message: `Import complete: ${results.created} exams, ${results.questionsImported} questions, ${results.errors.length} errors`,
+    ...results,
+  });
+}));
+
 router.put('/voice-exams/:id', requireAdmin, upload.array('images', 10), handleMulterError, [
   param('id').isMongoId(),
 ], validate, catchAsync(async (req, res) => {

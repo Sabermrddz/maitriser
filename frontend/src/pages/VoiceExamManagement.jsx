@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authFetch } from '../config/authFetch';
-import { FaTrash, FaEdit, FaImage, FaPlus, FaTimes } from 'react-icons/fa';
+import { FaTrash, FaEdit, FaImage, FaPlus, FaTimes, FaFileCsv } from 'react-icons/fa';
 import { API_BASE_URL } from '../config/api';
 import { useToast } from '../components/Toast';
 import { useSound } from '../context/SoundContext';
@@ -40,6 +40,9 @@ const VoiceExamManagement = () => {
   const [deleteTarget, setDeleteTarget]     = useState(null);
   const submittingRef = useRef(false);
   const [submitting, setSubmitting] = useState(false);
+  const [csvFile, setCsvFile] = useState(null);
+  const [csvLoading, setCsvLoading] = useState(false);
+  const [csvResult, setCsvResult] = useState(null);
 
   useEffect(() => { fetchModules(); }, []);
 
@@ -214,6 +217,38 @@ const VoiceExamManagement = () => {
       setDeleteTarget(null);
       submittingRef.current = false;
       setSubmitting(false);
+    }
+  };
+
+  const handleCsvImport = async () => {
+    if (!csvFile || csvLoading) return;
+    setCsvLoading(true);
+    setCsvResult(null);
+    try {
+      const fd = new FormData();
+      fd.append('file', csvFile);
+      const token = localStorage.getItem('token') || '';
+      const res = await fetch(`${API_BASE_URL}/api/voice-exams/import-csv`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        notify(data.message || t('admin.voiceExam.csvImportFailed'), 'error');
+      } else {
+        setCsvResult(data);
+        notify(data.message, 'success');
+        fetchExams();
+        fetchModules();
+      }
+    } catch (err) {
+      logger.error({ err }, 'VoiceExamManagement CSV import failed');
+      notify(t('admin.voiceExam.csvImportFailed'), 'error');
+    } finally {
+      setCsvLoading(false);
+      setCsvFile(null);
+      if (document.querySelector('.csv-file-input')) document.querySelector('.csv-file-input').value = '';
     }
   };
 
@@ -401,6 +436,31 @@ const VoiceExamManagement = () => {
           <button type="button" onClick={handleSubmit} disabled={submitting}>{editId ? t('admin.voiceExam.update') : t('admin.voiceExam.create')}</button>
           {editId && <button type="button" onClick={resetForm}>{t('admin.voiceExam.cancel')}</button>}
         </div>
+      </div>
+
+      <div className="admin-form-card" style={{ maxWidth: 900, marginTop: 16 }}>
+        <h3 style={{ margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FaFileCsv /> {t('admin.voiceExam.csvImportTitle') || 'Import from CSV'}
+        </h3>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 12px' }}>
+          {t('admin.voiceExam.csvImportHint') || 'Upload a CSV file to create multiple voice exams at once. Columns: examTitle, moduleName, course, year, clinicalCasePrompt, questionText, idealAnswer, criteria'}
+        </p>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input type="file" accept=".csv" className="csv-file-input" onChange={(e) => setCsvFile(e.target.files?.[0] || null)} style={{ fontSize: 13 }} />
+          <button type="button" onClick={handleCsvImport} disabled={!csvFile || csvLoading} style={{ padding: '8px 16px', borderRadius: 6, border: 'none', background: csvFile && !csvLoading ? 'var(--dc-accent, #04484F)' : '#ccc', color: '#fff', cursor: csvFile && !csvLoading ? 'pointer' : 'not-allowed', fontWeight: 600, fontSize: 13 }}>
+            {csvLoading ? (t('admin.voiceExam.importing') || 'Importing...') : (t('admin.voiceExam.importBtn') || 'Import CSV')}
+          </button>
+        </div>
+        {csvResult && (
+          <div style={{ marginTop: 12, padding: 12, borderRadius: 8, background: csvResult.errors?.length ? '#fff3cd' : '#d4edda', fontSize: 13 }}>
+            <p style={{ margin: 0, fontWeight: 600 }}>{csvResult.message}</p>
+            {csvResult.errors?.length > 0 && (
+              <ul style={{ margin: '8px 0 0', paddingLeft: 20 }}>
+                {csvResult.errors.map((e, i) => <li key={i} style={{ color: '#856404' }}>{e}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>

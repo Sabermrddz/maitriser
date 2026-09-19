@@ -778,6 +778,11 @@ const en = {
   'admin.voiceExam.imageCount': '{count} image(s)',
   'admin.voiceExam.fillRequired': 'Title, module, and case prompt are required',
   'admin.voiceExam.emptyDash': '—',
+  'admin.voiceExam.csvImportTitle': 'Import from CSV',
+  'admin.voiceExam.csvImportHint': 'Upload a CSV file to create multiple voice exams. Columns: examTitle, moduleName, course, year, clinicalCasePrompt, questionText, idealAnswer, criteria (format: Label:kw1|kw2;Label2:kw3)',
+  'admin.voiceExam.importBtn': 'Import CSV',
+  'admin.voiceExam.importing': 'Importing...',
+  'admin.voiceExam.csvImportFailed': 'CSV import failed',
 
   // Admin Module Management
   'admin.module.title': 'Module Management',

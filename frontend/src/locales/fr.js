@@ -692,6 +692,11 @@ const fr = {
   'admin.voiceExam.imageCount': '{count} image(s)',
   'admin.voiceExam.fillRequired': 'Le titre, le module et le scénario sont requis',
   'admin.voiceExam.emptyDash': '—',
+  'admin.voiceExam.csvImportTitle': 'Importer depuis CSV',
+  'admin.voiceExam.csvImportHint': 'Téléversez un fichier CSV pour créer plusieurs examens oraux. Colonnes : examTitle, moduleName, course, year, clinicalCasePrompt, questionText, idealAnswer, criteria (format : Label:kw1|kw2;Label2:kw3)',
+  'admin.voiceExam.importBtn': 'Importer CSV',
+  'admin.voiceExam.importing': 'Importation...',
+  'admin.voiceExam.csvImportFailed': "Échec de l'importation CSV",
 
   // Admin Module Management
   'admin.module.title': 'Gestion des modules',
