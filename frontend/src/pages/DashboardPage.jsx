@@ -10,45 +10,13 @@ import { ECOS_YEARS } from '../constants';
 import useDocumentTitle from '../utils/useDocumentTitle';
 import PageHeader from '../components/PageHeader';
 import FeedbackButton from '../components/FeedbackButton';
+import { getModuleIcon } from '../utils/moduleIcons';
 import "../styles/teal-theme.css";
 import "../styles/userDashboard.css";
 import "../styles/PageHeader.css";
 
 const R = 50;
 const CIRCUMFERENCE = 2 * Math.PI * R;
-
-const moduleIconMap = {
-  anatomie: <FaBone />,
-  biochimie: <FaFlask />,
-  biophysique: <FaAtom />,
-  histologie: <FaMicroscope />,
-  physiologie: <FaHeartbeat />,
-  microbiologie: <FaBacteria />, bactériologie: <FaBacteria />, virologie: <FaBacteria />, parasitologie: <FaBacteria />,
-  immunologie: <FaShieldAlt />,
-  sémiologie: <FaStethoscope />,
-  pharmacologie: <FaPills />,
-  anatomopathologie: <FaSearch />,
-  radiologie: <FaCamera />, imagerie: <FaCamera />,
-  'médecine interne': <FaUserMd />, interne: <FaUserMd />,
-  pédiatrie: <FaBaby />, néonatologie: <FaBaby />,
-  chirurgie: <FaCut />,
-  cardiologie: <FaHeart />, cardio: <FaHeart />, coeur: <FaHeart />, cœur: <FaHeart />,
-  neurologie: <FaBrain />, neuro: <FaBrain />, cerveau: <FaBrain />,
-  oncologie: <FaRadiation />, cancer: <FaRadiation />,
-  réanimation: <FaHospital />,
-  urgences: <FaAmbulance />,
-  éthique: <FaBalanceScale />, déontologie: <FaBalanceScale />,
-  internat: <FaGraduationCap />, préparation: <FaGraduationCap />,
-  pneumologie: <FaLungs />, pneumo: <FaLungs />, poumon: <FaLungs />,
-  gastro: <FaVial />, gastroentérologie: <FaVial />, digestion: <FaVial />,
-  chimie: <FaFlask />,
-  botanique: <FaLeaf />, plantes: <FaLeaf />,
-  pharmacie: <FaPrescriptionBottle />, galénique: <FaPrescriptionBottle />, officine: <FaPrescriptionBottle />, hospitalière: <FaPrescriptionBottle />,
-  toxicologie: <FaSkullCrossbones />,
-  'santé publique': <FaGlobeAmericas />, épidémiologie: <FaGlobeAmericas />,
-};
-
-const fallbackIcon = <FaFileMedical />;
 
 const DashboardPage = () => {
   const { t, lang } = useTranslation();
@@ -140,11 +108,7 @@ const DashboardPage = () => {
   const moduleCards = useMemo(() => {
     if (!modules.length) return [];
     return modules.map(mod => {
-      const modName = (mod.name || '').toLowerCase();
-      let icon = fallbackIcon;
-      for (const [key, ico] of Object.entries(moduleIconMap)) {
-        if (modName.includes(key)) { icon = ico; break; }
-      }
+      const icon = getModuleIcon(mod.name);
 
       const totalLessons = Array.isArray(mod.courses) ? mod.courses.length : 0;
       let attempted = 0;

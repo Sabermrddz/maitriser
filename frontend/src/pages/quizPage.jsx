@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { SkeletonFilters, SkeletonModuleGrid } from '../components/LoadingSkeleton';
 import { useTranslation } from '../context/LanguageContext';
+import { getModuleIcon } from '../utils/moduleIcons';
 import CustomizedExamModal from '../components/CustomizedExamModal';
 import CoursePickerModal from '../components/CoursePickerModal';
 import QuizSession from '../components/QuizSession';
@@ -362,6 +363,7 @@ const QuizPage = () => {
                     onClick={() => handleModuleClick(mod)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleModuleClick(mod); } }}
                     style={{ cursor: 'pointer' }}>
+                    <div className="card-icon">{getModuleIcon(mod.name)}</div>
                     <div className="card-title">{mod.name}</div>
                     <div className="card-meta" style={{ marginTop: 4 }}>
                       {modCounts ? (
