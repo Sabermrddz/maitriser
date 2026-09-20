@@ -37,6 +37,11 @@ router.post('/quizzes/:quizId/submit', [
 
   const correct = quiz.question?.correctAnswers || [];
 
+  const correctCount = Array.isArray(selectedAnswers)
+    ? selectedAnswers.filter((a) => correct.includes(a)).length
+    : 0;
+  const totalCorrect = correct.length;
+  const partialScore = totalCorrect > 0 ? correctCount / totalCorrect : 0;
   const isCorrect =
     Array.isArray(selectedAnswers) &&
     selectedAnswers.length === correct.length &&
@@ -52,12 +57,15 @@ router.post('/quizzes/:quizId/submit', [
     answers: { [quizId]: selectedAnswers },
   });
 
-  logger.info({ userId, quizId, correct: isCorrect, score }, 'Quiz submitted');
+  logger.info({ userId, quizId, correct: isCorrect, score, partialScore }, 'Quiz submitted');
   broadcast('quiz:submitted', { userId, quizId, correct: isCorrect, score });
 
   return res.status(200).json({
     correct: isCorrect,
     score,
+    partialScore,
+    correctCount,
+    totalCorrect,
     correctAnswers: correct,
     selectedAnswers,
     explanation: quiz.explanation || '',

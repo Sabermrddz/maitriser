@@ -106,6 +106,7 @@ const fr = {
   'customExam.fail': 'Échoué',
   'customExam.correct': 'Correct',
   'customExam.incorrect': 'Incorrect',
+  'customExam.partial': 'Partiellement correct',
   'customExam.review': 'Revoir les réponses',
   'customExam.backToCourses': 'Retour aux cours',
   'customExam.finish': 'Terminer',

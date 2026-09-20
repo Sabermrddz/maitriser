@@ -294,8 +294,11 @@ const QuizCard = () => {
         {options.map((opt, i) => {
           let optClass = 'option-label';
           if (submitted) {
-            if (result?.correctAnswers?.includes(opt)) optClass += ' correct';
-            else if (selected.includes(opt)) optClass += ' incorrect';
+            const isCorrectAnswer = result?.correctAnswers?.includes(opt);
+            const isSelected = selected.includes(opt);
+            if (isCorrectAnswer && isSelected) optClass += ' correct';
+            else if (!isCorrectAnswer && isSelected) optClass += ' incorrect';
+            else if (isCorrectAnswer && !isSelected) optClass += ' partial';
           } else if (selected.includes(opt)) {
             optClass += ' selected';
           }
@@ -311,9 +314,9 @@ const QuizCard = () => {
         })}
 
         {submitted && result && (
-          <div className={`result-box ${result.correct ? 'pass' : 'fail'}`}>
+          <div className={`result-box ${result.correct ? 'pass' : (result.partialScore > 0 ? 'partial' : 'fail')}`}>
             <p className="result-box-title">
-              {result.correct ? '✅ Correct !' : '❌ Incorrect'}
+              {result.correct ? '✅ Correct !' : (result.partialScore > 0 ? `⚠️ ${t('customExam.partial')}` : '❌ Incorrect')}
             </p>
             <p className="result-box-time">
               ⏱ {t('customExam.timeTaken', { time: formatTime(elapsed) })}

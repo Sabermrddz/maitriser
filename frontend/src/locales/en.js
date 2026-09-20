@@ -104,6 +104,7 @@ const en = {
   'customExam.fail': 'Failed',
   'customExam.correct': 'Correct',
   'customExam.incorrect': 'Incorrect',
+  'customExam.partial': 'Partially correct',
   'customExam.review': 'Review answers',
   'customExam.backToCourses': 'Back to courses',
   'customExam.finish': 'Finish',

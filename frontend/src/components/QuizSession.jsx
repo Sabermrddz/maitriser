@@ -228,10 +228,11 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
           <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: 16 }}>
             {quizzes.filter((q) => results[q._id]).map((q, i) => {
               const r = results[q._id];
+              const isPartial = r && !r.correct && r.partialScore > 0;
               return (
                 <div key={q._id} style={{
                   padding: '14px 16px', marginBottom: 10, borderRadius: 10,
-                  border: `1px solid ${r && r.correct ? 'var(--color-success)' : 'var(--color-danger)'}`,
+                  border: `1px solid ${r && r.correct ? 'var(--color-success)' : isPartial ? '#f59e0b' : 'var(--color-danger)'}`,
                   background: 'var(--card-bg)',
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 }}>
@@ -241,10 +242,10 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
                     </div>
                     <span style={{
                       fontSize: 12, fontWeight: 700, padding: '3px 10px', borderRadius: 6, flexShrink: 0,
-                      background: r && r.correct ? 'var(--color-success-bg, #e6f7ef)' : 'var(--color-danger-bg, #fde8e8)',
-                      color: r && r.correct ? 'var(--color-success)' : 'var(--color-danger)',
+                      background: r && r.correct ? 'var(--color-success-bg, #e6f7ef)' : isPartial ? 'rgba(245, 158, 11, 0.12)' : 'var(--color-danger-bg, #fde8e8)',
+                      color: r && r.correct ? 'var(--color-success)' : isPartial ? '#f59e0b' : 'var(--color-danger)',
                     }}>
-                      {r && r.correct ? t('customExam.correct') : t('customExam.incorrect')}
+                      {r && r.correct ? t('customExam.correct') : isPartial ? t('customExam.partial') : t('customExam.incorrect')}
                     </span>
                   </div>
                   {r && !r.correct && r.correctAnswers && (
@@ -430,7 +431,7 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
                   const isSelected = checked;
                   if (isCorrectAnswer && isSelected) className += ' correct';
                   else if (!isCorrectAnswer && isSelected) className += ' incorrect';
-                  else if (isCorrectAnswer) className += ' correct';
+                  else if (isCorrectAnswer && !isSelected) className += ' partial';
                 } else if (checked) {
                   className += ' selected';
                 }
@@ -447,9 +448,12 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
 
             {/* Result feedback */}
             {submitted && result && (
-              <div style={{ marginTop: 16, padding: 16, borderRadius: 8, background: result.correct ? 'var(--color-success-bg)' : 'var(--color-danger-bg)', border: `1px solid ${result.correct ? 'var(--color-success)' : 'var(--color-danger)'}` }}>
-                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6, color: result.correct ? 'var(--color-success)' : 'var(--color-danger)' }}>
-                  {result.correct ? t('customExam.correct') : t('customExam.incorrect')}
+              <div style={{ marginTop: 16, padding: 16, borderRadius: 8,
+                background: result.correct ? 'var(--color-success-bg)' : (result.partialScore > 0 && !result.correct) ? 'rgba(245, 158, 11, 0.08)' : 'var(--color-danger-bg)',
+                border: `1px solid ${result.correct ? 'var(--color-success)' : (result.partialScore > 0 && !result.correct) ? '#f59e0b' : 'var(--color-danger)'}` }}>
+                <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6,
+                  color: result.correct ? 'var(--color-success)' : (result.partialScore > 0 && !result.correct) ? '#f59e0b' : 'var(--color-danger)' }}>
+                  {result.correct ? t('customExam.correct') : (result.partialScore > 0 && !result.correct) ? t('customExam.partial') : t('customExam.incorrect')}
                 </div>
                 {!result.correct && result.correctAnswers && (
                   <div style={{ fontSize: 13, color: 'var(--text-dark)', marginBottom: 8 }}>

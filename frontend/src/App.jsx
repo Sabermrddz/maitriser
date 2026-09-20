@@ -19,7 +19,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import AnimatedLoading from './components/AnimatedLoading';
 import { logger } from './utils/logger';
 import { API_BASE_URL } from './config/api';
-import { setToken, getToken, clearToken } from './utils/tokenStore';
+import { setToken, getToken, clearToken, refreshToken } from './utils/tokenStore';
 import axios from 'axios';
 import useClerkToken from './hooks/useClerkToken';
 
@@ -247,7 +247,7 @@ const AppContent = () => {
     if (!ready || !isSignedIn) return;
     const interval = setInterval(async () => {
       try {
-        const token = getToken();
+        const token = await refreshToken();
         if (!token) return;
         const res = await fetch(`${API_BASE_URL}/api/auth/verify`, {
           headers: { Authorization: `Bearer ${token}` },

@@ -1022,6 +1022,11 @@ h1, h2, h3, h4, h5, h6 {
   background: #FEF2F2;
   color: #EF4444;
 }
+.option-label.partial {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+  color: #d97706;
+}
 .option-label input[type="checkbox"] {
   flex-shrink: 0;
   width: 18px;
@@ -1199,6 +1204,10 @@ h1, h2, h3, h4, h5, h6 {
 .result-box.fail {
   background: rgba(231, 76, 60, 0.06);
   border-color: rgba(231, 76, 60, 0.2);
+}
+.result-box.partial {
+  background: rgba(245, 158, 11, 0.06);
+  border-color: rgba(245, 158, 11, 0.2);
 }
 .result-box-title {
   font-weight: 700;
