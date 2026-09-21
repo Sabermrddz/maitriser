@@ -1057,8 +1057,8 @@ const en = {
   // Case Exam
   'caseExam.title': 'Case Exam',
   'caseExam.caseLabel': 'Clinical case',
-  'caseExam.prev': '← Previous',
-  'caseExam.next': 'Next →',
+  'caseExam.prev': 'Previous',
+  'caseExam.next': 'Next',
    'caseExam.submitting': 'Submitting…',
   'caseExam.correctAnswer': 'Correct answer',
   'caseExam.question': 'Question',

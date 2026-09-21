@@ -286,7 +286,7 @@ const CaseExam = () => {
             <div>
               {currentIndex > 0 && (
                 <button className="btn-dark" onClick={() => { play('prev'); setCurrentIndex((i) => i - 1); }}>
-                  {t('caseExam.prev')}
+                  ← {t('caseExam.prev')}
                 </button>
               )}
             </div>
@@ -297,7 +297,7 @@ const CaseExam = () => {
                 </button>
               ) : currentIndex < quizzes.length - 1 ? (
                 <button className="btn-primary" onClick={() => { play('next'); setCurrentIndex((i) => i + 1); }}>
-                  {t('caseExam.next')}
+                  {t('caseExam.next')} →
                 </button>
               ) : (
                 <button className="btn-dark" onClick={() => { play('prev'); navigate('/quizPage'); }}>

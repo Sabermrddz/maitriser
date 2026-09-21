@@ -73,8 +73,8 @@ const fr = {
 
   // Case Exam (shared UI strings)
   'caseExam.question': 'Question',
-  'caseExam.prev': '← Précédent',
-  'caseExam.next': 'Suivant →',
+  'caseExam.prev': 'Précédent',
+  'caseExam.next': 'Suivant',
   'caseExam.submit': "Soumettre l'examen",
   'caseExam.submitting': 'Soumission en cours…',
   'caseExam.correct': 'Correct',
@@ -86,7 +86,7 @@ const fr = {
   'moduleCard.quizCount': '{count} QCM',
   'moduleCard.courseCount': '{count} cours',
   'moduleCard.ecosCount': '{count} examens ECOS',
-  'moduleCard.back': '← Tous les modules',
+  'moduleCard.back': 'Tous les modules',
 
   // Course Cards
   'courseCard.timerLabel': 'Chrono par question (secondes)',
