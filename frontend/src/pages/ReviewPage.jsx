@@ -60,7 +60,7 @@ const ReviewPage = () => {
         {error ? (
           <div className="empty-state" style={{ color: 'var(--color-danger)' }}>
                 <p>{t('review.errorLoading', { error })}</p>
-                <button type="button" className="btn-primary" onClick={fetchResults} style={{ marginTop: '12px' }}>{t('review.retry')}</button>
+                <button type="button" className="btn-primary" onClick={() => fetchResults()} style={{ marginTop: '12px' }}>{t('review.retry')}</button>
           </div>
         ) : wrongAnswers.length === 0 ? (
           <div className="empty-state">

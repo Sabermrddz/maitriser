@@ -59,7 +59,9 @@ router.post('/clerk-sync', async (req, res) => {
       }
     }
 
-    user.activeTokenId = crypto.randomBytes(32).toString('hex');
+    if (!user.activeTokenId) {
+      user.activeTokenId = crypto.randomBytes(32).toString('hex');
+    }
     await user.save();
 
     const appToken = jwt.sign(

@@ -19,7 +19,7 @@ const en = {
   // Nav
   'nav.dashboard': 'Dashboard',
   'nav.qcm': 'MCQs',
-  'nav.qcmExams': 'QCM & Exams',
+  'nav.qcmExams': 'MCQ & Exams',
   'nav.ecos': 'ECOS Simulator',
   'nav.stats': 'Statistics',
   'nav.settings': 'Settings',
@@ -226,6 +226,9 @@ const en = {
   'profile.email': 'Email',
   'profile.save': 'Save',
   'profile.saving': 'Saving…',
+  'profile.chartAccuracy': 'Accuracy',
+  'profile.chartAccuracyPct': 'Accuracy %',
+  'profile.unknown': 'Unknown',
   'profile.saved': 'Profile updated',
   'profile.passwordTitle': 'Change Password',
   'profile.currentPwd': 'Current Password',
@@ -292,7 +295,7 @@ const en = {
   'dashboard.greeting.evening': 'Good evening',
   'dashboard.welcome': 'Welcome back!',
   'dashboard.subtitle': 'Here\'s your learning overview.',
-  'dashboard.stats.total': 'Questions Done',
+  'dashboard.stats.total': 'Questions Answered',
   'dashboard.stats.correct': 'Correct',
   'dashboard.stats.accuracy': 'Accuracy',
   'dashboard.stats.streak': 'Best Streak',
@@ -300,7 +303,7 @@ const en = {
   'dashboard.empty.desc': 'You haven\'t taken any quizzes yet. Begin a quiz to track your progress here.',
   'dashboard.empty.cta': 'Start a Quiz',
   'dashboard.quickActions': 'Quick Actions',
-  'dashboard.quickActions.quiz': 'MCQ Quiz',
+  'dashboard.quickActions.quiz': 'Quiz',
   'dashboard.quickActions.quiz.desc': 'Practice with MCQs',
   'dashboard.quickActions.mock': 'Mock Exam',
   'dashboard.quickActions.mock.desc': 'Simulate exam conditions',
@@ -586,14 +589,14 @@ const en = {
   'dashboard.modules.goProfile': 'Go to Profile',
   'dashboard.modules.empty': 'No modules available for your year yet.',
   'dashboard.viewAll': 'View all',
-  'dashboard.qcm.recent': 'Recent QCM Attempts',
+  'dashboard.qcm.recent': 'Recent MCQ Attempts',
   'dashboard.ecos.recent': 'Recent ECOS Training',
-  'dashboard.empty.qcm': 'No recent QCM attempts',
+  'dashboard.empty.qcm': 'No recent MCQ attempts',
   'dashboard.empty.ecos': 'No recent ECOS training',
   'dashboard.result.passed': 'Passed',
   'dashboard.result.review': 'To review',
   'dashboard.actions.title': 'Quick Actions',
-  'dashboard.actions.quickQcm': 'Quick QCM',
+  'dashboard.actions.quickQcm': 'Quick MCQ',
   'dashboard.actions.quickQcm.desc': '20 random questions',
   'dashboard.actions.ecos': 'ECOS Simulator',
   'dashboard.actions.ecos.desc': 'Practice now',
@@ -607,7 +610,7 @@ const en = {
   'subscription.required.quizzes': 'A subscription is required to access quizzes. Subscribe to unlock all content for your discipline and year.',
   'subscription.required.mock': 'A subscription is required to access mock exams. Subscribe to unlock all content for your discipline and year.',
   'subscription.required.case': 'A subscription is required to access case exams. Subscribe to unlock all content for your discipline and year.',
-  'subscription.required.voiceExams': 'A subscription is required to access ECOs. Subscribe to unlock all content for your discipline and year.',
+  'subscription.required.voiceExams': 'A subscription is required to access ECOS. Subscribe to unlock all content for your discipline and year.',
   'subscription.required.cta': 'View Plans',
   'subscription.error.title': 'Could not verify your subscription',
   'subscription.error.retryMsg': 'We had trouble reaching the server. Check your connection and try again.',
@@ -678,7 +681,7 @@ const en = {
   'simulation.noExams': 'No exams available for simulation.',
 
   // Admin Mock Exams
-  'admin.mockExam.title': 'Quiz Mock Exams',
+  'admin.mockExam.title': 'Mock Exams',
   'admin.mockExam.create': 'Create',
   'admin.mockExam.createModal': 'Create Mock Exam',
   'admin.mockExam.editModal': 'Edit Mock Exam',
@@ -718,7 +721,7 @@ const en = {
 
   // Mock Exam List (Student)
   'mockExamList.title': 'Mock Exams',
-  'mockExamList.quizTab': 'Quiz Mock Exams',
+  'mockExamList.quizTab': 'Mock Exams',
   'mockExamList.allModules': 'All Modules',
   'mockExamList.startRandom': 'Start Random',
   'mockExamList.noQuizExams': 'No quiz mock exams available.',
@@ -1020,7 +1023,6 @@ const en = {
   'admin.quiz.fillRequiredFields': 'Please fill all required fields.',
   'admin.quiz.optionsMustHaveText': 'All options must have text.',
   'admin.quiz.selectCorrectAnswer': 'Select at least one correct answer.',
-  'admin.quiz.selectCorrectAnswer': 'Select at least one correct answer.',
   'admin.quiz.quizIncomplete': 'Quiz {n} is incomplete — fill in question, all options, and select correct answer(s).',
   'admin.quiz.quizUpdated': 'Quiz updated',
   'admin.quiz.quizCreated': 'Quiz created',
@@ -1054,6 +1056,7 @@ const en = {
 
   // Case Exam
   'caseExam.title': 'Case Exam',
+  'caseExam.caseLabel': 'Clinical case',
   'caseExam.prev': '← Previous',
   'caseExam.next': 'Next →',
    'caseExam.submitting': 'Submitting…',
@@ -1119,6 +1122,9 @@ const en = {
 
   // Quiz Management toasts
   'admin.quiz.error': 'Error: {message}',
+
+  // Submission
+  'submission.failed': 'Submission failed',
   'admin.quiz.unknownError': 'Unknown error',
   'admin.quiz.networkError': 'Network error',
 
@@ -1242,10 +1248,10 @@ const en = {
   'feedbackButton.tooltip': 'Send feedback',
 
   // Landing page nav
-  'landing.nav.home': 'Maitrisez — home',
+  'landing.nav.home': 'MAITRISEZ — Home',
   'landing.nav.openMenu': 'Open menu',
   'landing.nav.closeMenu': 'Close menu',
-  'landing.nav.qcm': 'QCM',
+  'landing.nav.qcm': 'MCQ',
   'landing.nav.ecos': 'ECOS',
   'landing.nav.pricing': 'Pricing',
   'landing.nav.faq': 'FAQ',
@@ -1253,26 +1259,26 @@ const en = {
   'landing.nav.trial': 'Try for free',
 
   // Landing hero
-  'landing.title': 'Maitrisez — Medical Exam Prep',
+  'landing.title': 'MAITRISEZ — Medical Exam Prep',
   'landing.hero.heading.1': 'Master',
   'landing.hero.heading.2': 'Progress',
   'landing.hero.heading.3': 'Succeed.',
-  'landing.hero.subtitle': 'QCMs that target your weaknesses, timed ECOS simulations just like exam day: arrive prepared — not panicked.',
+  'landing.hero.subtitle': 'MCQs that target your weaknesses, timed ECOS simulations just like exam day: arrive prepared — not panicked.',
   'landing.hero.cta': 'Start training',
   'landing.hero.secondary': 'See an ECOS simulation',
 
   // Curve labels
   'landing.curve.stress': 'stress',
-  'landing.curve.qcm': 'first QCMs',
+  'landing.curve.qcm': 'first MCQs',
   'landing.curve.ecos': 'ECOS simulations',
   'landing.curve.mastery': 'mastery',
 
   // Features
   'landing.features.eyebrow': 'How it works',
   'landing.features.title': 'Two tools, one goal: get there calmly.',
-  'landing.features.qcm.tag': 'Adaptive QCMs',
-  'landing.features.qcm.title': 'Questions that follow your gaps, not just another mock exam.',
-  'landing.features.qcm.desc': 'Each QCM series adapts to what you already master and what remains unclear, organized by specialty.',
+  'landing.features.qcm.tag': 'Adaptive MCQs',
+  'landing.features.qcm.title': 'Questions that target your weak spots, not just another mock exam.',
+  'landing.features.qcm.desc': 'Each MCQ series adapts to what you have already mastered and what remains unclear, organized by specialty.',
   'landing.features.ecos.tag': 'ECOS Simulations',
   'landing.features.ecos.title': 'Clinical scenarios, timed just like exam day.',
   'landing.features.ecos.desc': 'Patient scenarios, competency-based scoring, and immediate feedback on what was missed.',
@@ -1303,7 +1309,7 @@ const en = {
   'landing.pricing.solo.name': 'Solo',
   'landing.pricing.solo.price': '€9',
   'landing.pricing.solo.desc': 'Study alone, at your own pace.',
-  'landing.pricing.solo.feature.1': 'Complete QCM bank',
+  'landing.pricing.solo.feature.1': 'Complete MCQ bank',
   'landing.pricing.solo.feature.2': '5 ECOS simulations per month',
   'landing.pricing.solo.feature.3': 'Basic progress tracking',
   'landing.pricing.solo.cta': 'Choose Solo',
@@ -1328,14 +1334,14 @@ const en = {
   // FAQ
   'landing.faq.eyebrow': 'FAQ',
   'landing.faq.title': 'Everything people ask before starting.',
-  'landing.faq.q1.q': 'What is an ECOS simulation on Maitrisez?',
+  'landing.faq.q1.q': 'What is an ECOS simulation on MAITRISEZ?',
   'landing.faq.q1.a': 'It is a timed clinical scenario with a patient vignette and a competency-based scoring grid, designed to replicate a real exam station.',
-  'landing.faq.q2.q': 'Are QCMs sorted by specialty?',
+  'landing.faq.q2.q': 'Are MCQs sorted by specialty?',
   'landing.faq.q2.a': 'Yes. You can study a specific specialty, or let the system automatically target your gaps across the entire curriculum.',
   'landing.faq.q3.q': 'Is it suitable for nursing students, not just medical students?',
-  'landing.faq.q3.a': 'Yes. The QCM banks and ECOS scenarios cover multiple healthcare fields, not just medicine.',
+  'landing.faq.q3.a': 'Yes. The MCQ banks and ECOS scenarios cover multiple healthcare fields, not just medicine.',
   'landing.faq.q4.q': 'Can I practice on mobile?',
-  'landing.faq.q4.a': 'Yes. Maitrisez works in your browser, on desktop and mobile, so you can study between placements.',
+  'landing.faq.q4.a': 'Yes. MAITRISEZ works in your browser, on desktop and mobile, so you can study between placements.',
 
   // Final CTA
   'landing.cta.title': 'Exam day should not be a surprise.',
@@ -1345,7 +1351,10 @@ const en = {
   // Footer
   'landing.footer.terms': 'Terms of Service',
   'landing.footer.privacy': 'Privacy Policy',
-  'landing.footer.copyright': '© 2026 Maitrisez',
+  'landing.footer.copyright': '© 2026 MAITRISEZ',
+
+  // Format Year
+  'formatYear.residanat': 'Residency',
 };
 
 export default en;

@@ -25,6 +25,7 @@ const NewSidebar = ({ sidebarOpen, toggleSidebar }) => {
   const handleLogout = async () => {
     try { await fetchWithAuth(`${API_BASE_URL}/api/auth/logout`, { method: 'POST' }); } catch { /* best-effort */ }
     try { localStorage.removeItem('userId'); } catch {}
+    try { sessionStorage.removeItem('synced'); } catch {}
     clerk.signOut();
     navigate('/login');
   };

@@ -273,7 +273,7 @@ const QuizCard = () => {
         {quizData.caseId && typeof quizData.caseId === 'object' && (
           <div className="case-box">
             <div className="case-box-label">
-              📋 Cas clinique — {quizData.caseId.title || ''}
+              📋 {t('caseExam.caseLabel')} — {quizData.caseId.title || ''}
             </div>
             <p>
               {quizData.caseId.description || ''}
@@ -316,7 +316,7 @@ const QuizCard = () => {
         {submitted && result && (
           <div className={`result-box ${result.correct ? 'pass' : (result.partialScore > 0 ? 'partial' : 'fail')}`}>
             <p className="result-box-title">
-              {result.correct ? '✅ Correct !' : (result.partialScore > 0 ? `⚠️ ${t('customExam.partial')}` : '❌ Incorrect')}
+              {result.correct ? `✅ ${t('customExam.correct')}` : (result.partialScore > 0 ? `⚠️ ${t('customExam.partial')}` : `❌ ${t('customExam.incorrect')}`)}
             </p>
             <p className="result-box-time">
               ⏱ {t('customExam.timeTaken', { time: formatTime(elapsed) })}

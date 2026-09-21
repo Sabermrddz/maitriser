@@ -196,7 +196,9 @@ const AppContent = () => {
   const { signOut } = useClerk();
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin') || location.pathname === '/admin/setup';
-  const syncedRef = useRef(false);
+  const syncedRef = useRef((() => {
+    try { return sessionStorage.getItem('synced') === 'true'; } catch { return false; }
+  })());
   const [syncError, setSyncError] = useState(null);
 
   const syncRef = useRef(null);
@@ -229,6 +231,7 @@ const AppContent = () => {
       try { localStorage.setItem('userDiscipline', res.data.discipline || ''); } catch {}
       try { localStorage.setItem('userYear', res.data.year?.toString() || ''); } catch {}
       syncedRef.current = true;
+      try { sessionStorage.setItem('synced', 'true'); } catch {}
     } catch (err) {
       if (axios.isCancel(err)) return;
       logger.error({ err }, 'AppContent sync failed');
@@ -252,7 +255,7 @@ const AppContent = () => {
         const res = await fetch(`${API_BASE_URL}/api/auth/verify`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        if (res.status === 409 || res.status === 401) {
+        if (res.status === 409) {
           clearToken();
           try { localStorage.removeItem('userId'); } catch {}
           window.location.href = '/login?conflict=1';

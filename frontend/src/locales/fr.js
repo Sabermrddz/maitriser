@@ -51,7 +51,7 @@ const fr = {
   'nav.closeMenu': 'Fermer le menu',
 
   // Quiz Page
-  'quiz.title': 'QCM - Question à Choix Multiples',
+  'quiz.title': 'QCM',
   'quiz.filters.allYears': 'Toutes les Années',
   'quiz.filters.allModules': 'Toutes les Spécialités',
   'quiz.filters.allCourses': 'Tous les Cours',
@@ -60,7 +60,7 @@ const fr = {
   'quiz.launchCase': 'Lancer le cas',
   'quiz.study': 'Étudier',
   'quiz.start': 'Commencer',
-  'quiz.autoTimerHint': 'Un chronomètre démarre automatiquement au lancement et compte à l\'endroit. Le temps total sera affiché avec vos résultats.',
+  'quiz.autoTimerHint': 'Un chronomètre démarre automatiquement au lancement et compte le temps écoulé. Le temps total sera affiché avec vos résultats.',
   'quiz.noQuizzes': 'Aucun QCM pour cette sélection.',
   'quiz.noQuizzesHint': 'Essayez de modifier les filtres ou de sélectionner d\'autres critères.',
   'quiz.selectAnswer': 'Veuillez sélectionner une réponse',
@@ -199,6 +199,9 @@ const fr = {
   'profile.email': 'Email',
   'profile.save': 'Enregistrer',
   'profile.saving': 'Enregistrement…',
+  'profile.chartAccuracy': 'Précision',
+  'profile.chartAccuracyPct': 'Précision %',
+  'profile.unknown': 'Inconnu',
   'profile.saved': 'Profil mis à jour',
   'profile.passwordTitle': 'Changer le mot de passe',
   'profile.currentPwd': 'Mot de passe actuel',
@@ -269,7 +272,7 @@ const fr = {
   'dashboard.stats.correct': 'Correctes',
   'dashboard.stats.accuracy': 'Précision',
   'dashboard.stats.streak': 'Meilleure Série',
-  'dashboard.empty.title': 'Commencez votre voyage',
+  'dashboard.empty.title': 'Commencez votre parcours',
   'dashboard.empty.desc': 'Vous n\'avez pas encore passé de quiz. Commencez un quiz pour suivre vos progrès ici.',
   'dashboard.empty.cta': 'Commencer un Quiz',
   'dashboard.quickActions': 'Actions Rapides',
@@ -304,9 +307,9 @@ const fr = {
 
   // Quick Guide
   'guide.title': 'Guide Rapide',
-  'guide.quiz': 'Sélectionne un module et un cours sur la page QCM, puis clique sur "Commencer" pour t\'entraîner avec un chrono par question. Choisis "Examen personnalisé" pour une session chronométrée avec un score de réussite.',
-  'guide.voice': 'Enregistre ta réponse aux cas cliniques. Le mode Pratique donne un retour immédiat ; le mode Examen note à la fin.',
-  'guide.results': 'Consulte tes statistiques sur le Tableau de bord. Vois les résultats détaillés et révise les réponses passées.',
+  'guide.quiz': 'Sélectionnez un module et un cours sur la page QCM, puis cliquez sur "Commencer" pour vous entraîner avec un chrono par question. Choisissez "Examen personnalisé" pour une session chronométrée avec un score de réussite.',
+  'guide.voice': 'Enregistrez votre réponse aux cas cliniques. Le mode Pratique donne un retour immédiat ; le mode Examen note à la fin.',
+  'guide.results': 'Consultez vos statistiques sur le Tableau de bord. Voyez les résultats détaillés et révisez les réponses passées.',
   'guide.dismiss': 'Compris',
 
   // Help Page
@@ -552,7 +555,7 @@ const fr = {
   'dashboard.modules.lessons': '{count} leçons',
   'dashboard.modules.noYear': 'Configurez votre année dans votre profil pour voir vos modules.',
   'dashboard.modules.goProfile': 'Aller au profil',
-  'dashboard.modules.empty': 'Aucun module disponible pour votre année pour le moment.',
+  'dashboard.modules.empty': 'Aucun module n\'est disponible pour votre année actuellement.',
   'dashboard.viewAll': 'Voir tout',
   'dashboard.qcm.recent': 'Derniers QCM tentés',
   'dashboard.ecos.recent': 'Derniers entraînements ECOS',
@@ -563,7 +566,7 @@ const fr = {
   'dashboard.actions.title': 'Actions rapides',
   'dashboard.actions.quickQcm': 'QCM rapide',
   'dashboard.actions.quickQcm.desc': '20 questions aléatoires',
-  'dashboard.actions.ecos': 'ECOS Simulator',
+  'dashboard.actions.ecos': 'Simulateur ECOS',
   'dashboard.actions.ecos.desc': 'Entraînez-vous maintenant',
   'dashboard.upgrade.text': 'Abonnez-vous — accédez à tous les quiz, examens oraux et fonctionnalités.',
   'dashboard.upgrade.cta': 'Voir les offres',
@@ -633,7 +636,7 @@ const fr = {
   'simulation.minutesPerStation': 'Minutes par station',
   'simulation.start': 'Lancer la simulation',
   'simulation.allPassed': 'Toutes les stations réussies !',
-  'simulation.partialPassed': 'Certaines stations nécessitent des améliorations',
+  'simulation.partialPassed': 'Certaines stations nécessitent des progrès',
   'simulation.overallScore': '{passed}/{total} questions correctes au total',
   'simulation.stationLabel': 'Station {n}/{total}',
   'simulation.retry': 'Réessayer',
@@ -647,8 +650,8 @@ const fr = {
   // Admin Voice Exam
   'admin.voiceExam.documentTitle': 'Gestion des examens vocaux — Admin',
   'admin.voiceExam.title': 'Gestion des examens vocaux',
-  'admin.voiceExam.createModal': 'Créer un examen vocal',
-  'admin.voiceExam.editModal': "Modifier l'examen vocal",
+  'admin.voiceExam.createModal': 'Créer un examen oral',
+  'admin.voiceExam.editModal': "Modifier l'examen oral",
   'admin.voiceExam.examTitle': "Titre de l'examen",
   'admin.voiceExam.yearPlaceholder': '-- Année --',
   'admin.voiceExam.yearOption': 'Année {y}',
@@ -669,7 +672,7 @@ const fr = {
   'admin.voiceExam.cancel': 'Annuler',
   'admin.voiceExam.allYears': 'Toutes les années',
   'admin.voiceExam.allModules': 'Tous les modules',
-  'admin.voiceExam.noExams': 'Aucun examen vocal',
+  'admin.voiceExam.noExams': 'Aucun examen oral',
   'admin.voiceExam.tableId': 'ID',
   'admin.voiceExam.tableTitle': 'Titre',
   'admin.voiceExam.tableYear': 'Année',
@@ -680,7 +683,7 @@ const fr = {
   'admin.voiceExam.tableQuestions': 'Questions',
   'admin.voiceExam.tableImages': 'Images',
   'admin.voiceExam.tableActions': 'Actions',
-  'admin.voiceExam.deleteConfirm': "Supprimer l'examen vocal",
+  'admin.voiceExam.deleteConfirm': "Supprimer l'examen oral",
   'admin.voiceExam.deleteConfirmMsg': 'Supprimer "{title}" ?',
   'admin.voiceExam.deleteBtn': 'Supprimer',
   'admin.voiceExam.created': 'Examen créé',
@@ -784,8 +787,8 @@ const fr = {
   'profile.subscription.expires': 'Expire le',
   'profile.subscription.desc': 'Abonnez-vous pour débloquer tous les quiz et examens oraux.',
   'profile.subscription.viewPlans': 'Voir les offres',
-  'profile.confirmCancelTitle': 'Annuler l\'abonnement?',
-  'profile.confirmCancelMsg': 'Changer votre année ou discipline annulera votre abonnement actuel. Continuer?',
+  'profile.confirmCancelTitle': 'Annuler l\'abonnement ?',
+  'profile.confirmCancelMsg': 'Changer votre année ou discipline annulera votre abonnement actuel. Continuer ?',
   'profile.confirmCancelYes': 'Oui, continuer',
   'profile.confirmCancelNo': 'Annuler',
   'profile.progress.title': 'Mes Progrès',
@@ -886,7 +889,7 @@ const fr = {
   'admin.pricing.genNotes': 'Notes (optionnel)',
   'admin.pricing.genNotesPlaceholder': 'Notes internes',
   'admin.pricing.genGenerating': 'Génération des codes...',
-  'admin.pricing.genAutoNote': 'Codes auto-générés. Changez le forfait ou le nombre pour régénérer.',
+  'admin.pricing.genAutoNote': 'Codes générés automatiquement. Changez le forfait ou le nombre pour régénérer.',
   'admin.pricing.colCode': 'Code',
   'admin.pricing.colStatus': 'Statut',
   'admin.pricing.colUsedBy': 'Utilisé par',
@@ -933,7 +936,6 @@ const fr = {
   'admin.quiz.fillAllFields': 'Veuillez remplir tous les champs.',
   'admin.quiz.fillRequiredFields': 'Veuillez remplir tous les champs requis.',
   'admin.quiz.optionsMustHaveText': 'Toutes les options doivent avoir du texte.',
-  'admin.quiz.selectCorrectAnswer': 'Sélectionnez au moins une bonne réponse.',
   'admin.quiz.selectCorrectAnswer': 'Sélectionnez au moins une réponse correcte.',
   'admin.quiz.quizIncomplete': 'Le quiz {n} est incomplet — remplissez la question, toutes les options et sélectionnez la ou les réponses correctes.',
   'admin.quiz.quizUpdated': 'Quiz mis à jour',
@@ -968,6 +970,7 @@ const fr = {
 
   // Case Exam
   'caseExam.title': 'Examen de cas',
+  'caseExam.caseLabel': 'Cas clinique',
 
   // Admin Profile
   'admin.profile.title': 'Profil administrateur',
@@ -993,7 +996,7 @@ const fr = {
   // Admin Pricing toasts
   'admin.pricing.error': 'Erreur',
   'admin.pricing.networkError': 'Erreur réseau',
-  'admin.pricing.loadPlansFailed': 'Échec du chargement des plans',
+  'admin.pricing.loadPlansFailed': 'Échec du chargement des forfaits',
   'admin.pricing.loadCodesFailed': 'Échec du chargement des codes',
   'admin.pricing.loadDailyFailed': 'Échec du chargement de la config quotidienne',
   'admin.pricing.dailyUpdated': 'Nombre de quiz quotidiens mis à jour',
@@ -1026,6 +1029,9 @@ const fr = {
 
   // Quiz Management toasts
   'admin.quiz.error': 'Erreur : {message}',
+
+  // Submission
+  'submission.failed': 'Échec de la soumission',
   'admin.quiz.unknownError': 'Erreur inconnue',
   'admin.quiz.networkError': 'Erreur réseau',
 
@@ -1249,7 +1255,10 @@ const fr = {
   // Footer
   'landing.footer.terms': 'Conditions d\'utilisation',
   'landing.footer.privacy': 'Politique de confidentialité',
-  'landing.footer.copyright': '© 2026 Maitrisez',
+  'landing.footer.copyright': '© 2026 MAITRISEZ',
+
+  // Format Year
+  'formatYear.residanat': 'Résidanat',
 };
 
 export default fr;

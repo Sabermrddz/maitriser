@@ -39,7 +39,7 @@ const VoiceExamSimulation = ({ exams, onBack }) => {
         method: 'POST',
         body,
       });
-      if (!res.ok) throw new Error('Submission failed');
+      if (!res.ok) throw new Error(t('submission.failed'));
       const data = await res.json();
       const newResults = [...stationResults, {
         exam,

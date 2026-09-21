@@ -175,7 +175,7 @@ const ProfilePage = () => {
     return {
       labels: last.map((_, i) => `#${i + 1}`),
       datasets: [{
-        label: 'Accuracy',
+        label: t('profile.chartAccuracy'),
         data: last.map((r) => r.score * 100),
         borderColor: 'var(--teal-accent)',
         backgroundColor: 'rgba(59, 184, 176, 0.08)',
@@ -190,7 +190,7 @@ const ProfilePage = () => {
   const moduleData = useMemo(() => {
     const map = {};
     results.forEach((r) => {
-      const name = r.quizId?.moduleId?.name || 'Unknown';
+      const name = r.quizId?.moduleId?.name || t('profile.unknown');
       if (!map[name]) map[name] = { total: 0, correct: 0 };
       map[name].total++;
       if (r.score === 1) map[name].correct++;
@@ -201,7 +201,7 @@ const ProfilePage = () => {
     return {
       labels: entries.map((e) => e.name),
       datasets: [{
-        label: 'Accuracy %',
+        label: t('profile.chartAccuracyPct'),
         data: entries.map((e) => e.accuracy),
         backgroundColor: entries.map((e) =>
           e.accuracy >= 70 ? 'rgba(59, 184, 176, 0.75)' :
@@ -263,7 +263,7 @@ const ProfilePage = () => {
         <label className="profile-label">{t('profile.year')}</label>
         <select value={year} onChange={(e) => setYear(e.target.value)} className="profile-input">
           <option value="">{t('profile.discipline.none')}</option>
-          {[1,2,3,4,5,6,7].map(y => <option key={y} value={y}>{y === 7 ? 'Résidanat' : t('profile.year.nth', { n: y })}</option>)}
+          {[1,2,3,4,5,6,7].map(y => <option key={y} value={y}>{y === 7 ? t('formatYear.residanat') : t('profile.year.nth', { n: y })}</option>)}
         </select>
 
         <button className="btn-primary profile-btn" onClick={handleSaveProfile} disabled={saving}>

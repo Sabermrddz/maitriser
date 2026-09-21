@@ -18,14 +18,20 @@ const handleSessionConflict = () => {
 };
 
 export const fetchWithAuth = async (url, options = {}) => {
+  const { signal, ...restOptions } = options;
+
   const doFetch = async (token) => {
-    const headers = { ...options.headers, Authorization: `Bearer ${token}` };
-    let body = options.body;
+    const headers = { ...restOptions.headers, Authorization: `Bearer ${token}` };
+    let body = restOptions.body;
     if (body && !(body instanceof FormData) && typeof body === 'object') {
       headers['Content-Type'] = 'application/json';
       body = JSON.stringify(body);
     }
-    return fetch(url, { ...options, headers, body });
+    const fetchOpts = { ...restOptions, headers, body };
+    if (signal instanceof AbortSignal && !signal.aborted) {
+      fetchOpts.signal = signal;
+    }
+    return fetch(url, fetchOpts);
   };
 
   const maxAttempts = 3;
