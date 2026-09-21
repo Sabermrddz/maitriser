@@ -109,6 +109,7 @@ const DashboardPage = () => {
     if (!modules.length) return [];
     return modules.map(mod => {
       const icon = getModuleIcon(mod.name);
+      const modName = (mod.name || '').toLowerCase();
 
       const totalLessons = Array.isArray(mod.courses) ? mod.courses.length : 0;
       let attempted = 0;
