@@ -59,8 +59,25 @@ router.post('/clerk-sync', async (req, res) => {
       }
     }
 
-    if (!user.activeTokenId) {
-      user.activeTokenId = crypto.randomBytes(32).toString('hex');
+    const clientIP = req.ip;
+    const currentSessionId = payload.sid;
+
+    try {
+      const { data: sessions } = await clerkClient.sessions.getSessionList({
+        userId: payload.sub,
+        status: 'active',
+      });
+      const otherSessions = sessions.filter(s => s.id !== currentSessionId);
+      const hasDifferentMachine = otherSessions.some(s =>
+        s.latestActivity?.clientIp && s.latestActivity.clientIp !== clientIP
+      );
+      if (hasDifferentMachine || !user.activeTokenId) {
+        user.activeTokenId = crypto.randomBytes(32).toString('hex');
+      }
+    } catch {
+      if (!user.activeTokenId) {
+        user.activeTokenId = crypto.randomBytes(32).toString('hex');
+      }
     }
     await user.save();
 
