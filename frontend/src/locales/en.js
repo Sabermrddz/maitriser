@@ -508,7 +508,9 @@ const en = {
   'admin.quiz.keyConcepts': 'Key concepts',
   'admin.quiz.commonTraps': 'Common traps',
   'admin.quiz.addConcept': 'Add a concept',
+  'admin.quiz.addTag': 'Tag...',
   'admin.quiz.addTrap': 'Add a trap',
+  'admin.quiz.tags': 'Tags',
   'admin.quiz.saveDraft': 'Save Draft',
   'admin.quiz.publish': 'Publish',
   'admin.quiz.cancel': 'Cancel',
@@ -849,6 +851,7 @@ const en = {
   'admin.user.deleteError': 'An error occurred while deleting the user.',
 
   // Admin sidebar (missing)
+  'admin.sidebar.backToApp': 'View as Student',
   'admin.sidebar.mockExams': 'Mock Exams',
 
 
@@ -944,6 +947,8 @@ const en = {
   'admin.pricing.colActions': 'Actions',
   'admin.pricing.free': 'Free',
   'admin.pricing.editPlan': 'Edit Plan',
+  'admin.pricing.create': 'Create',
+  'admin.pricing.update': 'Update',
   'admin.pricing.createPlanTitle': 'Create Plan',
   'admin.pricing.labelName': 'Name',
   'admin.pricing.labelDiscipline': 'Discipline',
@@ -1023,6 +1028,7 @@ const en = {
   'admin.quiz.fillRequiredFields': 'Please fill all required fields.',
   'admin.quiz.optionsMustHaveText': 'All options must have text.',
   'admin.quiz.selectCorrectAnswer': 'Select at least one correct answer.',
+  'admin.quiz.correctHint': 'Click letters to toggle correct answers',
   'admin.quiz.quizIncomplete': 'Quiz {n} is incomplete — fill in question, all options, and select correct answer(s).',
   'admin.quiz.quizUpdated': 'Quiz updated',
   'admin.quiz.quizCreated': 'Quiz created',
@@ -1063,6 +1069,8 @@ const en = {
   'caseExam.correctAnswer': 'Correct answer',
   'caseExam.question': 'Question',
   'caseExam.incorrect': 'Incorrect',
+  'caseExam.correct': 'Correct',
+  'caseExam.submit': 'Submit Exam',
   'caseExam.correctAnswers': 'Correct answers',
 
   // Admin Profile
@@ -1105,11 +1113,9 @@ const en = {
   'admin.pricing.colMessage': 'Message',
   'admin.pricing.colReceipt': 'Receipt',
   'admin.pricing.colDate': 'Date',
-  'admin.pricing.colActions': 'Actions',
   'admin.pricing.deleteIntent': 'Delete',
   'admin.pricing.deleteIntentConfirm': 'Delete this payment request?',
   'admin.pricing.intentDeleted': 'Payment request deleted',
-  'admin.pricing.deleteFailed': 'Failed to delete',
   'admin.pricing.noIntents': 'No payment requests yet.',
   'admin.pricing.viewReceipt': 'View',
   'admin.pricing.loadMore': 'Load more',

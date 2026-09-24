@@ -15,11 +15,11 @@ const userCreate = async (req, res) => {
   const { name, email, role, discipline, year } = req.body;
 
   const tempPassword = crypto.randomBytes(12).toString('hex');
-
-  const userId = await genUserId();
-  const newUser = new User({ userId, name, email, password: tempPassword, role, discipline, year });
+  let userId;
 
   try {
+    userId = await genUserId();
+    const newUser = new User({ userId, name, email, password: tempPassword, role, discipline, year });
     await newUser.save();
     res.status(201).json({ message: 'User created successfully', tempPassword, userId });
   } catch (error) {

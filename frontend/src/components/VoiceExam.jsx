@@ -7,9 +7,8 @@ import '../styles/teal-theme.css';
 
 const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: externalSubmitting, duration }) => {
   const { t } = useTranslation();
-  if (!exam) return <div className="page-teal"><div className="card-teal" style={{ textAlign: 'center' }}>{t('voiceExam.notFound')}</div></div>;
-  const questions = exam.questions || [];
-  const STORAGE_KEY = `voice-exam-${exam._id}`;
+  const questions = exam?.questions || [];
+  const STORAGE_KEY = `voice-exam-${exam?._id || 'none'}`;
   const [answers, setAnswers]       = useState(() => (questions).map(() => ({ text: '' })));
   const [result, setResult]         = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -24,12 +23,12 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
   const isSubmitting = externalSubmitting || submitting;
 
   useEffect(() => {
-    if (stationMode) return;
+    if (!exam || stationMode) return;
     try {
       const savedRaw = sessionStorage.getItem(STORAGE_KEY);
       if (savedRaw) {
         const saved = JSON.parse(savedRaw);
-        if (saved.examId === exam._id && !saved.result) {
+        if (saved.examId === exam?._id && !saved.result) {
           setAnswers(saved.answers || questions.map(() => ({ text: '' })));
           return;
         }
@@ -39,15 +38,15 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
     setResult(null);
     setError('');
     try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
-  }, [exam._id]);
+  }, [exam?._id]);
 
   useEffect(() => {
     if (stationMode || result || !answers.length) return;
-    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ examId: exam._id, answers })); } catch { /* ignore */ }
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ examId: exam?._id, answers })); } catch { /* ignore */ }
   }, [answers, result]);
 
   useEffect(() => {
-    if (stationMode) return;
+    if (!exam || stationMode) return;
     const onLeave = (e) => { if (!result) { e.preventDefault(); e.returnValue = ''; } };
     window.addEventListener('beforeunload', onLeave);
     return () => window.removeEventListener('beforeunload', onLeave);
@@ -65,13 +64,13 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
   }, [duration]);
 
   useEffect(() => {
-    if (!timerActive || timeLeft <= 0 || result) return;
+    if (!exam || !timerActive || timeLeft <= 0 || result) return;
     timerRef.current = setTimeout(() => setTimeLeft((t) => t - 1), 1000);
     return () => clearTimeout(timerRef.current);
   }, [timerActive, timeLeft, result, tick]);
 
   useEffect(() => {
-    if (!timerActive || timeLeft > 0 || result) return;
+    if (!exam || !timerActive || timeLeft > 0 || result) return;
     setTimedOut(true);
     if (stationMode && onStationSubmit) {
       onStationSubmit(answers.map((a, i) => ({ questionIndex: i, text: a.text })), true);
@@ -101,7 +100,7 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
     setSubmitting(true);
     try {
       const body = { answers: answers.map((a, i) => ({ questionIndex: i, text: a.text })) };
-      const res = await fetchWithAuth(`${API_BASE_URL}/api/voice-exams/${exam._id}/submit`, {
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/voice-exams/${exam?._id}/submit`, {
         method: 'POST',
         body,
       });
@@ -118,6 +117,8 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
   };
 
   useEffect(() => { handleSubmitRef.current = handleSubmit; });
+
+  if (!exam) return <div className="page-teal"><div className="card-teal" style={{ textAlign: 'center' }}>{t('voiceExam.notFound')}</div></div>;
 
   const allPassed = result?.answers?.every((a) => a.allPassed);
 

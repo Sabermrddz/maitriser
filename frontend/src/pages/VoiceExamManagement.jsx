@@ -227,12 +227,7 @@ const VoiceExamManagement = () => {
     try {
       const fd = new FormData();
       fd.append('file', csvFile);
-      const token = localStorage.getItem('token') || '';
-      const res = await fetch(`${API_BASE_URL}/api/voice-exams/import-csv`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: fd,
-      });
+      const res = await authFetch('/api/voice-exams/import-csv', { method: 'POST', body: fd });
       const data = await res.json();
       if (!res.ok) {
         notify(data.message || t('admin.voiceExam.csvImportFailed'), 'error');
