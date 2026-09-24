@@ -17,9 +17,14 @@ const CourseViewPage = () => {
   const [moduleName, setModuleName] = useState('');
   const [quizzes, setQuizzes] = useState([]);
   const [pdfUrl, setPdfUrl] = useState(null);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingQuizzes, setLoadingQuizzes] = useState(true);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    return () => { if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl); };
+  }, [pdfBlobUrl]);
 
   useEffect(() => {
     (async () => {
@@ -32,6 +37,7 @@ const CourseViewPage = () => {
         setModuleName(mod.name || '');
 
         let resolvedUrl = null;
+        let blobUrl = null;
         const courses = mod?.courses || [];
         const match = courses.find((c) => (typeof c === 'string' ? c : c.name || '') === decodedName);
         const pdfId = match && typeof match === 'object' ? match.pdfId || '' : '';
@@ -47,12 +53,15 @@ const CourseViewPage = () => {
                 if (presignRes.ok) {
                   const { url } = await presignRes.json();
                   resolvedUrl = url;
+                  const blob = await fetch(url).then((r) => r.blob());
+                  blobUrl = URL.createObjectURL(blob);
                 }
               } catch { /* presign failed */ }
             }
           }
         }
         setPdfUrl(resolvedUrl);
+        setPdfBlobUrl(blobUrl);
       } catch (err) {
         logger.error({ err, moduleId }, 'CourseViewPage load failed');
         setError(err.message);
@@ -126,8 +135,8 @@ const CourseViewPage = () => {
             </div>
           </div>
           <div className="pdf-console-body">
-            {pdfUrl ? (
-              <iframe src={pdfUrl} title={decodedName} className="pdf-console-frame" sandbox="allow-same-origin allow-scripts allow-popups" />
+            {pdfBlobUrl ? (
+              <iframe src={pdfBlobUrl} title={decodedName} className="pdf-console-frame" sandbox="allow-same-origin allow-scripts allow-popups" />
             ) : (
               <div className="pdf-console-empty">{t('quizcard.courseNotAvailable')}</div>
             )}

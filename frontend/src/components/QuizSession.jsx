@@ -19,6 +19,7 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
   const [submittedQids, setSubmittedQids] = useState(new Set());
   const [pdfMap, setPdfMap] = useState({});
   const [pdfPanelUrl, setPdfPanelUrl] = useState(null);
+  const [pdfPanelBlobUrl, setPdfPanelBlobUrl] = useState(null);
   const [pdfPanelCourse, setPdfPanelCourse] = useState(null);
   const [startError, setStartError] = useState(null);
   const submittedRef = useRef(false);
@@ -152,13 +153,19 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
       const res = await fetchWithAuth(`${API_BASE_URL}/api/course-pdfs/${encodeURIComponent(pdfFilename)}`);
       if (!res.ok) throw new Error('Failed to get PDF');
       const { url } = await res.json();
+      const blob = await fetch(url).then((r) => r.blob());
+      const blobUrl = URL.createObjectURL(blob);
+      if (pdfPanelBlobUrl) URL.revokeObjectURL(pdfPanelBlobUrl);
       setPdfPanelUrl(url);
+      setPdfPanelBlobUrl(blobUrl);
       setPdfPanelCourse(courseName);
     } catch { notify(t('quizcard.error.network'), 'error'); }
   };
 
   const closePdfPanel = () => {
+    if (pdfPanelBlobUrl) URL.revokeObjectURL(pdfPanelBlobUrl);
     setPdfPanelUrl(null);
+    setPdfPanelBlobUrl(null);
     setPdfPanelCourse(null);
   };
 
@@ -590,7 +597,7 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
               </div>
             </div>
             <div className="pdf-console-body">
-              <iframe src={pdfPanelUrl} title={pdfPanelCourse} className="pdf-console-frame" sandbox="allow-same-origin allow-scripts allow-popups" />
+              <iframe src={pdfPanelBlobUrl} title={pdfPanelCourse} className="pdf-console-frame" sandbox="allow-same-origin allow-scripts allow-popups" />
             </div>
           </div>
         )}
