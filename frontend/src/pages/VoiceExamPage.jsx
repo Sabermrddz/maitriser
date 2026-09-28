@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import VoiceExam from '../components/VoiceExam.jsx';
@@ -12,7 +12,6 @@ import useDocumentTitle from '../utils/useDocumentTitle';
 import { useTranslation } from '../context/LanguageContext';
 import { ECOS_YEARS } from '../constants';
 import { formatYearLabel } from '../utils/formatYear';
-import { getModuleIcon } from '../utils/moduleIcons';
 import '../styles/teal-theme.css';
 
 const VoiceExamPage = () => {
@@ -354,7 +353,6 @@ const VoiceExamPage = () => {
                 onClick={() => handleModuleClick(mod)}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleModuleClick(mod); } }}
                 style={{ cursor: 'pointer' }}>
-                <div className="card-icon">{getModuleIcon(mod.name)}</div>
                 <div className="card-title">{mod.name}</div>
                 <div className="card-meta" style={{ marginTop: 4 }}>
                   {t('moduleCard.courseCount', { count: (mod.courses || []).length })}

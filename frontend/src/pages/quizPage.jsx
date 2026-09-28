@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
-import { SkeletonFilters, SkeletonModuleGrid } from '../components/LoadingSkeleton';
+import { SkeletonModuleGrid } from '../components/LoadingSkeleton';
 import { useTranslation } from '../context/LanguageContext';
-import { getModuleIcon } from '../utils/moduleIcons';
 import CustomizedExamModal from '../components/CustomizedExamModal';
 import CoursePickerModal from '../components/CoursePickerModal';
 import QuizSession from '../components/QuizSession';
@@ -17,7 +16,7 @@ const QuizPage = () => {
   const [filteredModules, setFilteredModules] = useState([]);
   const [selectedModuleId, setSelectedModuleId] = useState(null);
   const [selectedModule, setSelectedModule] = useState(null);
-  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [, setSelectedCourse] = useState(null);
   const [setupCourse, setSetupCourse] = useState(null);
   const [showStartModal, setShowStartModal] = useState(false);
   const [quizCounts, setQuizCounts] = useState({});
@@ -28,7 +27,7 @@ const QuizPage = () => {
   const [loadingModules, setLoadingModules] = useState(true);
   const [modulesError, setModulesError] = useState(null);
   const [loadingCounts, setLoadingCounts] = useState(true);
-  const [loadingQuizzes, setLoadingQuizzes] = useState(false);
+  const [, setLoadingQuizzes] = useState(false);
   const [subscription, setSubscription] = useState(null);
   const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [subError, setSubError] = useState(false);
@@ -75,7 +74,7 @@ const QuizPage = () => {
     setLoadingCounts(true);
     try {
       let discipline = '', year = '';
-      try { discipline = localStorage.getItem('userDiscipline') || ''; year = localStorage.getItem('userYear') || ''; } catch {}
+      try { discipline = localStorage.getItem('userDiscipline') || ''; year = localStorage.getItem('userYear') || ''; } catch { /* localStorage unavailable */ }
       let url = `${API_BASE_URL}/api/quiz-counts?`;
       if (discipline) url += `&discipline=${discipline}`;
       if (year) url += `&year=${year}`;
@@ -88,8 +87,8 @@ const QuizPage = () => {
   useEffect(() => { fetchQuizCounts(); }, [fetchQuizCounts]);
 
   useEffect(() => {
-    let userYear = ''; try { userYear = localStorage.getItem('userYear') || ''; } catch {}
-    let userDiscipline = ''; try { userDiscipline = localStorage.getItem('userDiscipline') || ''; } catch {}
+    let userYear = ''; try { userYear = localStorage.getItem('userYear') || ''; } catch { /* localStorage unavailable */ }
+    let userDiscipline = ''; try { userDiscipline = localStorage.getItem('userDiscipline') || ''; } catch { /* localStorage unavailable */ }
     const isResidanat = userYear === '7' && userDiscipline === 'medicine';
     let filtered = (userYear && !isResidanat) ? modules.filter((m) => m.year === Number(userYear)) : modules;
     if (searchQuery.trim()) {
@@ -115,7 +114,7 @@ const QuizPage = () => {
     setLoadingQuizzes(true);
     try {
       let discipline = '', year = '';
-      try { discipline = localStorage.getItem('userDiscipline') || ''; year = localStorage.getItem('userYear') || ''; } catch {}
+      try { discipline = localStorage.getItem('userDiscipline') || ''; year = localStorage.getItem('userYear') || ''; } catch { /* localStorage unavailable */ }
       let url = `${API_BASE_URL}/api/quizzes?limit=100&discipline=${discipline}&year=${year}&moduleId=${selectedModuleId}`;
       if (courseName) url += `&course=${encodeURIComponent(courseName)}`;
       const res = await fetchWithAuth(url);
@@ -169,7 +168,7 @@ const QuizPage = () => {
       if (!hasSelected) continue;
       try {
         let discipline = '', year = '';
-        try { discipline = localStorage.getItem('userDiscipline') || ''; year = localStorage.getItem('userYear') || ''; } catch {}
+        try { discipline = localStorage.getItem('userDiscipline') || ''; year = localStorage.getItem('userYear') || ''; } catch { /* localStorage unavailable */ }
         const url = `${API_BASE_URL}/api/quizzes?limit=200&discipline=${discipline}&year=${year}&moduleId=${mod._id}`;
         const res = await fetchWithAuth(url);
         if (res.ok) {
@@ -363,7 +362,6 @@ const QuizPage = () => {
                     onClick={() => handleModuleClick(mod)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleModuleClick(mod); } }}
                     style={{ cursor: 'pointer' }}>
-                    <div className="card-icon">{getModuleIcon(mod.name)}</div>
                     <div className="card-title">{mod.name}</div>
                     <div className="card-meta" style={{ marginTop: 4 }}>
                       {modCounts ? (

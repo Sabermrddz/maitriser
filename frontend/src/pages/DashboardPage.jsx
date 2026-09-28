@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaLungs, FaBrain, FaHeart, FaVial, FaFileMedical, FaClipboardList, FaStethoscope, FaGraduationCap, FaChevronRight, FaUser, FaChevronDown, FaBone, FaFlask, FaAtom, FaMicroscope, FaHeartbeat, FaBacteria, FaShieldAlt, FaPills, FaSearch, FaCamera, FaUserMd, FaBaby, FaCut, FaRadiation, FaHospital, FaAmbulance, FaBalanceScale, FaLeaf, FaPrescriptionBottle, FaSkullCrossbones, FaGlobeAmericas } from "react-icons/fa";
+import { FaClipboardList, FaStethoscope, FaChevronRight, FaUser, FaChevronDown } from "react-icons/fa";
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { useTranslation } from '../context/LanguageContext';
 import { formatDate } from '../utils/formatDate';
