@@ -204,9 +204,13 @@ const QuizManagement = () => {
         const body = { moduleId, course: course || '', questionText, options, correctAnswers, explanation, optionExplanations: optionExplanations || [], keyConcepts: keyConcepts || [], commonTraps: commonTraps || [], tags: tags || [], published };
         res = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       }
-      const data = res.ok ? await res.json() : null;
+      let data = null;
+      try { data = await res.json(); } catch { /* non-JSON body */ }
       if (res.ok) { fetchQuizzes(); resetForm(); notify(editId ? t('admin.quiz.quizUpdated') : t('admin.quiz.quizCreated'), 'success'); }
-      else notify(t('admin.quiz.error', { message: data?.message || t('admin.quiz.unknownError') }), 'error');
+      else {
+        logger.warn({ status: res.status, data }, 'QuizManagement handleSubmit failed');
+        notify(t('admin.quiz.error', { message: data?.message || `HTTP ${res.status}` }), 'error');
+      }
     } catch (err) {
       logger.error({ err }, 'QuizManagement handleSubmit failed');
       notify(t('admin.quiz.networkError'), 'error');
@@ -350,8 +354,13 @@ const QuizManagement = () => {
     try {
       setCsvImporting(true);
       const res    = await authFetch('/api/quizzes/import-csv', { method: 'POST', body: formData });
-      const result = res.ok ? await res.json() : null;
-      notify(result?.message || 'Import finished', res.ok ? 'success' : 'error');
+      let result = null;
+      try { result = await res.json(); } catch { /* non-JSON body */ }
+      if (res.ok) notify(result?.message || 'Import finished', 'success');
+      else {
+        logger.warn({ status: res.status, result }, 'QuizManagement CSV import failed');
+        notify(result?.message || `HTTP ${res.status}`, 'error');
+      }
       fetchQuizzes();
     } catch (err) { logger.error({ err }, 'QuizManagement CSV import failed'); notify(t('admin.quiz.csvImportFailed'), 'error'); }
     finally { setCsvImporting(false); e.target.value = ''; }
@@ -373,14 +382,16 @@ const QuizManagement = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: caseForm.title, description: caseForm.description, moduleId: caseForm.moduleId, discipline: caseForm.discipline || undefined, course: caseForm.course || undefined, quizzes: caseForm.quizzes }),
       });
-      const data = res.ok ? await res.json() : null;
+      let data = null;
+      try { data = await res.json(); } catch { /* non-JSON body */ }
       if (res.ok) {
-        notify(data.message, 'success');
+        notify(data?.message, 'success');
         setShowCaseModal(false);
         setCaseForm({ year: '', moduleId: '', discipline: '', title: '', description: '', course: '', quizzes: [emptyQuiz(), emptyQuiz(), emptyQuiz()] });
         fetchQuizzes();
       } else {
-        notify(`Error: ${data.message}`, 'error');
+        logger.warn({ status: res.status, data }, 'QuizManagement handleCreateCase failed');
+        notify(`${t('admin.quiz.error', { message: data?.message || `HTTP ${res.status}` })}`, 'error');
       }
     } catch (err) {
       logger.error({ err }, 'QuizManagement handleCreateCase failed');

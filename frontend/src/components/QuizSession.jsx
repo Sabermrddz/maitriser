@@ -150,16 +150,17 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
     const pdfFilename = pdfId ? pdfMap[pdfId] : null;
     if (!pdfFilename) { notify(t('quizcard.courseNotAvailable'), 'warning'); return; }
     try {
-      const res = await fetchWithAuth(`${API_BASE_URL}/api/course-pdfs/${encodeURIComponent(pdfFilename)}`);
-      if (!res.ok) throw new Error('Failed to get PDF');
-      const { url } = await res.json();
-      const blob = await fetch(url).then((r) => r.blob());
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/course-pdfs/${encodeURIComponent(pdfFilename)}/content`);
+      if (!res.ok) throw new Error('Failed to fetch PDF');
+      const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
+      const presignRes = await fetchWithAuth(`${API_BASE_URL}/api/course-pdfs/${encodeURIComponent(pdfFilename)}`);
+      const presignedUrl = presignRes.ok ? (await presignRes.json()).url : null;
       if (pdfPanelBlobUrl) URL.revokeObjectURL(pdfPanelBlobUrl);
-      setPdfPanelUrl(url);
+      setPdfPanelUrl(presignedUrl);
       setPdfPanelBlobUrl(blobUrl);
       setPdfPanelCourse(courseName);
-    } catch { notify(t('quizcard.error.network'), 'error'); }
+    } catch (e) { logger.error({ e }, 'QuizSession PDF fetch failed'); notify(t('quizcard.error.network'), 'error'); }
   };
 
   const closePdfPanel = () => {
@@ -582,15 +583,17 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
           </div>
         )}
 
-        {pdfPanelUrl && (
+        {pdfPanelBlobUrl && (
           <div className="pdf-side-panel">
             <div className="pdf-console-bar">
               <span className="pdf-console-dot" />
               <span className="pdf-console-title">{pdfPanelCourse}</span>
               <div className="pdf-console-actions">
-                <a href={pdfPanelUrl} target="_blank" rel="noopener noreferrer" className="pdf-console-link">
-                  {t('courseView.openTab')}
-                </a>
+                {pdfPanelUrl && (
+                  <a href={pdfPanelUrl} target="_blank" rel="noopener noreferrer" className="pdf-console-link">
+                    {t('courseView.openTab')}
+                  </a>
+                )}
                 <button className="pdf-console-close" onClick={closePdfPanel} aria-label={t('courseView.close')}>
                   ×
                 </button>

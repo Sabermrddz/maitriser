@@ -53,10 +53,13 @@ const CourseViewPage = () => {
                 if (presignRes.ok) {
                   const { url } = await presignRes.json();
                   resolvedUrl = url;
-                  const blob = await fetch(url).then((r) => r.blob());
-                  blobUrl = URL.createObjectURL(blob);
+                  const blobRes = await fetchWithAuth(`${API_BASE_URL}/api/course-pdfs/${encodeURIComponent(filename)}/content`);
+                  if (blobRes.ok) {
+                    const blob = await blobRes.blob();
+                    blobUrl = URL.createObjectURL(blob);
+                  }
                 }
-              } catch { /* presign failed */ }
+              } catch (e) { logger.error({ e }, 'CourseViewPage PDF blob fetch failed'); }
             }
           }
         }

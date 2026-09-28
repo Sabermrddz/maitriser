@@ -34,6 +34,32 @@ const quizImageUpload = multer({
 
 const router = express.Router();
 
+const JSON_BODY_FIELDS = ['options', 'correctAnswers', 'optionExplanations', 'keyConcepts', 'commonTraps', 'tags'];
+
+const parseJsonBodyFields = (req, res, next) => {
+  if (req.body && typeof req.body === 'object') {
+    for (const field of JSON_BODY_FIELDS) {
+      const value = req.body[field];
+      if (typeof value === 'string') {
+        try { req.body[field] = JSON.parse(value); } catch { /* leave as-is; validator will reject */ }
+      }
+    }
+    if (typeof req.body.published === 'string') req.body.published = req.body.published === 'true';
+  }
+  next();
+};
+
+const handleQuizUploadError = (err, req, res, next) => {
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') return res.status(400).json({ message: 'File too large (max 10MB)' });
+    return res.status(400).json({ message: err.message });
+  }
+  if (err && typeof err.message === 'string' && err.message.startsWith('Only image files')) {
+    return res.status(400).json({ message: err.message });
+  }
+  next(err);
+};
+
 router.get('/quiz-counts', quizCounts);
 router.get('/quizzes', listQuizzes);
 router.get('/quizzes/:id', [param('id').isMongoId()], validate, getQuiz);
@@ -41,7 +67,7 @@ router.get('/cases/:id', [param('id').isMongoId()], validate, getCase);
 router.post('/quizzes/:id/start', [param('id').isMongoId(), body('timer').optional().isInt({ min: 0 })], validate, startQuiz);
 
 router.get('/admin/quizzes', requireAdmin, listAdminQuizzes);
-router.post('/quizzes', requireAdmin, quizImageUpload.single('questionImage'), [
+router.post('/quizzes', requireAdmin, quizImageUpload.single('questionImage'), handleQuizUploadError, parseJsonBodyFields, [
   body('moduleId').isMongoId(),
   body('questionText').trim().notEmpty(),
   body('options').isArray({ min: 2 }),
@@ -59,7 +85,7 @@ router.post('/quizzes', requireAdmin, quizImageUpload.single('questionImage'), [
   body('commonTraps.*').optional().trim(),
   body('timer').optional().isInt({ min: 0 }),
 ], validate, createQuiz);
-router.put('/quizzes/:id', requireAdmin, quizImageUpload.single('questionImage'), [
+router.put('/quizzes/:id', requireAdmin, quizImageUpload.single('questionImage'), handleQuizUploadError, parseJsonBodyFields, [
   param('id').isMongoId(),
   body('moduleId').optional().isMongoId(),
   body('questionText').optional().trim().notEmpty(),

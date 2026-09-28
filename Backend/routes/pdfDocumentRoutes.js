@@ -79,4 +79,20 @@ router.get('/course-pdfs/:filename', verifyToken, catchAsync(async (req, res) =>
   res.json({ url });
 }));
 
+router.get('/course-pdfs/:filename/content', verifyToken, catchAsync(async (req, res) => {
+  const s3 = getR2Client();
+  if (!s3) return res.status(500).json({ message: 'Storage not configured' });
+  const key = `course-pdfs/${path.basename(req.params.filename)}`;
+  const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
+    expiresIn: getPresignedExpiry(),
+  });
+  const upstream = await fetch(url);
+  if (!upstream.ok) return res.status(502).json({ message: 'Failed to fetch PDF' });
+  const buffer = Buffer.from(await upstream.arrayBuffer());
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline');
+  res.setHeader('Content-Length', buffer.length);
+  res.send(buffer);
+}));
+
 export default router;

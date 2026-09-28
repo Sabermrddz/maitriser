@@ -186,14 +186,22 @@ const VoiceExamManagement = () => {
         newImages.forEach((f) => fd.append('images', f));
 
         const res = await authFetch(url, { method, body: fd });
-        const data = res.ok ? await res.json() : null;
+        let data = null;
+        try { data = await res.json(); } catch { /* non-JSON body */ }
         if (res.ok) { fetchExams(); resetForm(); notify(editId ? t('admin.voiceExam.updated') : t('admin.voiceExam.created'), 'success'); }
-        else notify(`Failed: ${data?.message || 'Unknown error'}`, 'error');
+        else {
+          logger.warn({ status: res.status, data }, 'VoiceExamManagement handleSubmit failed');
+          notify(`Failed: ${data?.message || `HTTP ${res.status}`}`, 'error');
+        }
       } else {
         const res  = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body });
-        const data = await res.json();
+        let data = null;
+        try { data = await res.json(); } catch { /* non-JSON body */ }
         if (res.ok) { fetchExams(); resetForm(); notify(editId ? t('admin.voiceExam.updated') : t('admin.voiceExam.created'), 'success'); }
-        else notify(`Failed: ${data.message}`, 'error');
+        else {
+          logger.warn({ status: res.status, data }, 'VoiceExamManagement handleSubmit failed');
+          notify(`Failed: ${data?.message || `HTTP ${res.status}`}`, 'error');
+        }
       }
     } catch (err) {
       logger.error({ err }, 'VoiceExamManagement handleSubmit failed');
