@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
+import { openFileInNewTab } from '../utils/openFile';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { FaFilePdf } from 'react-icons/fa';
 import { useToast } from './Toast.jsx';
@@ -376,12 +377,8 @@ const QuizCard = () => {
             const pdfFilename = pdfId ? pdfMap[pdfId] : null;
             const handleOpenPdf = async () => {
               if (!pdfFilename) { notify(t('quizcard.courseNotAvailable'), 'warning'); return; }
-              try {
-                const res = await fetchWithAuth(`${API_BASE_URL}/api/course-pdfs/${encodeURIComponent(pdfFilename)}`);
-                if (!res.ok) throw new Error('Failed to get PDF');
-                const { url } = await res.json();
-                window.open(url, '_blank', 'noopener,noreferrer');
-              } catch { notify(t('quizcard.error.network'), 'error'); }
+              const ok = await openFileInNewTab(`/api/course-pdfs/${encodeURIComponent(pdfFilename)}/content`);
+              if (!ok) notify(t('quizcard.error.network'), 'error');
             };
             return (
               <div style={{ textAlign: 'center', margin: '16px 0 0' }}>

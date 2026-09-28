@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
+import AuthImage from '../components/AuthImage';
 import { SkeletonQuizItem } from '../components/LoadingSkeleton';
 import { useTranslation } from '../context/LanguageContext';
 import { formatDate } from '../utils/formatDate';
@@ -79,7 +80,7 @@ const ReviewPage = () => {
                   <div className="qid">{quiz.quizId || ''}</div>
                   <h3>{quiz.question?.questionText?.substring(0, 80) || quiz._id}</h3>
                   {quiz.question?.questionImage && (
-                    <img src={`${API_BASE_URL}/api/quiz-images/${quiz.question.questionImage}`} alt="Question" style={{ maxWidth: '100%', maxHeight: 150, borderRadius: 6, marginTop: 6, marginBottom: 6 }} />
+                    <AuthImage src={`${API_BASE_URL}/api/quiz-images/${quiz.question.questionImage}`} alt="Question" style={{ maxWidth: '100%', maxHeight: 150, borderRadius: 6, marginTop: 6, marginBottom: 6 }} />
                   )}
                   <div className="qmeta">
                     {t('review.lastAttempt', { date: formatDate(r.timestamp, lang) })}

@@ -9,9 +9,9 @@ import { catchAsync } from '../utils/asyncHandler.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
 import { checkSubscription } from '../middleware/requireSubscription.js';
 import { genQuizId } from '../utils/idGenerator.js';
-import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { getR2Client, getBucket, getPresignedExpiry } from '../config/r2.js';
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { getR2Client, getBucket } from '../config/r2.js';
+import { streamStorageObject } from '../utils/streamObject.js';
 import logger from '../utils/logger.js';
 
 const stripAnswers = (quiz) => {
@@ -266,11 +266,5 @@ export const quizCounts = catchAsync(async (req, res) => {
 
 export const serveQuizImage = catchAsync(async (req, res) => {
   if (!await checkSubscription(req.user?.id)) return res.status(403).json({ message: 'Subscription required' });
-  const s3 = getR2Client();
-  if (!s3) return res.status(500).json({ message: 'Storage not configured' });
-  const key = `quiz-images/${path.basename(req.params.filename)}`;
-  const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
-    expiresIn: getPresignedExpiry(),
-  });
-  res.redirect(url);
+  await streamStorageObject(res, `quiz-images/${path.basename(req.params.filename)}`);
 });

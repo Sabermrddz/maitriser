@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
+import AuthImage from '../components/AuthImage';
 import { useToast } from '../components/Toast';
 import { SkeletonQuizItem } from '../components/LoadingSkeleton';
 import { useTranslation } from '../context/LanguageContext';
@@ -211,7 +212,7 @@ const CaseExam = () => {
             {current.question?.questionText}
           </p>
           {current.question?.questionImage && (
-            <img src={`${API_BASE_URL}/api/quiz-images/${current.question.questionImage}`} alt="Question" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, marginTop: 8, marginBottom: 12 }} />
+            <AuthImage src={`${API_BASE_URL}/api/quiz-images/${current.question.questionImage}`} alt="Question" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, marginTop: 8, marginBottom: 12 }} />
           )}
 
           {current.question?.options?.map((opt, i) => {

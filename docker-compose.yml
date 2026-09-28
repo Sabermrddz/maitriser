@@ -23,8 +23,15 @@ services:
       CORS_ORIGIN: "${CORS_ORIGIN}"
       NODE_ENV: "${NODE_ENV:-production}"
       COOKIE_SECRET: "${COOKIE_SECRET:-}"
+      COOKIE_SECURE: "${COOKIE_SECURE:-}"
       DISABLE_JWT_FALLBACK: "${DISABLE_JWT_FALLBACK:-}"
       SENTRY_DSN: "${SENTRY_DSN:-}"
+      B2_ENDPOINT: "${B2_ENDPOINT:-}"
+      B2_KEY_ID: "${B2_KEY_ID:-}"
+      B2_APP_KEY: "${B2_APP_KEY:-}"
+      B2_BUCKET_NAME: "${B2_BUCKET_NAME:-maitrisez-assets}"
+      B2_REGION: "${B2_REGION:-us-west-004}"
+      B2_PRESIGNED_EXPIRY: "${B2_PRESIGNED_EXPIRY:-3600}"
 
   frontend:
     build:

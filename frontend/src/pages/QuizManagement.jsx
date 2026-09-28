@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { authFetch } from '../config/authFetch';
 import { API_BASE_URL } from '../config/api';
+import AuthImage from '../components/AuthImage';
 import { FaTrash, FaEdit, FaSave, FaPaperPlane, FaCheck } from 'react-icons/fa';
 import { useToast } from '../components/Toast';
 import { useSound } from '../context/SoundContext';
@@ -516,7 +517,7 @@ const QuizManagement = () => {
           <label className="qm-label">{t('admin.quiz.imageLabel')}</label>
           {imagePreview && (
             <div style={{ position: 'relative', display: 'inline-block', marginBottom: 8 }}>
-              <img src={imagePreview} alt="Preview" style={{ maxWidth: 200, borderRadius: 6, border: '1px solid #ccc' }} />
+              <AuthImage src={imagePreview} alt="Preview" style={{ maxWidth: 200, borderRadius: 6, border: '1px solid #ccc' }} />
               <button type="button" onClick={() => { setImagePreview(null); setQuestionImage(null); setRemoveImage(true); }} style={{ position: 'absolute', top: 4, right: 4, background: 'red', color: '#fff', border: 'none', borderRadius: '50%', width: 22, height: 22, cursor: 'pointer', fontSize: 12, lineHeight: '22px', textAlign: 'center' }}>&times;</button>
             </div>
           )}

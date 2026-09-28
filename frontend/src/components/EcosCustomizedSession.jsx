@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { API_BASE_URL } from '../config/api';
+import AuthImage from './AuthImage';
 import { useTranslation } from '../context/LanguageContext';
 import Recorder from './Recorder';
 import '../styles/teal-theme.css';
@@ -303,7 +304,7 @@ export default function EcosCustomizedSession({ exams, stationCount, minutesPerS
           {station.images && station.images.length > 0 && (
             <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
               {station.images.map((img, i) => (
-                <img
+                <AuthImage
                   key={i}
                   src={`${API_BASE_URL}/api/voice-exam-images/${img}`}
                   alt={t('voiceExam.imageAlt', { n: i + 1 })}

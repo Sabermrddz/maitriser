@@ -3,8 +3,7 @@ import express from 'express';
 import { body, param } from 'express-validator';
 import multer from 'multer';
 import path from 'path';
-import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import VoiceExam from '../models/voiceExamModel.js';
 import VoiceExamResult from '../models/voiceExamResultModel.js';
 import Module from '../models/moduleModel.js';
@@ -15,7 +14,8 @@ import { getPagination, paginatedResponse } from '../utils/paginate.js';
 import { validate } from '../middleware/validate.js';
 import { genExamId } from '../utils/idGenerator.js';
 import { checkSubscription } from '../middleware/requireSubscription.js';
-import { getR2Client, getBucket, getPresignedExpiry } from '../config/r2.js';
+import { getR2Client, getBucket } from '../config/r2.js';
+import { streamStorageObject } from '../utils/streamObject.js';
 import User from '../models/userModel.js';
 
 const router = express.Router();
@@ -316,13 +316,7 @@ router.delete('/voice-exams/:id', requireAdmin, [
 }));
 
 router.get('/voice-exam-images/:filename', verifyToken, catchAsync(async (req, res) => {
-  const s3 = getR2Client();
-  if (!s3) return res.status(500).json({ message: 'Storage not configured' });
-  const key = `voice-exam-images/${path.basename(req.params.filename)}`;
-  const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
-    expiresIn: getPresignedExpiry(),
-  });
-  res.redirect(url);
+  await streamStorageObject(res, `voice-exam-images/${path.basename(req.params.filename)}`, 'image/png');
 }));
 
 router.post('/voice-exams/:id/submit', verifyToken, [

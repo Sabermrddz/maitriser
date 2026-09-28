@@ -4,9 +4,14 @@ import User from '../models/userModel.js';
 import logger from '../utils/logger.js';
 import { isBlacklisted } from '../middleware/jwtBlacklist.js';
 
+// secure: default true in production; set COOKIE_SECURE=false for plain-HTTP deploys
+const cookieSecure = () => (process.env.COOKIE_SECURE
+  ? process.env.COOKIE_SECURE === 'true'
+  : process.env.NODE_ENV === 'production');
+
 export const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: cookieSecure(),
   sameSite: 'lax',
   maxAge: 24 * 60 * 60 * 1000,
   path: '/',
@@ -17,7 +22,7 @@ export const setTokenCookie = (res, token) => {
 };
 
 export const clearTokenCookie = (res) => {
-  res.clearCookie('token', { path: '/', httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' });
+  res.clearCookie('token', { path: '/', httpOnly: true, secure: cookieSecure(), sameSite: 'lax' });
 };
 
 export const verifyToken = async (req, res, next) => {

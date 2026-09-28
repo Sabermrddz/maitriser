@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { authFetch } from '../config/authFetch';
 import { FaTrash, FaEdit, FaImage, FaPlus, FaTimes, FaFileCsv } from 'react-icons/fa';
 import { API_BASE_URL } from '../config/api';
+import AuthImage from '../components/AuthImage';
 import { useToast } from '../components/Toast';
 import { useSound } from '../context/SoundContext';
 import ConfirmModal from '../components/ConfirmModal';
@@ -343,7 +344,7 @@ const VoiceExamManagement = () => {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
               {existingImages.map((img, i) => (
                 <div key={i} style={{ position: 'relative', display: 'inline-block' }}>
-                  <img src={`${API_BASE_URL}/api/voice-exam-images/${img}`} alt="" loading="lazy"
+                  <AuthImage src={`${API_BASE_URL}/api/voice-exam-images/${img}`} alt="" loading="lazy"
                     style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--dc-border)' }}
                   />
                   <button type="button" onClick={() => removeExistingImage(img)} style={{

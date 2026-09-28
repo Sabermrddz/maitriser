@@ -12,9 +12,9 @@ import { catchAsync } from '../utils/asyncHandler.js';
 import { validate } from '../middleware/validate.js';
 import { getPagination, paginatedResponse } from '../utils/paginate.js';
 import { broadcast } from '../ws.js';
-import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { getR2Client, getBucket, getPresignedExpiry } from '../config/r2.js';
+import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { getR2Client, getBucket } from '../config/r2.js';
+import { streamStorageObject } from '../utils/streamObject.js';
 import logger from '../utils/logger.js';
 import crypto from 'crypto';
 
@@ -320,13 +320,7 @@ router.post('/payments/payment-intent', verifyToken, receiptUpload.single('recei
 
 // ── Serve payment receipt images (authenticated) ────────────────────────────
 router.get('/payment-images/:filename', verifyToken, requireAdmin, catchAsync(async (req, res) => {
-  const s3 = getR2Client();
-  if (!s3) return res.status(500).json({ message: 'Storage not configured' });
-  const key = `payment-receipts/${path.basename(req.params.filename)}`;
-  const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
-    expiresIn: getPresignedExpiry(),
-  });
-  res.redirect(url);
+  await streamStorageObject(res, `payment-receipts/${path.basename(req.params.filename)}`);
 }));
 
 // ── Admin: update payment config ────────────────────────────────────────────

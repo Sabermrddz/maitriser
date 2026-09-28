@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authFetch } from '../config/authFetch';
 import { API_BASE_URL } from '../config/api';
+import AuthImage from '../components/AuthImage';
 import { FaTrash, FaUpload } from 'react-icons/fa';
 import { useToast } from '../components/Toast';
 import { useSound } from '../context/SoundContext';
@@ -117,10 +118,9 @@ const ImageManagement = () => {
             ) : images.map((img, i) => (
               <tr key={img.key || i}>
                 <td>
-                  <img src={`${API_BASE_URL}/api/quiz-images/${(img.key?.split('/')?.pop()) || ''}`}
+                  <AuthImage src={`${API_BASE_URL}/api/quiz-images/${(img.key?.split('/')?.pop()) || ''}`}
                        alt={img.key?.split('/')?.pop() || 'Image'}
-                       style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border-light)' }}
-                       onError={(e) => { e.target.style.display = 'none'; }} />
+                       style={{ width: 60, height: 40, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border-light)' }} />
                 </td>
                 <td style={{ fontSize: '0.85rem', maxWidth: 300, wordBreak: 'break-all' }}>{img.key}</td>
                 <td><span className="year-tag">{getSourceLabel(img.source)}</span></td>

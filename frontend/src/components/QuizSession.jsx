@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from '../context/LanguageContext';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
+import AuthImage from './AuthImage';
 import { logger } from '../utils/logger';
 import { useToast } from '../components/Toast';
 
@@ -369,7 +370,7 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
                     {quiz.question?.questionText}
                   </p>
                   {quiz.question?.questionImage && (
-                    <img src={`${API_BASE_URL}/api/quiz-images/${quiz.question.questionImage}`} alt="Question"
+                    <AuthImage src={`${API_BASE_URL}/api/quiz-images/${quiz.question.questionImage}`} alt="Question"
                       style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, marginBottom: 12, display: 'block' }} />
                   )}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -427,7 +428,7 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
               {q.question?.questionText}
             </p>
             {q.question?.questionImage && (
-              <img src={`${API_BASE_URL}/api/quiz-images/${q.question.questionImage}`} alt="Question"
+              <AuthImage src={`${API_BASE_URL}/api/quiz-images/${q.question.questionImage}`} alt="Question"
                 style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 8, marginBottom: 14, display: 'block' }} />
             )}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

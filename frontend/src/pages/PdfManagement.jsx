@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { authFetch } from '../config/authFetch';
+import { openFileInNewTab } from '../utils/openFile';
 import { FaTrash, FaFilePdf, FaUpload } from 'react-icons/fa';
 import { useToast } from '../components/Toast';
 import { useSound } from '../context/SoundContext';
@@ -122,10 +123,8 @@ const PdfManagement = () => {
                 <td>{pdf.name}</td>
                 <td>
                   <button onClick={async () => {
-                    try {
-                      const res = await authFetch(`/api/course-pdfs/${encodeURIComponent(pdf.filename)}`);
-                       if (res.ok) { const { url } = await res.json(); window.open(url, '_blank', 'noopener,noreferrer'); }
-                    } catch { notify('Failed to open PDF', 'error'); }
+                    const ok = await openFileInNewTab(`/api/course-pdfs/${encodeURIComponent(pdf.filename)}/content`);
+                    if (!ok) notify('Failed to open PDF', 'error');
                   }} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--dc-accent)', fontSize: '0.85rem', padding: 0 }}>
                     <FaFilePdf /> {pdf.originalName || pdf.filename}
                   </button>

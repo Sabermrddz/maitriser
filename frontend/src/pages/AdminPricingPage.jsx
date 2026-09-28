@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { API_BASE_URL } from '../config/api';
+import { openFileInNewTab } from '../utils/openFile';
 import { authFetch } from '../config/authFetch';
 import { useToast } from '../components/Toast';
 import { useSound } from '../context/SoundContext';
@@ -513,10 +514,14 @@ const AdminPricingPage = () => {
                       </td>
                       <td>
                         {item.imageUrl ? (
-                          <a href={`${API_BASE_URL}/api/payment-images/${item.imageUrl.split('/').pop()}`} target="_blank" rel="noopener noreferrer"
-                            style={{ color: 'var(--dc-accent)', fontSize: '0.85rem' }}>
+                          <button type="button"
+                            onClick={async () => {
+                              const ok = await openFileInNewTab(`/api/payment-images/${item.imageUrl.split('/').pop()}`);
+                              if (!ok) notify(t('admin.pricing.error'), 'error');
+                            }}
+                            style={{ color: 'var(--dc-accent)', fontSize: '0.85rem', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                             {t('admin.pricing.viewReceipt')}
-                          </a>
+                          </button>
                         ) : '—'}
                       </td>
                       <td style={{ fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
