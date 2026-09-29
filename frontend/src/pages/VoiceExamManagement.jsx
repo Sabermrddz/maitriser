@@ -33,6 +33,7 @@ const VoiceExamManagement = () => {
   const [editId, setEditId]                 = useState(null);
   const [filterYear, setFilterYear]         = useState('');
   const [filterModule, setFilterModule]     = useState('');
+  const [filterCourse, setFilterCourse]     = useState('');
   const [newImages, setNewImages]           = useState([]);
   const [existingImages, setExistingImages] = useState([]);
   const [previews, setPreviews]             = useState([]);
@@ -47,7 +48,7 @@ const VoiceExamManagement = () => {
 
   useEffect(() => { fetchModules(); }, []);
 
-  useEffect(() => { fetchExams(); }, [filterYear, filterModule]);
+  useEffect(() => { fetchExams(); }, [filterYear, filterModule, filterCourse]);
 
   const previewsRef = useRef(previews);
   useEffect(() => {
@@ -68,9 +69,11 @@ const VoiceExamManagement = () => {
   };
 
   const fetchExams = async () => {
-    let url = '/api/voice-exams?';
-    if (filterModule) url += `moduleId=${filterModule}`;
-    if (filterYear) url += `${url.includes('=') ? '&' : ''}year=${filterYear}`;
+    const params = new URLSearchParams();
+    if (filterModule) params.set('moduleId', filterModule);
+    if (filterYear) params.set('year', filterYear);
+    if (filterCourse) params.set('course', filterCourse);
+    const url = `/api/voice-exams?${params.toString()}`;
     try {
       setLoading(true);
       const res = await authFetch(url);
@@ -293,6 +296,10 @@ const VoiceExamManagement = () => {
     ? modules.filter((m) => m.year === Number(filterYear))
     : modules;
 
+  const filterModuleCourses = (modules.find((m) => m._id === filterModule)?.courses || [])
+    .map((c) => (typeof c === 'string' ? c : c.name || ''))
+    .filter(Boolean);
+
   const filteredModulesForForm = form.selectedYear
     ? modules.filter((m) => m.year === Number(form.selectedYear))
     : modules;
@@ -468,13 +475,17 @@ const VoiceExamManagement = () => {
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <select value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setFilterModule(''); }} style={inp}>
+        <select value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setFilterModule(''); setFilterCourse(''); }} style={inp}>
           <option value="">{t('admin.voiceExam.allYears')}</option>
           {YEARS.map((y) => <option key={y} value={y}>{t('admin.voiceExam.yearOption', { y })}</option>)}
         </select>
-        <select value={filterModule} onChange={(e) => setFilterModule(e.target.value)} style={inp}>
+        <select value={filterModule} onChange={(e) => { setFilterModule(e.target.value); setFilterCourse(''); }} style={inp}>
           <option value="">{t('admin.voiceExam.allModules')}</option>
           {filterModulesForBar.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
+        </select>
+        <select value={filterCourse} onChange={(e) => setFilterCourse(e.target.value)} disabled={!filterModule || filterModuleCourses.length === 0} style={inp}>
+          <option value="">{t('admin.voiceExam.allCourses')}</option>
+          {filterModuleCourses.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
       </div>
 

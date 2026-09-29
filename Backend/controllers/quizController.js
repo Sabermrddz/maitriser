@@ -66,6 +66,7 @@ export const listAdminQuizzes = catchAsync(async (req, res) => {
   if (req.query.year) filter.year = Number(req.query.year);
   const rawModuleId = req.query.moduleId ? (Array.isArray(req.query.moduleId) ? String(req.query.moduleId[0]) : String(req.query.moduleId)) : '';
   if (rawModuleId && mongoose.Types.ObjectId.isValid(rawModuleId)) filter.moduleId = rawModuleId;
+  if (req.query.course) filter.course = String(req.query.course);
   if (req.query.search) filter.$or = [
     { quizId: { $regex: escapeRegex(req.query.search), $options: 'i' } },
     { 'question.questionText': { $regex: escapeRegex(req.query.search), $options: 'i' } },

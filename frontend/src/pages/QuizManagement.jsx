@@ -60,6 +60,7 @@ const QuizManagement = () => {
   const [filterDiscipline, setFilterDiscipline] = useState('');
   const [filterYear, setFilterYear]         = useState('');
   const [filterModule, setFilterModule]     = useState('');
+  const [filterCourse, setFilterCourse]     = useState('');
   const [filterSearch, setFilterSearch]     = useState('');
   const [formKey, setFormKey]               = useState(0);
   const [moduleCourses, setModuleCourses]   = useState([]);
@@ -135,6 +136,7 @@ const QuizManagement = () => {
     if (filterDiscipline) url += `&discipline=${filterDiscipline}`;
     if (filterModule) url += `&moduleId=${filterModule}`;
     else if (filterYear) url += `&year=${filterYear}`;
+    if (filterCourse) url += `&course=${encodeURIComponent(filterCourse)}`;
     if (filterSearch) url += `&search=${encodeURIComponent(filterSearch)}`;
     try {
       setLoading(true);
@@ -149,7 +151,7 @@ const QuizManagement = () => {
     finally { setLoading(false); }
   };
 
-  useEffect(() => { fetchQuizzes(1); }, [filterDiscipline, filterYear, filterModule, filterSearch]);
+  useEffect(() => { fetchQuizzes(1); }, [filterDiscipline, filterYear, filterModule, filterCourse, filterSearch]);
 
   const setField = (field, value) => setForm((f) => ({ ...f, [field]: value }));
 
@@ -461,6 +463,10 @@ const QuizManagement = () => {
     return true;
   });
 
+  const filterModuleCourses = (modules.find((m) => m._id === filterModule)?.courses || [])
+    .map((c) => (typeof c === 'string' ? c : c.name || ''))
+    .filter(Boolean);
+
   return (
     <div className="quiz-management">
       {error && <div className="error-banner" role="alert">{error}<button onClick={() => setError('')}>&times;</button></div>}
@@ -681,18 +687,22 @@ const QuizManagement = () => {
       </div>
 
       <div className="qm-list-filters">
-        <select value={filterDiscipline} onChange={(e) => { setFilterDiscipline(e.target.value); setFilterModule(''); }}>
+        <select value={filterDiscipline} onChange={(e) => { setFilterDiscipline(e.target.value); setFilterModule(''); setFilterCourse(''); }}>
           <option value="">{t('admin.quiz.allDisciplines')}</option>
           <option value="medicine">{t('admin.quiz.medicine')}</option>
           <option value="pharmacy">{t('admin.quiz.pharmacy')}</option>
         </select>
-        <select value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setFilterModule(''); }}>
+        <select value={filterYear} onChange={(e) => { setFilterYear(e.target.value); setFilterModule(''); setFilterCourse(''); }}>
           <option value="">{t('admin.quiz.allYears')}</option>
           {YEARS.map((y) => <option key={y} value={y}>{t('pricing.year', { n: y })}</option>)}
         </select>
-        <select value={filterModule} onChange={(e) => setFilterModule(e.target.value)}>
+        <select value={filterModule} onChange={(e) => { setFilterModule(e.target.value); setFilterCourse(''); }}>
           <option value="">{t('admin.quiz.allModules')}</option>
           {filterModulesForBar.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
+        </select>
+        <select value={filterCourse} onChange={(e) => setFilterCourse(e.target.value)} disabled={!filterModule || filterModuleCourses.length === 0}>
+          <option value="">{t('admin.quiz.allCourses')}</option>
+          {filterModuleCourses.map((c, i) => <option key={i} value={c}>{c}</option>)}
         </select>
         <input type="text" placeholder={`🔍 ${t('admin.quiz.search')}`} value={filterSearch}
           onChange={(e) => setFilterSearch(e.target.value)}
