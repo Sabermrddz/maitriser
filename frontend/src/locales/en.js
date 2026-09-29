@@ -219,6 +219,14 @@ const en = {
   'courseView.quizzes': 'Quizzes',
   'courseView.start': 'Start',
   'courseView.customizedExam': 'Customized Exam',
+  'pdfViewer.loading': 'Loading PDF…',
+  'pdfViewer.loadError': 'Could not display this PDF.',
+  'pdfViewer.retry': 'Retry',
+  'pdfViewer.prevPage': 'Previous page',
+  'pdfViewer.nextPage': 'Next page',
+  'pdfViewer.pageOf': 'Page {current} of {total}',
+  'pdfViewer.zoomIn': 'Zoom in',
+  'pdfViewer.zoomOut': 'Zoom out',
 
   // Profile
   'profile.title': 'My Profile',

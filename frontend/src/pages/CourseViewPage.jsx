@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
@@ -6,6 +6,8 @@ import { SkeletonModuleGrid } from '../components/LoadingSkeleton';
 import { logger } from '../utils/logger';
 import useDocumentTitle from '../utils/useDocumentTitle';
 import '../styles/teal-theme.css';
+
+const PdfCanvasViewer = React.lazy(() => import('../components/PdfCanvasViewer'));
 
 const CourseViewPage = () => {
   const { moduleId, courseName } = useParams();
@@ -139,7 +141,9 @@ const CourseViewPage = () => {
           </div>
           <div className="pdf-console-body">
             {pdfBlobUrl ? (
-              <iframe src={pdfBlobUrl} title={decodedName} className="pdf-console-frame" sandbox="allow-same-origin allow-scripts allow-popups" />
+              <Suspense fallback={<div className="pdf-console-empty">{t('pdfViewer.loading')}</div>}>
+                <PdfCanvasViewer src={pdfBlobUrl} title={decodedName} />
+              </Suspense>
             ) : (
               <div className="pdf-console-empty">{t('quizcard.courseNotAvailable')}</div>
             )}

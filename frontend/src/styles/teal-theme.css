@@ -3037,6 +3037,153 @@ textarea:focus-visible,
   text-align: center;
 }
 
+/* ===== PDF.js canvas viewer (replaces iframe embeds) ===== */
+.pdf-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: #1a1a1a;
+}
+
+.pdf-viewer-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 16px 12px;
+}
+
+.pdf-viewer-canvas {
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  max-width: none;
+}
+
+.pdf-viewer-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--card-bg, #fff);
+  border-top: 1px solid var(--border-light, #e2e8f0);
+  flex-shrink: 0;
+}
+
+.pdf-viewer-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--teal-dark, #04484F);
+  background: transparent;
+  border: 1px solid var(--border-light, #e2e8f0);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.pdf-viewer-btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.pdf-viewer-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.pdf-viewer-page {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-dark, #1a202c);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 110px;
+  text-align: center;
+}
+
+.pdf-viewer-sep {
+  width: 1px;
+  height: 22px;
+  background: var(--border-light, #e2e8f0);
+  margin: 0 4px;
+}
+
+.pdf-viewer-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  height: 100%;
+  min-height: 240px;
+  padding: 32px 24px;
+  color: #cbd5e0;
+  font-size: 14px;
+  text-align: center;
+}
+
+.pdf-viewer-state p {
+  margin: 0;
+}
+
+.pdf-viewer-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #4a5568;
+  background: #e2e8f0;
+  border-radius: 6px;
+}
+
+.pdf-viewer-spinner {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--teal, #00735A);
+  animation: pdf-viewer-spin 0.8s linear infinite;
+}
+
+@keyframes pdf-viewer-spin {
+  to { transform: rotate(360deg); }
+}
+
+[data-theme="dark"] .pdf-viewer-toolbar {
+  background: var(--card-bg-dark, #1a202c);
+  border-top-color: var(--border-dark, #2d3748);
+}
+
+[data-theme="dark"] .pdf-viewer-btn {
+  color: var(--text-light, #e2e8f0);
+  border-color: var(--border-dark, #2d3748);
+}
+
+[data-theme="dark"] .pdf-viewer-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .pdf-viewer-page {
+  color: var(--text-light, #e2e8f0);
+}
+
+[data-theme="dark"] .pdf-viewer-sep {
+  background: var(--border-dark, #2d3748);
+}
+
 /* ===== QuizSession docked PDF side panel (half screen) ===== */
 .pdf-side-panel {
   position: fixed;

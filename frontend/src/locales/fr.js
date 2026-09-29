@@ -193,6 +193,14 @@ const fr = {
   'courseView.quizzes': 'QCM',
   'courseView.start': 'Commencer',
   'courseView.customizedExam': 'Examen personnalisé',
+  'pdfViewer.loading': 'Chargement du PDF…',
+  'pdfViewer.loadError': 'Impossible d’afficher ce PDF.',
+  'pdfViewer.retry': 'Réessayer',
+  'pdfViewer.prevPage': 'Page précédente',
+  'pdfViewer.nextPage': 'Page suivante',
+  'pdfViewer.pageOf': 'Page {current} sur {total}',
+  'pdfViewer.zoomIn': 'Zoom avant',
+  'pdfViewer.zoomOut': 'Zoom arrière',
 
   // Profile
   'profile.title': 'Mon Profil',

@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Suspense } from 'react';
 import { useTranslation } from '../context/LanguageContext';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import AuthImage from './AuthImage';
 import { logger } from '../utils/logger';
 import { useToast } from '../components/Toast';
+
+const PdfCanvasViewer = React.lazy(() => import('./PdfCanvasViewer'));
 
 const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', onBack }) => {
   const { t } = useTranslation();
@@ -601,7 +603,9 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
               </div>
             </div>
             <div className="pdf-console-body">
-              <iframe src={pdfPanelBlobUrl} title={pdfPanelCourse} className="pdf-console-frame" sandbox="allow-same-origin allow-scripts allow-popups" />
+              <Suspense fallback={<div className="pdf-console-empty">{t('pdfViewer.loading')}</div>}>
+                <PdfCanvasViewer src={pdfPanelBlobUrl} title={pdfPanelCourse || ''} />
+              </Suspense>
             </div>
           </div>
         )}
