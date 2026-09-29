@@ -1,4 +1,5 @@
 import { useTranslation } from '../context/LanguageContext';
+import { FaStethoscope } from 'react-icons/fa';
 
 const CheckIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -33,7 +34,7 @@ export default function EcosSection() {
       <div className="landing-ecos-visual reveal">
         <div className="landing-ecos-card">
           <div className="landing-ecos-card-top">
-            <span>{t('landing.ecos.card.station')}</span>
+            <span><FaStethoscope style={{ marginRight: 6 }} />{t('landing.ecos.card.station')}</span>
             <span className="landing-ecos-timer">
               <span className="landing-ring-dot"></span> {t('landing.ecos.card.timer')}
             </span>
@@ -48,9 +49,6 @@ export default function EcosSection() {
             <div className="landing-check-row dim"><span className="landing-check-box" /> {t('landing.ecos.card.item.3')}</div>
             <div className="landing-check-row dim"><span className="landing-check-box" /> {t('landing.ecos.card.item.4')}</div>
           </div>
-        </div>
-        <div className="landing-ecos-img">
-          <img src="https://images.unsplash.com/photo-1583912086096-8c60d75a53f9?w=500&h=400&fit=crop&auto=format" alt="Vintage medical painting" loading="lazy" />
         </div>
       </div>
     </section>

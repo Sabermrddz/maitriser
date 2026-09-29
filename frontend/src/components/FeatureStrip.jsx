@@ -1,4 +1,5 @@
 import { useTranslation } from '../context/LanguageContext';
+import { FaClipboardList, FaStethoscope, FaChartLine } from 'react-icons/fa';
 
 export default function FeatureStrip() {
   const { t } = useTranslation();
@@ -7,20 +8,17 @@ export default function FeatureStrip() {
     {
       title: 'landing.features.qcm.title',
       desc: 'landing.features.qcm.desc',
-      img: 'https://images.unsplash.com/photo-1551076805-e1869033e561?w=400&h=280&fit=crop&auto=format',
-      alt: 'Classical anatomy drawing',
+      icon: FaClipboardList,
     },
     {
       title: 'landing.features.ecos.title',
       desc: 'landing.features.ecos.desc',
-      img: 'https://images.unsplash.com/photo-1582719471384-894fbb16e074?w=400&h=280&fit=crop&auto=format',
-      alt: 'Medical study illustration',
+      icon: FaStethoscope,
     },
     {
       title: 'landing.features.tracking.title',
       desc: 'landing.features.tracking.desc',
-      img: 'https://images.unsplash.com/photo-1628595351029-c2bf17511435?w=400&h=280&fit=crop&auto=format',
-      alt: 'Anatomy chart painting',
+      icon: FaChartLine,
     },
   ];
 
@@ -30,15 +28,18 @@ export default function FeatureStrip() {
         <h2>{t('landing.features.title')}</h2>
       </div>
       <div className="landing-strip-grid">
-        {features.map((f, i) => (
-          <div className="landing-strip-item reveal" key={i}>
-            <div className="landing-strip-img">
-              <img src={f.img} alt={f.alt} loading="lazy" />
+        {features.map((f, i) => {
+          const Icon = f.icon;
+          return (
+            <div className="landing-strip-item reveal" key={i}>
+              <div className="landing-strip-icon" aria-hidden="true">
+                <Icon size={30} />
+              </div>
+              <h3>{t(f.title)}</h3>
+              <p>{t(f.desc)}</p>
             </div>
-            <h3>{t(f.title)}</h3>
-            <p>{t(f.desc)}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
