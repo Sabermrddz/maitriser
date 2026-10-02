@@ -319,8 +319,9 @@ router.post('/payments/payment-intent', verifyToken, receiptUpload.single('recei
 }));
 
 // ── Serve payment receipt images (authenticated) ────────────────────────────
-router.get('/payment-images/:filename', verifyToken, requireAdmin, catchAsync(async (req, res) => {
-  await streamStorageObject(res, `payment-receipts/${path.basename(req.params.filename)}`);
+router.get('/payment-images/*', verifyToken, requireAdmin, catchAsync(async (req, res) => {
+  const raw = req.params?.[0] ?? req.params?.filename ?? '';
+  await streamStorageObject(res, `payment-receipts/${path.basename(String(raw))}`);
 }));
 
 // ── Admin: update payment config ────────────────────────────────────────────

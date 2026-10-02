@@ -112,6 +112,6 @@ router.post('/quizzes/bulk/unpublish', requireAdmin, [body('ids').isArray({ min:
 router.post('/quizzes/bulk/delete', requireAdmin, [body('ids').isArray({ min: 1 }), body('ids.*').isMongoId()], validate, bulkDelete);
 router.post('/quizzes/import-csv', requireAdmin, csvUpload.single('file'), importQuizzesCsv);
 
-router.get('/quiz-images/:filename', verifyToken, serveQuizImage);
+router.get('/quiz-images/*', verifyToken, serveQuizImage);
 
 export default router;

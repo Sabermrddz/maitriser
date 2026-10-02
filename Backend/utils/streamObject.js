@@ -10,7 +10,12 @@ export async function streamStorageObject(res, key, fallbackContentType) {
   const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
     expiresIn: getPresignedExpiry(),
   });
-  const upstream = await fetch(url);
+  let upstream;
+  try {
+    upstream = await fetch(url);
+  } catch {
+    return res.status(502).json({ message: 'File not found' });
+  }
   if (!upstream.ok) {
     return res.status(upstream.status === 404 ? 404 : 502).json({ message: 'File not found' });
   }

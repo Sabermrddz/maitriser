@@ -267,5 +267,7 @@ export const quizCounts = catchAsync(async (req, res) => {
 
 export const serveQuizImage = catchAsync(async (req, res) => {
   if (!await checkSubscription(req.user?.id)) return res.status(403).json({ message: 'Subscription required' });
-  await streamStorageObject(res, `quiz-images/${path.basename(req.params.filename)}`);
+  // Wildcard route: accepts full keys ("quiz-images/x.jpg") and bare filenames
+  const raw = Array.isArray(req.params) ? req.params[0] : (req.params?.[0] ?? req.params?.filename ?? '');
+  await streamStorageObject(res, `quiz-images/${path.basename(String(raw))}`);
 });

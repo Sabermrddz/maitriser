@@ -315,8 +315,9 @@ router.delete('/voice-exams/:id', requireAdmin, [
   res.json({ message: 'Voice exam deleted successfully' });
 }));
 
-router.get('/voice-exam-images/:filename', verifyToken, catchAsync(async (req, res) => {
-  await streamStorageObject(res, `voice-exam-images/${path.basename(req.params.filename)}`, 'image/png');
+router.get('/voice-exam-images/*', verifyToken, catchAsync(async (req, res) => {
+  const raw = req.params?.[0] ?? req.params?.filename ?? '';
+  await streamStorageObject(res, `voice-exam-images/${path.basename(String(raw))}`, 'image/png');
 }));
 
 router.post('/voice-exams/:id/submit', verifyToken, [

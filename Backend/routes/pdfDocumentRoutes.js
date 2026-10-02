@@ -5,6 +5,7 @@ import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sd
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import PdfDocument from '../models/pdfDocumentModel.js';
 import { requireAdmin, verifyToken } from '../controllers/authController.js';
+import { checkSubscription } from '../middleware/requireSubscription.js';
 import { catchAsync } from '../utils/asyncHandler.js';
 import { getR2Client, getBucket, getPresignedExpiry } from '../config/r2.js';
 
@@ -67,32 +68,45 @@ router.delete('/pdf-documents/:id', verifyToken, requireAdmin, catchAsync(async 
   res.json({ message: 'PDF deleted' });
 }));
 
-router.get('/course-pdfs/:filename', verifyToken, catchAsync(async (req, res) => {
+// NOTE: "/content" must register before the bare presign route — the "*"
+// wildcard is greedy and would otherwise swallow "/content" requests.
+router.get('/course-pdfs/*/content', verifyToken, catchAsync(async (req, res) => {
+  if (req.user?.role !== 'admin' && !await checkSubscription(req.user?.id)) {
+    return res.status(403).json({ message: 'Subscription required' });
+  }
   const s3 = getR2Client();
   if (!s3) return res.status(500).json({ message: 'Storage not configured' });
-  const key = `course-pdfs/${path.basename(req.params.filename)}`;
-  const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
-    expiresIn: getPresignedExpiry(),
-    ResponseContentDisposition: 'inline',
-    ResponseContentType: 'application/pdf',
-  });
-  res.json({ url });
-}));
-
-router.get('/course-pdfs/:filename/content', verifyToken, catchAsync(async (req, res) => {
-  const s3 = getR2Client();
-  if (!s3) return res.status(500).json({ message: 'Storage not configured' });
-  const key = `course-pdfs/${path.basename(req.params.filename)}`;
+  const key = `course-pdfs/${path.basename(String(req.params?.[0] ?? req.params?.filename ?? ''))}`;
   const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
     expiresIn: getPresignedExpiry(),
   });
-  const upstream = await fetch(url);
+  let upstream;
+  try {
+    upstream = await fetch(url);
+  } catch {
+    return res.status(502).json({ message: 'Failed to fetch PDF' });
+  }
   if (!upstream.ok) return res.status(502).json({ message: 'Failed to fetch PDF' });
   const buffer = Buffer.from(await upstream.arrayBuffer());
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', 'inline');
   res.setHeader('Content-Length', buffer.length);
   res.send(buffer);
+}));
+
+router.get('/course-pdfs/*', verifyToken, catchAsync(async (req, res) => {
+  if (req.user?.role !== 'admin' && !await checkSubscription(req.user?.id)) {
+    return res.status(403).json({ message: 'Subscription required' });
+  }
+  const s3 = getR2Client();
+  if (!s3) return res.status(500).json({ message: 'Storage not configured' });
+  const key = `course-pdfs/${path.basename(String(req.params?.[0] ?? req.params?.filename ?? ''))}`;
+  const url = await getSignedUrl(s3, new GetObjectCommand({ Bucket: getBucket(), Key: key }), {
+    expiresIn: getPresignedExpiry(),
+    ResponseContentDisposition: 'inline',
+    ResponseContentType: 'application/pdf',
+  });
+  res.json({ url });
 }));
 
 export default router;
