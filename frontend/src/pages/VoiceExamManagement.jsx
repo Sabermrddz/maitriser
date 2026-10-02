@@ -351,7 +351,7 @@ const VoiceExamManagement = () => {
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
               {existingImages.map((img, i) => (
                 <div key={i} style={{ position: 'relative', display: 'inline-block' }}>
-                  <AuthImage src={`${API_BASE_URL}/api/voice-exam-images/${img}`} alt="" loading="lazy"
+                  <AuthImage src={`${API_BASE_URL}/api/voice-exam-images/${encodeURIComponent(img)}`} alt="" loading="lazy"
                     style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--dc-border)' }}
                   />
                   <button type="button" onClick={() => removeExistingImage(img)} style={{

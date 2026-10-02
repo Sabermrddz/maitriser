@@ -262,7 +262,7 @@ const QuizManagement = () => {
       tags: quiz.tags || [],
     });
     if (quiz.question?.questionImage) {
-      setImagePreview(`${API_BASE_URL}/api/quiz-images/${quiz.question.questionImage}`);
+      setImagePreview(`${API_BASE_URL}/api/quiz-images/${encodeURIComponent(quiz.question.questionImage)}`);
       setRemoveImage(false);
     } else {
       setImagePreview(null);

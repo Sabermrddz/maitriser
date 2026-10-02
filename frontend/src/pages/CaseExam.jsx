@@ -212,7 +212,7 @@ const CaseExam = () => {
             {current.question?.questionText}
           </p>
           {current.question?.questionImage && (
-            <AuthImage src={`${API_BASE_URL}/api/quiz-images/${current.question.questionImage}`} alt="Question" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, marginTop: 8, marginBottom: 12 }} />
+            <AuthImage src={`${API_BASE_URL}/api/quiz-images/${encodeURIComponent(current.question.questionImage)}`} alt="Question" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, marginTop: 8, marginBottom: 12 }} />
           )}
 
           {current.question?.options?.map((opt, i) => {
