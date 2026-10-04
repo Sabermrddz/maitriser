@@ -16,6 +16,8 @@ import { genExamId } from '../utils/idGenerator.js';
 import { checkSubscription } from '../middleware/requireSubscription.js';
 import { getR2Client, getBucket } from '../config/r2.js';
 import { streamStorageObject } from '../utils/streamObject.js';
+import { cleanAndValidateQuestions } from '../utils/validateCriteria.js';
+import { matchCriterion } from '../utils/textMatch.js';
 import User from '../models/userModel.js';
 
 const router = express.Router();
@@ -122,6 +124,10 @@ router.post('/voice-exams', requireAdmin, upload.array('images', 10), handleMult
     if (!q || typeof q !== 'object' || !q.questionText)
       return res.status(400).json({ message: `Question ${i + 1} is missing questionText` });
   }
+  const checked = cleanAndValidateQuestions(questions);
+  if (checked.errors.length > 0)
+    return res.status(400).json({ message: checked.errors[0], errors: checked.errors });
+  questions = checked.questions;
 
   const module = await Module.findById(moduleId);
   if (!module) return res.status(404).json({ message: 'Module not found' });
@@ -152,18 +158,25 @@ router.post('/voice-exams/import-csv', requireAdmin, csvUpload.single('file'), h
 
   const { parse } = await import('csv-parse/sync');
   const content = req.file.buffer.toString('utf8');
-  const records = parse(content, { columns: true, skip_empty_lines: true, bom: true });
+  const rawRecords = parse(content, { columns: true, skip_empty_lines: true, bom: true });
 
-  if (records.length === 0) return res.status(400).json({ message: 'CSV is empty' });
+  if (rawRecords.length === 0) return res.status(400).json({ message: 'CSV is empty' });
 
-  const requiredCols = ['examTitle', 'questionText'];
-  const missing = requiredCols.filter((c) => !Object.keys(records[0]).some((k) => k.trim().toLowerCase() === c));
+  // Headers are case-insensitive ("ExamTitle" works like "examTitle").
+  const records = rawRecords.map((r) => {
+    const o = {};
+    for (const [k, v] of Object.entries(r)) o[k.trim().toLowerCase()] = v;
+    return o;
+  });
+
+  const requiredCols = ['examtitle', 'questiontext'];
+  const missing = requiredCols.filter((c) => !(c in records[0]));
   if (missing.length > 0) return res.status(400).json({ message: `Missing required columns: ${missing.join(', ')}` });
 
   const results = { created: 0, questionsImported: 0, skipped: [], errors: [] };
 
   const moduleKeys = [...new Set(records.map((r) => {
-    const name = r.moduleName?.trim() || '';
+    const name = r.modulename?.trim() || '';
     const year = Number(r.year) || 0;
     return `${name}|${year}`;
   }).filter((k) => k !== '|0'))];
@@ -176,14 +189,15 @@ router.post('/voice-exams/import-csv', requireAdmin, csvUpload.single('file'), h
   modules.forEach((m) => { moduleMap[`${m.name}|${m.year}`] = m; });
 
   const examsByName = {};
+  const csvViolations = [];
   for (const row of records) {
     try {
-      const examTitle = row.examTitle?.trim();
-      const questionText = row.questionText?.trim();
+      const examTitle = row.examtitle?.trim();
+      const questionText = row.questiontext?.trim();
       if (!examTitle) { results.errors.push(`Row ${results.errors.length + results.questionsImported + 1}: missing examTitle`); continue; }
       if (!questionText) { results.errors.push(`Row "${examTitle}": missing questionText`); continue; }
 
-      const moduleName = row.moduleName?.trim() || '';
+      const moduleName = row.modulename?.trim() || '';
       const year = Number(row.year) || 0;
       const moduleKey = `${moduleName}|${year}`;
       const module = moduleMap[moduleKey];
@@ -198,14 +212,18 @@ router.post('/voice-exams/import-csv', requireAdmin, csvUpload.single('file'), h
           if (colonIdx > 0) {
             const label = trimmed.slice(0, colonIdx).trim();
             const kws = trimmed.slice(colonIdx + 1).split('|').map((k) => k.trim()).filter(Boolean);
+            if (label && kws.length === 0) {
+              csvViolations.push(`Row "${examTitle}": criterion "${label}" needs at least one keyword`);
+              continue;
+            }
             if (label) criteria.push({ label, keywords: kws });
           } else {
-            criteria.push({ label: trimmed, keywords: [] });
+            csvViolations.push(`Row "${examTitle}": criterion "${trimmed}" needs a label and at least one keyword (format Label: kw1|kw2)`);
           }
         }
       }
 
-      const question = { questionText, idealAnswer: row.idealAnswer?.trim() || '', criteria };
+      const question = { questionText, idealAnswer: row.idealanswer?.trim() || '', criteria };
 
       if (!examsByName[examTitle]) {
         examsByName[examTitle] = {
@@ -213,7 +231,7 @@ router.post('/voice-exams/import-csv', requireAdmin, csvUpload.single('file'), h
           moduleId: module?._id || null,
           year: module?.year || year,
           course: row.course?.trim() || '',
-          clinicalCasePrompt: row.clinicalCasePrompt?.trim() || '',
+          clinicalCasePrompt: row.clinicalcaseprompt?.trim() || '',
           questions: [],
         };
       }
@@ -222,6 +240,16 @@ router.post('/voice-exams/import-csv', requireAdmin, csvUpload.single('file'), h
     } catch (e) {
       results.errors.push(`Row import error: ${e.message}`);
     }
+  }
+
+  // Mandatory keywords: fail the whole file up front (nothing written) so the
+  // admin fixes every offending label in one round instead of discovering
+  // unwinnable criteria later.
+  if (csvViolations.length > 0) {
+    return res.status(400).json({
+      message: `CSV rejected: ${csvViolations.length} ${csvViolations.length > 1 ? 'criteria' : 'criterion'} without keywords. Each criterion needs the format "Label: keyword1|keyword2".`,
+      errors: csvViolations,
+    });
   }
 
   for (const [title, data] of Object.entries(examsByName)) {
@@ -271,6 +299,12 @@ router.put('/voice-exams/:id', requireAdmin, upload.array('images', 10), handleM
 
   if (typeof questions === 'string') {
     try { questions = JSON.parse(questions); } catch { return res.status(400).json({ message: 'Invalid questions JSON' }); }
+  }
+  if (questions) {
+    const checked = cleanAndValidateQuestions(questions);
+    if (checked.errors.length > 0)
+      return res.status(400).json({ message: checked.errors[0], errors: checked.errors });
+    questions = checked.questions;
   }
 
   let images = existingImages
@@ -334,22 +368,36 @@ router.post('/voice-exams/:id/submit', verifyToken, [
   const resultAnswers = [];
   let overallPassed = 0;
   let overallTotal = 0;
+  let criteriaPassed = 0;
+  let criteriaTotal = 0;
 
   for (const ans of answers) {
     const question = exam.questions[ans.questionIndex];
     if (!question) return res.status(400).json({ message: `Question index ${ans.questionIndex} not found` });
 
-    const text = (ans.text || '').toLowerCase();
+    // One matching keyword validates the criterion (synonyms/abbreviations
+    // are alternative surface forms, not cumulative requirements).
     const criteriaResults = question.criteria.map((c) => {
-      const passed = c.keywords.some((kw) => text.includes(kw.toLowerCase()));
-      return { label: c.label, passed };
+      const matched = matchCriterion(ans.text || '', c.keywords);
+      return { label: c.label, passed: matched !== null, matchedKeyword: matched };
     });
 
+    const passedCount = criteriaResults.filter((cr) => cr.passed).length;
+    const qTotal = criteriaResults.length;
+    criteriaPassed += passedCount;
+    criteriaTotal += qTotal;
     const allPassed = criteriaResults.every((cr) => cr.passed);
     if (allPassed) overallPassed++;
     overallTotal++;
 
-    resultAnswers.push({ questionIndex: ans.questionIndex, text: ans.text || '', criteriaResults, allPassed });
+    resultAnswers.push({
+      questionIndex: ans.questionIndex,
+      text: ans.text || '',
+      criteriaResults,
+      allPassed,
+      passedCount,
+      criteriaTotal: qTotal,
+    });
   }
 
   const result = await VoiceExamResult.create({
@@ -359,6 +407,8 @@ router.post('/voice-exams/:id/submit', verifyToken, [
     overallPassed,
     overallTotal,
     overallMax: exam.questions.length,
+    criteriaPassed,
+    criteriaTotal,
   });
 
   res.status(201).json({
@@ -367,6 +417,8 @@ router.post('/voice-exams/:id/submit', verifyToken, [
     overallPassed,
     overallTotal,
     overallMax: exam.questions.length,
+    criteriaPassed,
+    criteriaTotal,
   });
 }));
 
