@@ -275,7 +275,12 @@ const DashboardPage = () => {
                 <div className="dash-list">
                   {recentEcos.length === 0 && <div className="dash-empty">{t('dashboard.empty.ecos')}</div>}
                   {recentEcos.map((r, i) => {
-                    const score = r.overallTotal > 0 ? Math.round((r.overallPassed / r.overallTotal) * 100) : 0;
+                    // Criteria fraction (new results) with fallback to the
+                    // legacy question-level score for older result docs.
+                    const hasCrit = (r.criteriaTotal ?? 0) > 0 || (r.criteriaPassed ?? 0) > 0;
+                    const score = hasCrit
+                      ? Math.round(((r.criteriaPassed || 0) / (r.criteriaTotal || 1)) * 100)
+                      : (r.overallTotal > 0 ? Math.round((r.overallPassed / r.overallTotal) * 100) : 0);
                     return (
                       <div key={r._id || i} className="dash-list-item" role="button" tabIndex={0} onClick={() => navigate('/voice-exams')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/voice-exams'); } }}>
                         <div className="dash-item-icon dark"><FaStethoscope /></div>

@@ -164,6 +164,20 @@ const VoiceExamManagement = () => {
     if (validQuestions.length === 0)
       return notify(t('admin.voiceExam.fillRequired'), 'warning');
 
+    // Mandatory keywords: strip fully-empty criterion rows, block the save
+    // naming the offender (mirrors backend validation in voiceExamRoutes).
+    for (const [qi, q] of validQuestions.entries()) {
+      const crits = (q.criteria || []).filter(
+        (c) => (c.label || '').trim() || (c.keywords || []).some((k) => (k || '').trim())
+      );
+      for (const [ci, c] of crits.entries()) {
+        if (!(c.label || '').trim())
+          return notify(t('admin.voiceExam.criteriaLabelRequired', { q: qi + 1, c: ci + 1 }), 'warning');
+        if (!(c.keywords || []).some((k) => (k || '').trim()))
+          return notify(t('admin.voiceExam.criteriaKeywordsRequired', { q: qi + 1, label: (c.label || '').trim() }), 'warning');
+      }
+    }
+
     const url    = editId ? `/api/voice-exams/${editId}` : '/api/voice-exams';
     const method = editId ? 'PUT' : 'POST';
 

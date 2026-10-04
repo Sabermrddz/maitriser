@@ -123,6 +123,20 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
 
   const allPassed = result?.answers?.every((a) => a.allPassed);
 
+  // Partial scoring: criteria fraction with fallback for results saved
+  // before per-criterion counts existed.
+  const countAnswer = (a) => ({
+    p: a.passedCount ?? (a.criteriaResults || []).filter((c) => c.passed).length,
+    t: a.criteriaTotal ?? (a.criteriaResults || []).length,
+  });
+  const critTotals = (result?.answers || []).reduce(
+    (s, a) => { const c = countAnswer(a); return { p: s.p + c.p, t: s.t + c.t }; },
+    { p: 0, t: 0 }
+  );
+  const hasCriteriaTotals = (result?.criteriaTotal ?? critTotals.t) > 0;
+  const critPassed = result?.criteriaPassed ?? critTotals.p;
+  const critTotal = result?.criteriaTotal ?? critTotals.t;
+
   return (
     <div className="quiz-container-teal">
       <div style={{ marginBottom: 16 }}>
@@ -221,16 +235,24 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
           }}>
             {allPassed ? <>✅ {t('voiceExam.result.allCorrect')}</> : <>❌ {t('voiceExam.result.allIncorrect')}</>}
             <span style={{ display: 'block', fontSize: 13, fontWeight: 400, marginTop: 4 }}>
-              {t('voiceExam.result.correct', { passed: result.overallPassed, total: result.overallMax })}
+              {hasCriteriaTotals
+                ? t('voiceExam.result.criteriaScore', { passed: critPassed, total: critTotal })
+                : t('voiceExam.result.correct', { passed: result.overallPassed, total: result.overallMax })}
             </span>
           </div>
 
           {questions.map((q, qi) => {
             const a = result.answers?.[qi];
             if (!a) return null;
+            const pc = countAnswer(a);
             return (
               <div key={qi} style={{ marginBottom: 16, padding: 14, borderRadius: 8, border: '1px solid var(--border-light)', background: 'var(--card-bg)' }}>
-                <p style={{ fontWeight: 600, margin: '0 0 8px' }}>Q{qi + 1}. {q.questionText}</p>
+                <p style={{ fontWeight: 600, margin: '0 0 8px' }}>
+                  Q{qi + 1}. {q.questionText}
+                  <span style={{ fontWeight: 700, fontSize: 13, marginLeft: 8, color: pc.p === pc.t && pc.t > 0 ? 'var(--color-success)' : 'var(--text-muted)', fontVariantNumeric: 'tabular-nums' }}>
+                    {pc.p}/{pc.t}
+                  </span>
+                </p>
                 <p style={{ fontStyle: 'italic', color: 'var(--text-muted)', margin: '0 0 10px', padding: 8, background: 'var(--color-bg)', borderRadius: 4 }}>
                   « {a.text} »
                 </p>
@@ -243,6 +265,9 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
                       fontWeight: 500,
                     }}>
                       {cr.passed ? '✓' : '✗'} {cr.label}
+                      {cr.passed && cr.matchedKeyword ? (
+                        <span style={{ fontWeight: 400, opacity: 0.75 }}> · “{cr.matchedKeyword}”</span>
+                      ) : null}
                     </div>
                   ))}
                 </div>

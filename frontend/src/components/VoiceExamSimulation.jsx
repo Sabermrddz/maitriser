@@ -16,6 +16,15 @@ const VoiceExamSimulation = ({ exams, onBack }) => {
   const [currentStation, setCurrentStation] = useState(0);
   const [stationResults, setStationResults] = useState([]);
   const [submitting, setSubmitting] = useState(false);
+  const [showModel, setShowModel] = useState({});
+
+  const critOf = (res) => {
+    if (!res) return { p: 0, t: 0 };
+    const ans = res.answers || [];
+    const p = res.criteriaPassed ?? ans.reduce((s, a) => s + (a.passedCount ?? (a.criteriaResults || []).filter((c) => c.passed).length), 0);
+    const t = res.criteriaTotal ?? ans.reduce((s, a) => s + (a.criteriaTotal ?? (a.criteriaResults || []).length), 0);
+    return { p, t };
+  };
 
   const stationExams = useMemo(() => {
     if (phase === 'setup') return [];
@@ -130,8 +139,11 @@ const VoiceExamSimulation = ({ exams, onBack }) => {
   }
 
   if (phase === 'summary') {
-    const overallPassed = stationResults.reduce((sum, sr) => sum + (sr.result.overallPassed || 0), 0);
-    const overallTotal = stationResults.reduce((sum, sr) => sum + (sr.result.overallMax || 0), 0);
+    const overallPassed = stationResults.reduce((sum, sr) => sum + critOf(sr.result).p, 0);
+    const overallTotal = stationResults.reduce((sum, sr) => sum + critOf(sr.result).t, 0);
+    const hasCriteria = overallTotal > 0;
+    const fallbackPassed = stationResults.reduce((sum, sr) => sum + (sr.result.overallPassed || 0), 0);
+    const fallbackTotal = stationResults.reduce((sum, sr) => sum + (sr.result.overallMax || 0), 0);
     const allCorrect = stationResults.every((sr) => sr.result.answers?.every((a) => a.allPassed));
 
     return (
@@ -144,7 +156,9 @@ const VoiceExamSimulation = ({ exams, onBack }) => {
           }}>
             {allCorrect ? t('simulation.allPassed') : t('simulation.partialPassed')}
             <span style={{ display: 'block', fontSize: 14, fontWeight: 400, marginTop: 4 }}>
-              {t('simulation.overallScore', { passed: overallPassed, total: overallTotal })}
+              {hasCriteria
+                ? t('simulation.overallCriteriaScore', { passed: overallPassed, total: overallTotal })
+                : t('simulation.overallScore', { passed: fallbackPassed, total: fallbackTotal })}
             </span>
           </div>
 
@@ -158,8 +172,58 @@ const VoiceExamSimulation = ({ exams, onBack }) => {
                 <span style={{ fontSize: 11, color: '#ef4444', fontWeight: 600 }}>{t('voiceExam.timeUp')}</span>
               )}
               <div style={{ fontSize: 13, marginTop: 6 }}>
-                {t('voiceExam.result.correct', { passed: sr.result.overallPassed, total: sr.result.overallMax })}
+                {(() => {
+                  const c = critOf(sr.result);
+                  return c.t > 0
+                    ? t('voiceExam.result.criteriaScore', { passed: c.p, total: c.t })
+                    : t('voiceExam.result.correct', { passed: sr.result.overallPassed, total: sr.result.overallMax });
+                })()}
               </div>
+              {(sr.result.answers || []).map((a, qi) => {
+                const q = sr.exam?.questions?.[a.questionIndex] || {};
+                const pc = a.passedCount ?? (a.criteriaResults || []).filter((c) => c.passed).length;
+                const tc = a.criteriaTotal ?? (a.criteriaResults || []).length;
+                const key = `${si}-${qi}`;
+                return (
+                  <div key={key} style={{ marginTop: 10, padding: 10, borderRadius: 6, background: 'var(--color-bg)' }}>
+                    <p style={{ fontWeight: 600, margin: '0 0 4px', fontSize: 13 }}>
+                      Q{(a.questionIndex ?? qi) + 1}. {q.questionText || ''}
+                      <span style={{ fontWeight: 700, marginLeft: 8, fontVariantNumeric: 'tabular-nums' }}>{pc}/{tc}</span>
+                    </p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: q.idealAnswer ? 8 : 0 }}>
+                      {(a.criteriaResults || []).map((cr, ci) => (
+                        <div key={ci} style={{
+                          padding: '4px 10px', borderRadius: 4, fontSize: 13,
+                          background: cr.passed ? 'rgba(193,255,48,0.15)' : 'rgba(239,68,68,0.15)',
+                          color: cr.passed ? 'var(--color-success)' : 'var(--color-danger)',
+                          fontWeight: 500,
+                        }}>
+                          {cr.passed ? '✓' : '✗'} {cr.label}
+                          {cr.passed && cr.matchedKeyword ? (
+                            <span style={{ fontWeight: 400, opacity: 0.75 }}> · “{cr.matchedKeyword}”</span>
+                          ) : null}
+                        </div>
+                      ))}
+                    </div>
+                    {q.idealAnswer ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setShowModel((prev) => ({ ...prev, [key]: !prev[key] }))}
+                          style={{ background: 'none', border: '1px solid var(--teal-dark)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: 12, color: 'var(--teal-dark)' }}
+                        >
+                          {showModel[key] ? t('voiceExam.hideModel') : t('voiceExam.showModel')}
+                        </button>
+                        {showModel[key] && (
+                          <div style={{ marginTop: 8, padding: 10, background: 'var(--card-bg)', borderRadius: 6, fontSize: 13, color: 'var(--text-body)' }}>
+                            {q.idealAnswer}
+                          </div>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           ))}
 
