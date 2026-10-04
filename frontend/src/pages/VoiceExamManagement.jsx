@@ -206,7 +206,17 @@ const VoiceExamManagement = () => {
         const res = await authFetch(url, { method, body: fd });
         let data = null;
         try { data = await res.json(); } catch { /* non-JSON body */ }
-        if (res.ok) { fetchExams(); resetForm(); notify(editId ? t('admin.voiceExam.updated') : t('admin.voiceExam.created'), 'success'); }
+        if (res.ok) {
+          fetchExams(); resetForm();
+          const savedCount = (data?.exam?.images || []).length;
+          // Save confirmation: sent images must come back stored. If the
+          // backend dropped them, warn instead of claiming success.
+          if (newImages.length > 0 && savedCount < existingImages.length + newImages.length) {
+            notify(t('admin.voiceExam.imagesNotSaved', { n: newImages.length }), 'warning');
+          } else {
+            notify(editId ? t('admin.voiceExam.updated') : t('admin.voiceExam.created'), 'success');
+          }
+        }
         else {
           logger.warn({ status: res.status, data }, 'VoiceExamManagement handleSubmit failed');
           notify(`Failed: ${data?.message || `HTTP ${res.status}`}`, 'error');
@@ -215,7 +225,15 @@ const VoiceExamManagement = () => {
         const res  = await authFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body });
         let data = null;
         try { data = await res.json(); } catch { /* non-JSON body */ }
-        if (res.ok) { fetchExams(); resetForm(); notify(editId ? t('admin.voiceExam.updated') : t('admin.voiceExam.created'), 'success'); }
+        if (res.ok) {
+          fetchExams(); resetForm();
+          const savedCount = (data?.exam?.images || []).length;
+          if (newImages.length > 0 && savedCount < existingImages.length + newImages.length) {
+            notify(t('admin.voiceExam.imagesNotSaved', { n: newImages.length }), 'warning');
+          } else {
+            notify(editId ? t('admin.voiceExam.updated') : t('admin.voiceExam.created'), 'success');
+          }
+        }
         else {
           logger.warn({ status: res.status, data }, 'VoiceExamManagement handleSubmit failed');
           notify(`Failed: ${data?.message || `HTTP ${res.status}`}`, 'error');

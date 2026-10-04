@@ -4,6 +4,7 @@ import path from 'path';
 import { PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import PdfDocument from '../models/pdfDocumentModel.js';
+import logger from '../utils/logger.js';
 import { requireAdmin, verifyToken } from '../controllers/authController.js';
 import { checkSubscription } from '../middleware/requireSubscription.js';
 import { catchAsync } from '../utils/asyncHandler.js';
@@ -40,6 +41,7 @@ router.post('/pdf-documents', verifyToken, requireAdmin, pdfUpload.single('file'
     Body: req.file.buffer,
     ContentType: 'application/pdf',
   }));
+  logger.info({ key, bytes: req.file.size, pdfId }, 'Course PDF uploaded to storage');
   const doc = await PdfDocument.create({
     pdfId, name, filename: key, originalName: req.file.originalname, size: req.file.size,
   });

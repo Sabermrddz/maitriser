@@ -292,17 +292,17 @@ router.post('/payments/payment-intent', verifyToken, receiptUpload.single('recei
   let imageUrl = null;
   if (req.file) {
     const s3 = getR2Client();
+    if (!s3) return res.status(500).json({ message: 'Storage not configured' });
     const ext = req.file.originalname.toLowerCase().split('.').pop();
     const key = `payment-receipts/${Date.now()}-${Math.round(Math.random() * 1e6)}.${ext}`;
-    if (s3) {
-      await s3.send(new PutObjectCommand({
-        Bucket: getBucket(),
-        Key: key,
-        Body: req.file.buffer,
-        ContentType: req.file.mimetype,
-      }));
-      imageUrl = key;
-    }
+    await s3.send(new PutObjectCommand({
+      Bucket: getBucket(),
+      Key: key,
+      Body: req.file.buffer,
+      ContentType: req.file.mimetype,
+    }));
+    logger.info({ key, bytes: req.file.size }, 'Payment receipt uploaded to storage');
+    imageUrl = key;
   }
 
   const contactMessage = await ContactMessage.create({

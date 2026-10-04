@@ -209,7 +209,18 @@ const QuizManagement = () => {
       }
       let data = null;
       try { data = await res.json(); } catch { /* non-JSON body */ }
-      if (res.ok) { fetchQuizzes(); resetForm(); notify(editId ? t('admin.quiz.quizUpdated') : t('admin.quiz.quizCreated'), 'success'); }
+      if (res.ok) {
+        fetchQuizzes();
+        resetForm();
+        // Save confirmation: a sent image must come back stored. If the
+        // backend dropped it (e.g. storage down), warn instead of claiming
+        // success — otherwise the quiz shows an eternal empty image box.
+        if (questionImage && !data?.quiz?.question?.questionImage) {
+          notify(t('admin.quiz.imageNotSaved'), 'warning');
+        } else {
+          notify(editId ? t('admin.quiz.quizUpdated') : t('admin.quiz.quizCreated'), 'success');
+        }
+      }
       else {
         logger.warn({ status: res.status, data }, 'QuizManagement handleSubmit failed');
         notify(t('admin.quiz.error', { message: data?.message || `HTTP ${res.status}` }), 'error');

@@ -90,6 +90,7 @@ const uploadImageToR2 = async (buffer, originalname) => {
     Body: buffer,
     ContentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
   }));
+  logger.info({ key, bytes: buffer.length }, 'Quiz image uploaded to storage');
   return key;
 };
 
@@ -104,6 +105,7 @@ export const createQuiz = catchAsync(async (req, res) => {
   const quizId = await genQuizId();
   let questionImage = null;
   if (req.file) {
+    if (!getR2Client()) return res.status(500).json({ message: 'Storage not configured' });
     questionImage = await uploadImageToR2(req.file.buffer, req.file.originalname);
   }
   const quiz = await Quiz.create({
@@ -142,6 +144,7 @@ export const editQuiz = catchAsync(async (req, res) => {
   };
 
   if (req.file) {
+    if (!getR2Client()) return res.status(500).json({ message: 'Storage not configured' });
     const key = await uploadImageToR2(req.file.buffer, req.file.originalname);
     if (key) updates['question.questionImage'] = key;
   } else if (req.body.removeImage === 'true') {

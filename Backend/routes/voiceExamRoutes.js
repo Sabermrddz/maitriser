@@ -14,6 +14,7 @@ import { getPagination, paginatedResponse } from '../utils/paginate.js';
 import { validate } from '../middleware/validate.js';
 import { genExamId } from '../utils/idGenerator.js';
 import { checkSubscription } from '../middleware/requireSubscription.js';
+import logger from '../utils/logger.js';
 import { getR2Client, getBucket } from '../config/r2.js';
 import { streamStorageObject } from '../utils/streamObject.js';
 import { cleanAndValidateQuestions } from '../utils/validateCriteria.js';
@@ -44,7 +45,12 @@ const handleMulterError = (err, req, res, next) => {
 
 const uploadImagesToR2 = async (files) => {
   const s3 = getR2Client();
-  if (!s3 || !files || files.length === 0) return [];
+  if (!files || files.length === 0) return [];
+  if (!s3) {
+    const err = new Error('Storage not configured');
+    err.status = 500;
+    throw err;
+  }
   const keys = [];
   for (const file of files) {
     const ext = file.originalname.toLowerCase().split('.').pop();
@@ -55,6 +61,7 @@ const uploadImagesToR2 = async (files) => {
       Body: file.buffer,
       ContentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
     }));
+    logger.info({ key, bytes: file.buffer.length }, 'Voice exam image uploaded to storage');
     keys.push(key);
   }
   return keys;
@@ -132,7 +139,11 @@ router.post('/voice-exams', requireAdmin, upload.array('images', 10), handleMult
   const module = await Module.findById(moduleId);
   if (!module) return res.status(404).json({ message: 'Module not found' });
 
-  const images = await uploadImagesToR2(req.files);
+  if (req.files?.length && !getR2Client())
+    return res.status(500).json({ message: 'Storage not configured' });
+  const images = req.files?.length
+    ? await uploadImagesToR2(req.files)
+    : [];
 
   const examId = await genExamId();
   const exam = await VoiceExam.create({
@@ -311,6 +322,7 @@ router.put('/voice-exams/:id', requireAdmin, upload.array('images', 10), handleM
     ? (Array.isArray(existingImages) ? existingImages : (() => { try { return JSON.parse(existingImages); } catch { return []; } })())
     : [];
   if (req.files && req.files.length > 0) {
+    if (!getR2Client()) return res.status(500).json({ message: 'Storage not configured' });
     const newKeys = await uploadImagesToR2(req.files);
     images = [...images, ...newKeys];
   }

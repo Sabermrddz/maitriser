@@ -3,6 +3,7 @@ import multer from 'multer';
 import { PutObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { requireAdmin, verifyToken } from '../controllers/authController.js';
 import { catchAsync } from '../utils/asyncHandler.js';
+import logger from '../utils/logger.js';
 import { getR2Client, getBucket } from '../config/r2.js';
 import Quiz from '../models/quizModel.js';
 import VoiceExam from '../models/voiceExamModel.js';
@@ -50,6 +51,7 @@ router.post('/admin/images', verifyToken, requireAdmin, imageUpload.single('file
     Body: req.file.buffer,
     ContentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
   }));
+  logger.info({ key, bytes: req.file.size }, 'Admin image uploaded to storage');
   res.status(201).json({ key, size: req.file.size });
 }));
 
