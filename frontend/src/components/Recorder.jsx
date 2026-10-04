@@ -11,6 +11,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
   const [heardResult, setHeardResult] = useState(false);
   const [unsupported, setUnsupported] = useState(false);
   const [notice, setNotice] = useState('');
+  const [exhausted, setExhausted] = useState(false);
   const streamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -32,14 +33,19 @@ export default function Recorder({ onAudioReady, onTranscript }) {
 
   const startRecognition = () => {
     const recognition = new SpeechRecognitionAPI();
-    recognition.continuous = true;
+    // Single-utterance mode: "continuous" sessions silently yield nothing on
+    // some Android builds. The keep-alive below restarts on every onend, so
+    // listening stays uninterrupted (same UX, proven server behavior).
+    recognition.continuous = false;
     recognition.interimResults = true;
     recognition.lang = lang === 'fr' ? 'fr-FR' : 'en-US';
     logger.warn({ lang: recognition.lang }, 'Recorder recognition started');
 
     recognition.onresult = (event) => {
       noSpeechCountRef.current = 0;
+      restartAttemptsRef.current = 0;
       setNotice('');
+      setExhausted(false);
       setHeardResult(true);
       let interim = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
@@ -73,15 +79,13 @@ export default function Recorder({ onAudioReady, onTranscript }) {
 
     recognition.onend = () => {
       logger.warn('Recorder recognition ended');
-      setTranscribing(false);
       if (onTranscript) onTranscript(finalTranscriptRef.current);
-      // Keep-alive: restart while the user is still recording (pauses kill
-      // recognition on mobile; without this everything said after is lost).
-      if (
-        wantListeningRef.current &&
-        mediaRecorderRef.current?.state === 'recording' &&
-        restartAttemptsRef.current < MAX_RESTARTS
-      ) {
+      // Keep-alive: restart while the user is still recording. The budget
+      // counts only CONSECUTIVE result-less restarts (reset on any result),
+      // so long answers never exhaust it — only a dead service does.
+      const stillRecording =
+        wantListeningRef.current && mediaRecorderRef.current?.state === 'recording';
+      if (stillRecording && restartAttemptsRef.current < MAX_RESTARTS) {
         const delay = 300 * (restartAttemptsRef.current + 1);
         restartAttemptsRef.current += 1;
         logger.warn({ attempt: restartAttemptsRef.current, delay }, 'Recorder restarting recognition');
@@ -95,12 +99,37 @@ export default function Recorder({ onAudioReady, onTranscript }) {
             logger.error({ e }, 'Recorder recognition restart failed');
           }
         }, delay);
+      } else if (stillRecording) {
+        setTranscribing(false);
+        setExhausted(true);
+        setNotice(t('voiceExam.recorder.hint.exhausted'));
+        logger.error('Recorder recognition restarts exhausted without results');
+      } else {
+        setTranscribing(false);
       }
     };
 
     recognition.start();
     setTranscribing(true);
+    setExhausted(false);
     recognitionRef.current = recognition;
+  };
+
+  const retryListening = () => {
+    restartAttemptsRef.current = 0;
+    noSpeechCountRef.current = 0;
+    setExhausted(false);
+    setNotice('');
+    setError('');
+    if (wantListeningRef.current && mediaRecorderRef.current?.state === 'recording') {
+      try {
+        startRecognition();
+        setTranscribing(true);
+      } catch (e) {
+        logger.error({ e }, 'Recorder manual retry failed');
+        setError(t('voiceExam.recorder.error.service'));
+      }
+    }
   };
 
   const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -108,6 +137,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
   const startRecording = async () => {
     setError('');
     setNotice('');
+    setExhausted(false);
     setHeardResult(false);
     setUnsupported(false);
     chunksRef.current = [];
@@ -224,6 +254,11 @@ export default function Recorder({ onAudioReady, onTranscript }) {
       )}
       {error && <span style={{ color: '#e74c3c', fontSize: 12 }}>{error}</span>}
       {notice && !error && <span style={{ color: '#e67e22', fontSize: 12 }}>{notice}</span>}
+      {exhausted && !error && state === 'recording' && (
+        <button type="button" onClick={retryListening} aria-label={t('voiceExam.recorder.retry')} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: 'var(--teal-dark)', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+          ↻ {t('voiceExam.recorder.retry')}
+        </button>
+      )}
     </div>
   );
 }

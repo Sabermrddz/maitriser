@@ -622,6 +622,8 @@ const fr = {
   'voiceExam.recorder.error.recognition': 'Erreur de reconnaissance vocale.',
   'voiceExam.recorder.error.service': 'Service vocal indisponible. Réessayez.',
   'voiceExam.recorder.hint.noSpeech': 'Aucune voix détectée — rapprochez-vous du micro et parlez plus fort.',
+  'voiceExam.recorder.hint.exhausted': 'Écoute impossible pour le moment.',
+  'voiceExam.recorder.retry': 'Réessayer',
   'voiceExam.recorder.error.mic': 'Accès au micro refusé.',
   'voiceExam.imageAlt': 'Image {n}',
   'voiceExam.timerWarning': 'Moins d\'une minute !',

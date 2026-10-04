@@ -656,6 +656,8 @@ const en = {
   'voiceExam.recorder.error.recognition': 'Speech recognition error.',
   'voiceExam.recorder.error.service': 'Speech service unavailable. Retry.',
   'voiceExam.recorder.hint.noSpeech': 'No voice detected — move closer and speak up.',
+  'voiceExam.recorder.hint.exhausted': 'Listening unavailable right now.',
+  'voiceExam.recorder.retry': 'Retry',
   'voiceExam.recorder.error.mic': 'Microphone access denied.',
   'voiceExam.imageAlt': 'Image {n}',
   'voiceExam.timerWarning': 'Less than a minute!',
