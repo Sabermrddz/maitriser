@@ -100,7 +100,7 @@ router.get('/results/:userId', verifyToken, catchAsync(async (req, res) => {
   const { skip, limit, page } = getPagination(req.query);
   const [results, total] = await Promise.all([
     QuizResult.find({ userId })
-      .populate({ path: 'quizId', select: 'question.questionText quizId explanation optionExplanations keyConcepts commonTraps year course moduleId', populate: { path: 'moduleId', select: 'name year' } })
+      .populate({ path: 'quizId', select: 'question.questionText question.options question.questionImage quizId explanation optionExplanations keyConcepts commonTraps year course moduleId', populate: { path: 'moduleId', select: 'name year' } })
       .sort({ timestamp: -1 }).skip(skip).limit(limit),
     QuizResult.countDocuments({ userId }),
   ]);

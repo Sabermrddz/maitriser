@@ -200,6 +200,7 @@ const en = {
   'quizcard.selectAll': 'Select all correct answers',
   'quizcard.submit': 'Submit Answer',
   'quizcard.submitting': 'Submitting…',
+  'quizcard.noOptions': 'No answer options available for this question.',
   'quizcard.correctAnswer': 'Correct answer',
   'quizcard.correctAnswers': 'Correct answers',
   'quizcard.explanation': 'Explanation',

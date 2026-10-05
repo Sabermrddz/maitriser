@@ -251,7 +251,7 @@ const QuizCard = () => {
     <div className="page-teal">
       <div className="quiz-container-teal">
         <div className="quiz-flex-header">
-          <h2>{quizName}</h2>
+          {quizName && quizName !== question?.questionText && <h2>{quizName}</h2>}
           {!studyMode && (
             <span className="timer-badge timer-running" style={{
               color: 'var(--text-dark)',
@@ -313,6 +313,12 @@ const QuizCard = () => {
             </label>
           );
         })}
+
+        {options.length === 0 && !submitted && (
+          <p style={{ fontSize: 'var(--text-sm)', color: 'var(--text-light)', marginBottom: '10px' }}>
+            {t('quizcard.noOptions')}
+          </p>
+        )}
 
         {submitted && result && (
           <div className={`result-box ${result.correct ? 'pass' : (result.partialScore > 0 ? 'partial' : 'fail')}`}>

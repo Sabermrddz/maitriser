@@ -174,6 +174,7 @@ const fr = {
   'quizcard.selectAll': 'Sélectionnez toutes les réponses correctes',
   'quizcard.submit': 'Soumettre la réponse',
   'quizcard.submitting': 'Soumission…',
+  'quizcard.noOptions': 'Aucune option de réponse disponible pour cette question.',
   'quizcard.correctAnswer': 'Réponse correcte',
   'quizcard.correctAnswers': 'Réponses correctes',
   'quizcard.explanation': 'Explication',
