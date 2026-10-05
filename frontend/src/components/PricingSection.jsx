@@ -13,25 +13,11 @@ export default function PricingSection() {
 
   const plans = [
     {
-      key: 'solo',
-      highlight: false,
-      badge: null,
-      features: ['landing.pricing.solo.feature.1', 'landing.pricing.solo.feature.2', 'landing.pricing.solo.feature.3'],
-      tickColor: 'var(--mint-cream)',
-    },
-    {
-      key: 'clinique',
+      key: 'unique',
       highlight: true,
-      badge: 'landing.pricing.clinique.badge',
-      features: ['landing.pricing.clinique.feature.1', 'landing.pricing.clinique.feature.2', 'landing.pricing.clinique.feature.3', 'landing.pricing.clinique.feature.4'],
-      tickColor: 'var(--accent)',
-    },
-    {
-      key: 'faculte',
-      highlight: false,
       badge: null,
-      features: ['landing.pricing.faculte.feature.1', 'landing.pricing.faculte.feature.2', 'landing.pricing.faculte.feature.3'],
-      tickColor: 'var(--mint-cream)',
+      features: ['landing.pricing.unique.feature.1', 'landing.pricing.unique.feature.2', 'landing.pricing.unique.feature.3', 'landing.pricing.unique.feature.4'],
+      tickColor: 'var(--accent)',
     },
   ];
 
@@ -47,9 +33,9 @@ export default function PricingSection() {
           <div className={`landing-plan${plan.highlight ? ' highlight' : ''} reveal`} key={plan.key}>
             {plan.badge && <span className="landing-plan-badge">{t(plan.badge)}</span>}
             <span className="landing-plan-name">{t(`landing.pricing.${plan.key}.name`)}</span>
-            <div className="landing-plan-price" style={plan.key === 'faculte' ? { fontSize: 26 } : undefined}>
+            <div className="landing-plan-price">
               {t(`landing.pricing.${plan.key}.price`)}
-              {plan.key !== 'faculte' && <span>{t('landing.pricing.perMonth')}</span>}
+              <span>{t('landing.pricing.perYear')}</span>
             </div>
             <p className="landing-plan-desc">{t(`landing.pricing.${plan.key}.desc`)}</p>
             <ul className="landing-plan-features">
@@ -57,7 +43,7 @@ export default function PricingSection() {
                 <li key={i}><Tick color={plan.tickColor} /> {t(f)}</li>
               ))}
             </ul>
-            <button className="landing-plan-cta" onClick={() => navigate(plan.key === 'faculte' ? '/contact' : '/signup')}>
+            <button className="landing-plan-cta" onClick={() => navigate('/signup')}>
               {t(`landing.pricing.${plan.key}.cta`)}
             </button>
           </div>

@@ -522,7 +522,8 @@
 .landing-pricing-grid {
   margin-top: 56px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: minmax(0, 430px);
+  justify-content: center;
   gap: 24px;
   align-items: stretch;
 }

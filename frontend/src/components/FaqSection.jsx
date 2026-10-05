@@ -9,7 +9,6 @@ export default function FaqSection() {
     { q: 'landing.faq.q1.q', a: 'landing.faq.q1.a' },
     { q: 'landing.faq.q2.q', a: 'landing.faq.q2.a' },
     { q: 'landing.faq.q3.q', a: 'landing.faq.q3.a' },
-    { q: 'landing.faq.q4.q', a: 'landing.faq.q4.a' },
   ];
 
   const toggle = (i) => {
