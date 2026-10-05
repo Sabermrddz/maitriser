@@ -243,9 +243,11 @@ router.post('/admin/subscription-codes/generate', verifyToken, requireAdmin, [
 router.delete('/admin/subscription-codes/:id', verifyToken, requireAdmin, [
   param('id').isMongoId(),
 ], validate, catchAsync(async (req, res) => {
-  const code = await SubscriptionCode.findByIdAndUpdate(req.params.id, { status: 'expired' }, { new: true });
+  // Hard delete: granted subscriptions live on the user document and are
+  // unaffected when a (used or expired) code row is removed.
+  const code = await SubscriptionCode.findByIdAndDelete(req.params.id);
   if (!code) return res.status(404).json({ message: 'Code not found' });
-  res.json({ message: 'Code revoked' });
+  res.json({ message: 'Code deleted' });
 }));
 
 // ── Admin: set user subscription manually ──────────────────────────────────

@@ -201,14 +201,17 @@ const AdminPricingPage = () => {
     }});
   };
 
-  const handleRevokeCode = async (id) => {
-    setConfirm({ open: true, title: t('admin.pricing.revokeCodeConfirm'), message: t('admin.pricing.revokeCodeMsg'), onConfirm: async () => {
+  const handleDeleteCode = async (id, status) => {
+    const msgKey = status === 'active' ? 'admin.pricing.deleteCodeMsgActive'
+      : status === 'used' ? 'admin.pricing.deleteCodeMsgUsed'
+      : 'admin.pricing.deleteCodeMsgExpired';
+    setConfirm({ open: true, title: t('admin.pricing.deleteCodeConfirm'), message: t(msgKey), onConfirm: async () => {
       setConfirm(c => ({ ...c, open: false }));
       play('delete');
       try {
         const res = await authFetch(`/api/admin/subscription-codes/${id}`, { method: 'DELETE' });
-        if (res.ok) { notify(t('admin.pricing.codeRevoked'), 'success'); fetchCodes(); }
-        else notify(t('admin.pricing.revokeFailed'), 'error');
+        if (res.ok) { notify(t('admin.pricing.codeDeleted'), 'success'); fetchCodes(); }
+        else notify(t('admin.pricing.deleteFailed'), 'error');
       } catch { notify(t('admin.pricing.networkError'), 'error'); }
     }});
   };
@@ -379,7 +382,7 @@ const AdminPricingPage = () => {
                     <td>{c.usedAt ? formatDate(c.usedAt, lang) : '—'}</td>
                     <td>{c.expiresAt ? formatDate(c.expiresAt, lang) : '—'}</td>
                     <td>
-                      {c.status === 'active' && <button onClick={() => handleRevokeCode(c._id)}>&#128465;</button>}
+                      <button onClick={() => handleDeleteCode(c._id, c.status)}>&#128465;</button>
                     </td>
                   </tr>
                 ))}
