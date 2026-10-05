@@ -173,7 +173,7 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
         {exam.images && exam.images.length > 0 && (
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
             {exam.images.map((img, i) => (
-              <AuthImage key={i} src={`${API_BASE_URL}/api/voice-exam-images/${encodeURIComponent(img)}`} alt={t('voiceExam.imageAlt', { n: i + 1 })} loading="lazy"
+              <AuthImage key={i} src={`${API_BASE_URL}/api/voice-exam-images/${encodeURIComponent(img)}`} alt={t('voiceExam.imageAlt', { n: i + 1 })}
                 style={{ maxWidth: '100%', maxHeight: 300, borderRadius: 8, objectFit: 'contain', border: '1px solid var(--border-light)' }}
               />
             ))}

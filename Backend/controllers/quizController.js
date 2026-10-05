@@ -240,10 +240,12 @@ export const quizCounts = catchAsync(async (req, res) => {
     { $group: {
       _id: { moduleId: '$moduleId', course: '$course' },
       count: { $sum: 1 },
+      quizIds: { $push: '$_id' },
     }},
     { $group: {
       _id: '$_id.moduleId',
       courses: { $push: { course: '$_id.course', count: '$count' } },
+      quizIds: { $push: { course: '$_id.course', quizIds: '$quizIds' } },
       total: { $sum: '$count' },
     }},
     { $project: {
@@ -251,18 +253,24 @@ export const quizCounts = catchAsync(async (req, res) => {
       moduleId: '$_id',
       total: 1,
       courses: 1,
+      quizIds: 1,
     }},
   ]);
 
   const result = {};
   for (const entry of counts) {
     const courses = {};
+    const quizIds = {};
     for (const c of entry.courses) {
       if (c.course) courses[c.course] = c.count;
+    }
+    for (const q of entry.quizIds || []) {
+      if (q.course) quizIds[q.course] = q.quizIds;
     }
     result[entry.moduleId.toString()] = {
       total: entry.total,
       courses,
+      quizIds,
     };
   }
   res.json(result);

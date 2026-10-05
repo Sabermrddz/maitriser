@@ -1,0 +1,69 @@
+/* Click-to-view image placeholder (used by AuthImage everywhere) */
+.authimg-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 96px;
+  min-width: 48px;
+  overflow: hidden;
+  background: var(--bg-muted, light-dark(#f7fafc, #0d2a31));
+  border: 1px dashed var(--border-light, light-dark(#E2E8F0, #1E353B));
+}
+
+.authimg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--teal-dark, light-dark(#04484F, #065A64));
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  transition: filter 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+}
+.authimg-btn:hover {
+  filter: brightness(1.18);
+}
+.authimg-btn:active {
+  transform: translateY(1px);
+}
+.authimg-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+  transform: none;
+}
+
+/* Failed state: same dark-teal pill with a faint red ring */
+.authimg-retry {
+  box-shadow: 0 0 0 2px #fca5a5;
+}
+.authimg-retry:hover {
+  filter: brightness(1.1);
+}
+
+/* Loading sweep over the box after the tap */
+.authimg-loading::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.35), transparent);
+  animation: authimgShimmer 1.2s infinite;
+}
+@keyframes authimgShimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.authimg-label {
+  position: relative;
+  z-index: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted, light-dark(#64748B, #94a3b8));
+}

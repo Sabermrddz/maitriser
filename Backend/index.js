@@ -6,6 +6,7 @@ import { initWS } from './ws.js';
 import { generateId } from './utils/idGenerator.js';
 import VoiceExam from './models/voiceExamModel.js';
 import Counter from './models/counterModel.js';
+import { runJulyResetIfNeeded } from './utils/julyReset.js';
 
 dotenv.config();
 
@@ -41,6 +42,14 @@ mongoose.connect(process.env.MONGODB_URI, {
     logger.info('Database connected');
     await Counter.init();
     await migrateIds();
+    try {
+      await runJulyResetIfNeeded();
+    } catch (err) {
+      logger.error({ err }, 'July 20 reset check failed');
+    }
+    setInterval(() => {
+      runJulyResetIfNeeded().catch((err) => logger.error({ err }, 'July 20 reset check failed'));
+    }, 24 * 60 * 60 * 1000);
   })
   .catch((err) => { logger.fatal({ err }, 'Database connection failed'); process.exit(1); });
 

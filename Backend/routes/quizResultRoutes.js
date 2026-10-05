@@ -75,6 +75,19 @@ router.post('/quizzes/:quizId/submit', [
   });
 }));
 
+// GET /api/results/:userId/passed-quiz-ids — distinct passed quiz IDs (lean, no populate)
+router.get('/results/:userId/passed-quiz-ids', verifyToken, catchAsync(async (req, res) => {
+  if (req.user.role !== 'admin' && req.user.userId !== req.params.userId)
+    return res.status(403).json({ message: 'Access denied' });
+
+  const { userId } = req.params;
+  if (!userId || typeof userId !== 'string')
+    return res.status(400).json({ message: 'Invalid userId parameter' });
+
+  const passedQuizIds = await QuizResult.distinct('quizId', { userId, score: 1 });
+  return res.json({ passedQuizIds: passedQuizIds.map((id) => String(id)) });
+}));
+
 // GET /api/results/:userId — fetch attempt history
 router.get('/results/:userId', verifyToken, catchAsync(async (req, res) => {
   if (req.user.role !== 'admin' && req.user.userId !== req.params.userId)

@@ -70,6 +70,12 @@ router.post('/payments/redeem-code', verifyToken, [
   body('code').trim().notEmpty().withMessage('Code is required'),
 ], validate, catchAsync(async (req, res) => {
   const codeStr = req.body.code.toUpperCase().trim();
+  // Profile must be complete before redeeming: plans are per discipline/year,
+  // and completing the profile afterwards would expire the new subscription.
+  const redeemUser = await User.findById(req.user.id).select('discipline year');
+  if (!redeemUser || !redeemUser.discipline || !redeemUser.year) {
+    return res.status(400).json({ message: 'Please set your discipline and year in your profile before redeeming a code' });
+  }
   const doc = await SubscriptionCode.findOneAndUpdate(
     { code: codeStr, status: 'active', $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }] },
     { $set: { status: 'used', usedBy: req.user.id, usedAt: new Date() } },
@@ -308,7 +314,7 @@ router.post('/payments/payment-intent', verifyToken, receiptUpload.single('recei
   const contactMessage = await ContactMessage.create({
     name: user.name || user.email || 'Unknown',
     email: user.email || '',
-    message: `[Payment Intent] Plan: ${plan.name}\nAmount: ${plan.price} €\nMessage: ${message}`,
+    message: `[Payment Intent] Plan: ${plan.name}\nAmount: ${plan.price} DA\nMessage: ${message}`,
     imageUrl,
     planName: plan.name,
     userId: user._id,

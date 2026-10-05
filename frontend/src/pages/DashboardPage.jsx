@@ -28,6 +28,8 @@ const DashboardPage = () => {
   const [results, setResults] = useState([]);
   const [voiceResults, setVoiceResults] = useState([]);
   const [subscription, setSubscription] = useState(null);
+  const [quizCounts, setQuizCounts] = useState({});
+  const [passedQuizIds, setPassedQuizIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const trackRef = useRef(null);
   const scroll = useCallback((dir) => {
@@ -42,14 +44,19 @@ const DashboardPage = () => {
   useEffect(() => {
     if (!userId) { setLoading(false); return; }
     let cancelled = false;
+    const countParams = new URLSearchParams();
+    if (discipline) countParams.set('discipline', discipline);
+    if (year) countParams.set('year', year);
     (async () => {
       try {
-        const [profileRes, modRes, resultsRes, subRes, vrRes] = await Promise.all([
+        const [profileRes, modRes, resultsRes, subRes, vrRes, countsRes, passedRes] = await Promise.all([
           fetchWithAuth(`${API_BASE_URL}/api/users/profile`),
           fetchWithAuth(`${API_BASE_URL}/api/modules?discipline=${discipline || 'medicine'}&year=${year || ''}`),
           fetchWithAuth(`${API_BASE_URL}/api/results/${userId}?limit=100`),
           fetchWithAuth(`${API_BASE_URL}/api/payments/subscription`),
           fetchWithAuth(`${API_BASE_URL}/api/voice-exam-results/${userId}?limit=100`).catch((err) => { logger.error({ err }, 'Failed to fetch voice results'); return null; }),
+          fetchWithAuth(`${API_BASE_URL}/api/quiz-counts?${countParams.toString()}`).catch((err) => { logger.error({ err }, 'Failed to fetch quiz counts'); return null; }),
+          fetchWithAuth(`${API_BASE_URL}/api/results/${userId}/passed-quiz-ids`).catch((err) => { logger.error({ err }, 'Failed to fetch passed quizzes'); return null; }),
         ]);
 
         if (cancelled) return;
@@ -78,6 +85,19 @@ const DashboardPage = () => {
           const data = await vrRes.json();
           setVoiceResults(Array.isArray(data) ? data : (data.data || []));
         }
+
+        if (countsRes?.ok) {
+          setQuizCounts(await countsRes.json());
+        } else {
+          setQuizCounts({});
+        }
+
+        if (passedRes?.ok) {
+          const data = await passedRes.json();
+          setPassedQuizIds(Array.isArray(data.passedQuizIds) ? data.passedQuizIds : []);
+        } else {
+          setPassedQuizIds([]);
+        }
       } catch (err) {
         if (!cancelled) logger.error({ err }, 'Dashboard fetch error');
       } finally {
@@ -85,6 +105,38 @@ const DashboardPage = () => {
       }
     })();
     return () => { cancelled = true; };
+  }, [userId, discipline, year]);
+
+  // Refresh progress data when the tab regains focus (e.g. back from a quiz).
+  useEffect(() => {
+    if (!userId) return undefined;
+    let cancelled = false;
+    const countParams = new URLSearchParams();
+    if (discipline) countParams.set('discipline', discipline);
+    if (year) countParams.set('year', year);
+    const refreshProgress = async () => {
+      try {
+        const [resultsRes, countsRes, passedRes] = await Promise.all([
+          fetchWithAuth(`${API_BASE_URL}/api/results/${userId}?limit=100`),
+          fetchWithAuth(`${API_BASE_URL}/api/quiz-counts?${countParams.toString()}`).catch(() => null),
+          fetchWithAuth(`${API_BASE_URL}/api/results/${userId}/passed-quiz-ids`).catch(() => null),
+        ]);
+        if (cancelled) return;
+        if (resultsRes?.ok) {
+          const data = await resultsRes.json();
+          setResults(Array.isArray(data) ? data : (data.data || []));
+        }
+        if (countsRes?.ok) setQuizCounts(await countsRes.json());
+        if (passedRes?.ok) {
+          const data = await passedRes.json();
+          setPassedQuizIds(Array.isArray(data.passedQuizIds) ? data.passedQuizIds : []);
+        }
+      } catch (err) {
+        logger.error({ err }, 'Dashboard progress refresh error');
+      }
+    };
+    window.addEventListener('focus', refreshProgress);
+    return () => { cancelled = true; window.removeEventListener('focus', refreshProgress); };
   }, [userId, discipline, year]);
 
   const passRate = useMemo(() => {
@@ -107,27 +159,53 @@ const DashboardPage = () => {
 
   const moduleCards = useMemo(() => {
     if (!modules.length) return [];
+    // Every quiz ever passed (full history — not the truncated recent list).
+    const passedSet = new Set((passedQuizIds || []).map((id) => String(id)));
     return modules.map(mod => {
       const icon = getModuleIcon(mod.name);
-      const modName = (mod.name || '').toLowerCase();
+      const modId = String(mod._id || '');
+      const counts = (quizCounts && quizCounts[modId]) || null;
+      const idsByCourse = (counts && counts.quizIds) || {};
 
-      const totalLessons = Array.isArray(mod.courses) ? mod.courses.length : 0;
-      let attempted = 0;
-      if (totalLessons > 0 && results.length > 0) {
-        const moduleResults = results.filter(r => {
-          const quiz = r.quizId;
-          if (!quiz) return false;
-          const quizModName = (quiz.moduleId?.name || quiz.moduleName || '').toLowerCase();
-          return quizModName.includes(modName) || modName.includes(quizModName);
-        });
-        attempted = Math.min(new Set(moduleResults.map(r => r.quizId?._id || r.quizId)).size, totalLessons);
+      // Courses considered = union of the module's course list and the
+      // quiz-counts keys (robust to naming drift in either direction).
+      const courseNames = new Set();
+      if (Array.isArray(mod.courses)) {
+        for (const c of mod.courses) {
+          if (c && c.name) courseNames.add(c.name);
+        }
+      }
+      for (const name of Object.keys(idsByCourse)) courseNames.add(name);
+
+      // A course is finished only when ALL its published quizzes are passed.
+      // Courses with no published quizzes are excluded from the denominator.
+      let totalLessons = 0;
+      let finished = 0;
+      for (const name of courseNames) {
+        const ids = idsByCourse[name] || [];
+        if (!ids.length) continue;
+        totalLessons += 1;
+        if (ids.every((id) => passedSet.has(String(id)))) finished += 1;
       }
 
-      const pct = totalLessons > 0 ? Math.round((attempted / totalLessons) * 100) : 0;
+      // Fallback for modules with no courses at all: quiz-based completion.
+      if (totalLessons === 0 && counts && counts.total > 0) {
+        const modulePassed = new Set();
+        for (const r of results) {
+          const quiz = r.quizId;
+          if (!quiz || r.score !== 1) continue;
+          const quizModId = String(quiz.moduleId?._id || quiz.moduleId || '');
+          if (quizModId === modId) modulePassed.add(String(quiz._id || quiz));
+        }
+        finished = modulePassed.size;
+        totalLessons = counts.total;
+      }
 
-      return { ...mod, icon, totalLessons, attempted, pct };
+      const pct = totalLessons > 0 ? Math.round((finished / totalLessons) * 100) : 0;
+
+      return { ...mod, icon, totalLessons, finished, pct };
     });
-  }, [modules, results]);
+  }, [modules, results, quizCounts, passedQuizIds]);
 
   const userName = profile?.name || (() => { try { return localStorage.getItem('userName'); } catch { return ''; } })();
   const userDiscipline = profile?.discipline || discipline || t('dashboard.fallbackDiscipline');
@@ -220,7 +298,7 @@ const DashboardPage = () => {
                     <div key={mod._id || i} className="dash-module-card" role="button" tabIndex={0} onClick={() => navigate('/quizPage', { state: { moduleId: mod._id } })} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/quizPage', { state: { moduleId: mod._id } }); } }}>
                       <div className="dash-module-icon">{mod.icon}</div>
                       <h3>{mod.name}</h3>
-                      <p className="dash-module-stats">{mod.attempted} / {mod.totalLessons} {t('dashboard.modules.lessons', { count: mod.totalLessons })}</p>
+                      <p className="dash-module-stats">{mod.finished} / {mod.totalLessons} {t('dashboard.modules.lessons', { count: mod.totalLessons })}</p>
                       <div className="dash-module-bar"><div className="dash-bar-fill" style={{ width: `${mod.pct}%` }} /></div>
                       <span className="dash-module-pct">{mod.pct}%</span>
                     </div>
