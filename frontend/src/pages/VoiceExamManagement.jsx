@@ -73,7 +73,7 @@ const VoiceExamManagement = () => {
     if (filterModule) params.set('moduleId', filterModule);
     if (filterYear) params.set('year', filterYear);
     if (filterCourse) params.set('course', filterCourse);
-    const url = `/api/voice-exams?${params.toString()}`;
+    const url = `/api/admin/voice-exams?${params.toString()}`;
     try {
       setLoading(true);
       const res = await authFetch(url);

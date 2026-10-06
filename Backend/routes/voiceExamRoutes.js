@@ -67,6 +67,17 @@ const uploadImagesToR2 = async (files) => {
   return keys;
 };
 
+// ── Admin: list all voice exams (no student gates: no subscription,
+// discipline or year enforcement) ──────────────────────────────────────────
+router.get('/admin/voice-exams', verifyToken, requireAdmin, catchAsync(async (req, res) => {
+  const filter = {};
+  if (req.query.year) filter.year = Number(req.query.year);
+  if (req.query.moduleId && mongoose.Types.ObjectId.isValid(String(req.query.moduleId))) filter.moduleId = String(req.query.moduleId);
+  if (req.query.course) filter.course = String(req.query.course);
+  const exams = await VoiceExam.find(filter).populate('moduleId', 'name year').sort({ createdAt: -1 });
+  res.json(exams);
+}));
+
 router.get('/voice-exams', verifyToken, cacheMiddleware(), catchAsync(async (req, res) => {
   if (!req.query.year && !req.query.moduleId) return res.json([]);
   if (!await checkSubscription(req.user?.id)) return res.json([]);
