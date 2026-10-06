@@ -30,6 +30,7 @@ const QuizCard = () => {
   const [elapsed, setElapsed]     = useState(0);
   const [timerActive, setTimerActive] = useState(false);
   const [subscription, setSubscription] = useState(null);
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true);
   const [showGate, setShowGate]   = useState(false);
   const [pdfMap, setPdfMap]       = useState({});
   const [moduleCourses, setModuleCourses] = useState(null);
@@ -56,6 +57,7 @@ const QuizCard = () => {
         const res = await fetchWithAuth(`${API_BASE_URL}/api/payments/subscription`);
         if (res.ok) { const d = await res.json(); setSubscription(d.subscription); }
       } catch { logger.error({}, 'quizCard fetchSubscription failed') }
+      finally { setSubscriptionLoading(false); }
     })();
   }, []);
 
@@ -220,7 +222,7 @@ const QuizCard = () => {
     return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
   };
 
-  if (loading) return <div className="page-teal"><div className="card-teal"><SkeletonQuizItem count={1} /></div></div>;
+  if (loading || subscriptionLoading) return <div className="page-teal"><div className="card-teal"><SkeletonQuizItem count={1} /></div></div>;
   if (!quizData?.question) return <div className="page-teal"><div className="card-teal" style={{ textAlign: 'center' }}>{t('quizcard.notFound')}</div></div>;
   const isSubActive = subscription?.status === 'active' && (!subscription.endDate || new Date(subscription.endDate) > new Date());
   if (!isSubActive) {
