@@ -76,13 +76,6 @@ export default function Recorder({ onAudioReady, onTranscript }) {
 
     recognition.onresult = (event) => {
       if (mySession !== sessionRef.current) return; // superseded session
-      noSpeechCountRef.current = 0;
-      restartAttemptsRef.current = 0;
-      setNotice('');
-      setExhausted(false);
-      setHeardResult(true);
-      heardResultRef.current = true;
-      localArmedRef.current = false; // client engine works — no fallback needed
       let interim = '';
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const r = event.results[i];
@@ -91,6 +84,21 @@ export default function Recorder({ onAudioReady, onTranscript }) {
         } else {
           interim += r[0].transcript;
         }
+      }
+      // Only a non-empty transcript counts as heard: a dead service can
+      // deliver empty results, which must not fake "heard" or reset the
+      // restart budget (that used to disarm the on-device fallback).
+      const heard = (finalTranscriptRef.current + interim).trim();
+      if (heard) {
+        noSpeechCountRef.current = 0;
+        restartAttemptsRef.current = 0;
+        setNotice('');
+        setExhausted(false);
+        setHeardResult(true);
+        heardResultRef.current = true;
+        localArmedRef.current = false; // client engine works — no fallback needed
+      } else {
+        logger.warn('Recorder recognition result was empty');
       }
       if (onTranscript) onTranscript(finalTranscriptRef.current + interim);
     };
@@ -356,9 +364,9 @@ export default function Recorder({ onAudioReady, onTranscript }) {
           lastBlobRef.current = blob;
           setState('done');
           if (onAudioReady) onAudioReady(blob, url);
-          // Service-layer recognition failure + nothing heard: run the
-          // on-device Whisper fallback automatically on the recorded audio.
-          if (localArmedRef.current && !heardResultRef.current && blob.size > 0) {
+          // Nothing transcribed (silent service death, empty results or
+          // error-armed): run the on-device Whisper fallback on the audio.
+          if (!finalTranscriptRef.current.trim() && blob.size > 0) {
             runLocalTranscription();
           }
         };
