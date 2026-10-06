@@ -3,9 +3,6 @@ import { useState, useRef, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
 import { useTranslation } from '../context/LanguageContext';
 import { logger } from '../utils/logger';
-import { decodeTo16kMono } from '../utils/decodeAudio';
-
-const LOCAL_TIMEOUT_MS = 5 * 60 * 1000;
 
 export default function Recorder({ onAudioReady, onTranscript }) {
   const { t, lang } = useTranslation();
@@ -17,9 +14,6 @@ export default function Recorder({ onAudioReady, onTranscript }) {
   const [unsupported, setUnsupported] = useState(false);
   const [notice, setNotice] = useState('');
   const [exhausted, setExhausted] = useState(false);
-  const [localPhase, setLocalPhase] = useState('idle'); // idle | working | error
-  const [localDetail, setLocalDetail] = useState('downloading'); // downloading | transcribing
-  const [localProgress, setLocalProgress] = useState(null);
   const streamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -33,11 +27,11 @@ export default function Recorder({ onAudioReady, onTranscript }) {
   const recognitionIdRef = useRef(0);
   const recorderActiveRef = useRef(false);
   const heardResultRef = useRef(false);
-  const localArmedRef = useRef(false);
   const lastBlobRef = useRef(null);
-  const workerRef = useRef(null);
-  const localTimeoutRef = useRef(null);
-  const localSessionRef = useRef(0);
+  const lastInterimRef = useRef('');
+  const gotContentThisCycleRef = useRef(false);
+  const deadCyclesRef = useRef(0);
+  const recorderStartAtRef = useRef(0);
   const MAX_RESTARTS = 8;
   const NO_SPEECH_HINT_AT = 3;
 
@@ -56,6 +50,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
   const startRecognition = () => {
     const myId = ++recognitionIdRef.current;
     const mySession = sessionRef.current; // drop callbacks from a superseded session
+    gotContentThisCycleRef.current = false; // new cycle: did THIS session yield text?
     let recognition;
     try {
       recognition = new SpeechRecognitionAPI();
@@ -87,16 +82,17 @@ export default function Recorder({ onAudioReady, onTranscript }) {
       }
       // Only a non-empty transcript counts as heard: a dead service can
       // deliver empty results, which must not fake "heard" or reset the
-      // restart budget (that used to disarm the on-device fallback).
+      // restart budget.
       const heard = (finalTranscriptRef.current + interim).trim();
+      lastInterimRef.current = interim;
       if (heard) {
+        gotContentThisCycleRef.current = true;
         noSpeechCountRef.current = 0;
         restartAttemptsRef.current = 0;
         setNotice('');
         setExhausted(false);
         setHeardResult(true);
         heardResultRef.current = true;
-        localArmedRef.current = false; // client engine works — no fallback needed
       } else {
         logger.warn('Recorder recognition result was empty');
       }
@@ -120,9 +116,6 @@ export default function Recorder({ onAudioReady, onTranscript }) {
         setError(t('voiceExam.recorder.error.capture'));
       } else if (event.error === 'network' || event.error === 'service-not-allowed') {
         setError(t('voiceExam.recorder.error.service'));
-        // Client engine refused at the service layer: arm the on-device
-        // Whisper fallback, which runs on the recorded audio after Stop.
-        localArmedRef.current = true;
       } else {
         setError(t('voiceExam.recorder.error.recognition'));
       }
@@ -133,6 +126,18 @@ export default function Recorder({ onAudioReady, onTranscript }) {
     recognition.onend = () => {
       if (mySession !== sessionRef.current) return; // superseded session
       logger.warn('Recorder recognition ended');
+      // A cycle that produced no content while recording is evidence the
+      // service dropped part of the answer (diagnostic only — also counts
+      // plain silence).
+      if (wantListeningRef.current && !gotContentThisCycleRef.current) {
+        deadCyclesRef.current += 1;
+      }
+      // A session can never finalize after it ended: any unfinalized interim
+      // would be lost forever — keep it as provisional text instead.
+      if (lastInterimRef.current) {
+        finalTranscriptRef.current += lastInterimRef.current;
+        lastInterimRef.current = '';
+      }
       if (onTranscript) onTranscript(finalTranscriptRef.current);
       // Keep-alive: restart while the user is still recording. The budget
       // counts only CONSECUTIVE result-less restarts (reset on any result),
@@ -190,90 +195,6 @@ export default function Recorder({ onAudioReady, onTranscript }) {
     return true;
   };
 
-  const clearLocalTimeout = () => {
-    if (localTimeoutRef.current) {
-      clearTimeout(localTimeoutRef.current);
-      localTimeoutRef.current = null;
-    }
-  };
-
-  const ensureWorker = () => {
-    if (workerRef.current) return workerRef.current;
-    const worker = new Worker(new URL('../workers/transcribeWorker.js', import.meta.url), { type: 'module' });
-    worker.onmessage = (event) => {
-      const msg = event.data || {};
-      if (localSessionRef.current !== sessionRef.current) return; // superseded session
-      if (msg.status === 'progress') {
-        const d = msg.data || {};
-        if (typeof d.progress === 'number') {
-          setLocalDetail('downloading');
-          setLocalProgress(Math.round(d.progress));
-        }
-        return;
-      }
-      if (msg.status === 'ready') {
-        setLocalDetail('transcribing');
-        setLocalProgress(null);
-        return;
-      }
-      if (msg.status === 'complete') {
-        clearLocalTimeout();
-        const text = String(msg.data || '').trim();
-        localArmedRef.current = false;
-        if (text) {
-          setLocalPhase('idle');
-          if (onTranscript) onTranscript(text);
-        } else {
-          logger.warn('Recorder local transcription returned empty text');
-          setLocalPhase('error');
-        }
-        return;
-      }
-      if (msg.status === 'error') {
-        clearLocalTimeout();
-        logger.error({ err: msg.data }, 'Recorder local transcription failed');
-        try { Sentry.captureException(new Error(`local-transcribe:${msg.data}`)); } catch { /* ignore */ }
-        localArmedRef.current = false;
-        setLocalPhase('error');
-      }
-    };
-    worker.onerror = (e) => {
-      if (localSessionRef.current !== sessionRef.current) return;
-      clearLocalTimeout();
-      reportRecognitionError(e?.error || e?.message || 'worker-error', 'Recorder transcription worker failed');
-      setLocalPhase('error');
-    };
-    workerRef.current = worker;
-    return worker;
-  };
-
-  const runLocalTranscription = async () => {
-    const blob = lastBlobRef.current;
-    if (!blob || blob.size === 0) return;
-    localSessionRef.current = sessionRef.current;
-    setLocalPhase('working');
-    setLocalDetail('downloading');
-    setLocalProgress(null);
-    setError('');
-    clearLocalTimeout();
-    localTimeoutRef.current = setTimeout(() => {
-      logger.error('Recorder local transcription timed out');
-      try { Sentry.captureException(new Error('local-transcribe:timeout')); } catch { /* ignore */ }
-      try { workerRef.current?.terminate(); } catch { /* ignore */ }
-      workerRef.current = null;
-      setLocalPhase('error');
-    }, LOCAL_TIMEOUT_MS);
-    try {
-      const worker = ensureWorker();
-      const pcm = await decodeTo16kMono(blob);
-      worker.postMessage({ type: 'transcribe', audio: pcm }, [pcm.buffer]);
-    } catch (err) {
-      clearLocalTimeout();
-      reportRecognitionError(err, 'Recorder local transcription setup failed');
-      setLocalPhase('error');
-    }
-  };
-
   const retryListening = () => {
     restartAttemptsRef.current = 0;
     noSpeechCountRef.current = 0;
@@ -315,18 +236,17 @@ export default function Recorder({ onAudioReady, onTranscript }) {
     setHeardResult(false);
     setUnsupported(false);
     setAudioUrl(null);
-    setLocalPhase('idle');
-    setLocalDetail('downloading');
-    setLocalProgress(null);
-    clearLocalTimeout();
     chunksRef.current = [];
     finalTranscriptRef.current = '';
+    lastInterimRef.current = '';
+    deadCyclesRef.current = 0;
+    gotContentThisCycleRef.current = false;
     wantListeningRef.current = true;
     restartAttemptsRef.current = 0;
     noSpeechCountRef.current = 0;
     recorderActiveRef.current = false;
     heardResultRef.current = false;
-    localArmedRef.current = false;
+    recorderStartAtRef.current = 0;
     lastBlobRef.current = null;
     if (onTranscript) onTranscript('');
 
@@ -357,17 +277,25 @@ export default function Recorder({ onAudioReady, onTranscript }) {
 
         mediaRecorderRef.current.onstop = () => {
           stream.getTracks().forEach((tr) => tr.stop());
-          if (mySession !== sessionRef.current) return; // superseded by a newer session
+          if (mySession !== sessionRef.current) {
+            logger.warn('Recorder onstop superseded', { mySession, current: sessionRef.current });
+            return; // superseded by a newer session
+          }
           const blob = new Blob(chunksRef.current, { type: mime });
           const url = URL.createObjectURL(blob);
           setAudioUrl(url);
           lastBlobRef.current = blob;
           setState('done');
           if (onAudioReady) onAudioReady(blob, url);
-          // Nothing transcribed (silent service death, empty results or
-          // error-armed): run the on-device Whisper fallback on the audio.
-          if (!finalTranscriptRef.current.trim() && blob.size > 0) {
-            runLocalTranscription();
+          // Coverage check: honest signal when the recognition service
+          // dropped most of the answer (French speech ≈12-15 chars/s; 4 is
+          // a cautious floor). The textarea stays editable either way.
+          const seconds = recorderStartAtRef.current ? (Date.now() - recorderStartAtRef.current) / 1000 : 0;
+          const browserChars = finalTranscriptRef.current.trim().length;
+          const empty = browserChars === 0;
+          logger.warn('Recorder stop decision', { emptyTranscript: empty, blobSize: blob.size, seconds: +seconds.toFixed(2), deadCycles: deadCyclesRef.current, browserChars });
+          if (seconds > 1 && browserChars < seconds * 4) {
+            setNotice(t('voiceExam.recorder.hint.incomplete'));
           }
         };
 
@@ -385,6 +313,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
 
         mediaRecorderRef.current.start();
         recorderActiveRef.current = true;
+        recorderStartAtRef.current = Date.now();
         // Discount prompt-time noise: the real session starts now.
         restartAttemptsRef.current = 0;
         noSpeechCountRef.current = 0;
@@ -429,11 +358,6 @@ export default function Recorder({ onAudioReady, onTranscript }) {
     return () => {
       wantListeningRef.current = false;
       clearRestartTimer();
-      clearLocalTimeout();
-      if (workerRef.current) {
-        try { workerRef.current.terminate(); } catch {}
-        workerRef.current = null;
-      }
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch {}
         recognitionRef.current = null;
@@ -474,7 +398,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
         <>
           {audioUrl && <audio src={audioUrl} controls style={{ height: 36 }} />}
           {!audioUrl && <span style={{ fontSize: 12, color: 'var(--teal-accent)', fontWeight: 600 }}>✓ {t('voiceExam.recorder.done')}</span>}
-          <button type="button" onClick={() => { setState('idle'); setAudioUrl(null); setLocalPhase('idle'); if (onAudioReady) onAudioReady(null, null); }} aria-label={t('voiceExam.recorder.delete')} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontSize: 11 }}>
+          <button type="button" onClick={() => { setState('idle'); setAudioUrl(null); setNotice(''); if (onAudioReady) onAudioReady(null, null); }} aria-label={t('voiceExam.recorder.delete')} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontSize: 11 }}>
             ✕ {t('voiceExam.recorder.delete')}
           </button>
           {unsupported && <span style={{ fontSize: 11, color: '#e67e22' }}>{t('voiceExam.recorder.unsupported')}</span>}
@@ -486,21 +410,6 @@ export default function Recorder({ onAudioReady, onTranscript }) {
         <button type="button" onClick={exhausted ? retryListening : startRecording} aria-label={t('voiceExam.recorder.retry')} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: 'var(--teal-dark)', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
           ↻ {t('voiceExam.recorder.retry')}
         </button>
-      )}
-      {localPhase !== 'idle' && (
-        <span style={{ fontSize: 11, color: localPhase === 'error' ? '#e74c3c' : 'var(--text-muted)' }}>
-          {localPhase === 'error' ? (
-            <><span aria-hidden="true">⚠</span> {t('voiceExam.recorder.localError')}{' '}
-              <button type="button" onClick={runLocalTranscription} aria-label={t('voiceExam.recorder.retry')} style={{ padding: '4px 10px', borderRadius: 6, border: 'none', background: 'var(--teal-dark)', color: '#fff', cursor: 'pointer', fontSize: 11, fontWeight: 600 }}>
-                ↻ {t('voiceExam.recorder.retry')}
-              </button>
-            </>
-          ) : localDetail === 'downloading' ? (
-            <><span aria-hidden="true">⏳</span> {t('voiceExam.recorder.localDownloading', { p: localProgress ?? '…' })}</>
-          ) : (
-            <><span aria-hidden="true">⏳</span> {t('voiceExam.recorder.localTranscribing')}</>
-          )}
-        </span>
       )}
     </div>
   );
