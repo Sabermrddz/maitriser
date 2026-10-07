@@ -59,25 +59,29 @@ router.post('/clerk-sync', async (req, res) => {
       }
     }
 
-    const clientIP = req.ip;
-    const currentSessionId = payload.sid;
-
-    try {
-      const { data: sessions } = await clerkClient.sessions.getSessionList({
-        userId: payload.sub,
-        status: 'active',
-      });
-      const otherSessions = sessions.filter(s => s.id !== currentSessionId);
-      const hasDifferentMachine = otherSessions.some(s =>
-        s.latestActivity?.clientIp && s.latestActivity.clientIp !== clientIP
-      );
-      if (hasDifferentMachine || !user.activeTokenId) {
-        user.activeTokenId = crypto.randomBytes(32).toString('hex');
+    // Single active device. The newest Clerk session takes ownership and the
+    // previous one is signed out at the Clerk level, so a displaced device
+    // loses its session instead of only being rejected by the API.
+    const currentSid = payload.sid;
+    const previousSid = user.activeClerkSid;
+    if (currentSid && currentSid !== previousSid) {
+      user.activeClerkSid = currentSid;
+      user.isOnline = true;
+      if (previousSid) {
+        try {
+          await clerkClient.sessions.revokeSession(previousSid);
+          logger.info({ previousSid }, 'Displaced device session revoked');
+        } catch (err) {
+          // Throttled or already gone — the 409 in verifyToken still kicks it.
+          logger.warn({ err: err?.message }, 'Displaced session revoke failed');
+        }
       }
-    } catch {
-      if (!user.activeTokenId) {
-        user.activeTokenId = crypto.randomBytes(32).toString('hex');
-      }
+    } else if (currentSid) {
+      user.isOnline = true;
+    }
+    user.lastSeenAt = new Date();
+    if (!user.activeTokenId) {
+      user.activeTokenId = crypto.randomBytes(32).toString('hex');
     }
     await user.save();
 

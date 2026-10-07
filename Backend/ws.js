@@ -49,6 +49,12 @@ export function initWS(server) {
       const payload = await verifyToken(token, { secretKey: process.env.CLERK_SECRET_KEY });
       const user = await User.findOne({ clerkId: payload.sub });
       if (!user || user.role !== 'admin') { ws.close(4001, 'Admin only'); return; }
+      // Displaced device: refuse the socket too, otherwise a kicked admin
+      // keeps receiving broadcasts until the socket drops.
+      if (user.activeClerkSid && payload.sid && payload.sid !== user.activeClerkSid) {
+        ws.close(4003, 'Session replaced');
+        return;
+      }
       ws._alive = true;
       ws.on('pong', () => { ws._alive = true; });
       ws.on('error', (err) => logger.error({ err }, 'WebSocket error'));

@@ -1,6 +1,7 @@
 import express from 'express';
 import { verifyToken, clearTokenCookie } from '../controllers/authController.js';
 import { addToBlacklist } from '../middleware/jwtBlacklist.js';
+import User from '../models/userModel.js';
 import logger from '../utils/logger.js';
 
 const router = express.Router();
@@ -24,6 +25,21 @@ router.post('/logout', verifyToken, async (req, res) => {
     }
   } catch (err) {
     logger.warn({ err }, 'Logout blacklist failed');
+  }
+  // Release the device lock when the logging-out device owns it, so the next
+  // sign-in from anywhere is immediate. A displaced device never reaches this
+  // point (verifyToken answers 409 first) so it cannot free someone else's.
+  if (req.clerkSid && req.user?.clerkId) {
+    try {
+      const user = await User.findOne({ clerkId: req.user.clerkId });
+      if (user && user.activeClerkSid === req.clerkSid) {
+        user.activeClerkSid = null;
+        user.isOnline = false;
+        await user.save();
+      }
+    } catch (err) {
+      logger.warn({ err }, 'Logout device-lock release failed');
+    }
   }
   clearTokenCookie(res);
   res.json({ message: 'Logged out successfully' });

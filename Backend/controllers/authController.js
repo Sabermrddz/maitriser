@@ -46,6 +46,13 @@ export const verifyToken = async (req, res, next) => {
       const payload = await clerkVerify(token, { secretKey: process.env.CLERK_SECRET_KEY });
       const user = await User.findOne({ clerkId: payload.sub });
       if (!user) return res.status(401).json({ message: 'User not found. Sync your account first.' });
+      // One device at a time: the Clerk session that signed in most recently
+      // owns the account. A displaced session is told to sign in again (409),
+      // which the client turns into a sign-out.
+      if (user.activeClerkSid && payload.sid && payload.sid !== user.activeClerkSid) {
+        return res.status(409).json({ message: 'Session expired. You have been logged in from another device.' });
+      }
+      req.clerkSid = payload.sid;
       req.user = { id: user._id, userId: user.userId, clerkId: payload.sub, role: user.role, discipline: user.discipline || '', year: user.year || null };
       logger.debug({ userId: user.userId }, 'Clerk token verified');
       return next();

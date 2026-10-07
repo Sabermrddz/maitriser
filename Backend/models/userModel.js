@@ -24,6 +24,11 @@ const userSchema = new mongoose.Schema({
   resetToken:         { type: String, default: null },
   resetExpiry:        { type: Date, default: null },
   activeTokenId:      { type: String, default: null },
+  // Single active device: Clerk session id that currently owns the account.
+  // Null until the user's next sync, so deploying this logs nobody out.
+  activeClerkSid:     { type: String, default: null },
+  isOnline:           { type: Boolean, default: false },
+  lastSeenAt:         { type: Date, default: null },
 }, { timestamps: true });
 
 userSchema.pre('save', async function (next) {

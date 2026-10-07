@@ -3,7 +3,7 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from "@clerk/react";
 import axios from 'axios';
 import { API_BASE_URL } from '../config/api';
-import { setToken } from '../utils/tokenStore';
+import { setToken, clearToken } from '../utils/tokenStore';
 import { useTranslation } from '../context/LanguageContext';
 
 const AdminProtectedRoute = () => {
@@ -44,6 +44,14 @@ const AdminProtectedRoute = () => {
       } catch (err) {
         clearTimeout(timeoutId);
         if (aborted) return;
+        // Displaced by a newer sign-in on another device: sign out with the
+        // conflict banner instead of the generic "not an admin" bounce.
+        if (err?.response?.status === 409) {
+          clearToken();
+          try { localStorage.removeItem('adminRole'); } catch { /* incognito */ }
+          window.location.href = '/login?conflict=1';
+          return;
+        }
         setRole(null);
         try { localStorage.removeItem('adminRole'); } catch { /* incognito */ }
         setSynced(true);

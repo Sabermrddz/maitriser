@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { refreshToken } from '../utils/tokenStore';
+import { refreshToken, clearToken } from '../utils/tokenStore';
 
 const RECONNECT_BASE = 1000;
 const RECONNECT_MAX = 30000;
@@ -36,10 +36,18 @@ export const useAdminWS = () => {
         } catch { /* ignore malformed */ }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         if (cancelledRef.current) return;
         setConnected(false);
         wsRef.current = null;
+        // 4003 = this device was displaced by a newer sign-in. Retrying would
+        // loop against a permanently refused socket, so sign out instead.
+        if (event?.code === 4003) {
+          clearToken();
+          try { localStorage.removeItem('userId'); } catch { /* incognito */ }
+          window.location.href = '/login?conflict=1';
+          return;
+        }
         if (retriesRef.current >= MAX_RETRIES) return;
         const delay = Math.min(RECONNECT_BASE * 2 ** retriesRef.current, RECONNECT_MAX);
         retriesRef.current += 1;

@@ -196,9 +196,10 @@ const AppContent = () => {
   const { signOut } = useClerk();
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith('/admin') || location.pathname === '/admin/setup';
-  const syncedRef = useRef((() => {
-    try { return sessionStorage.getItem('synced') === 'true'; } catch { return false; }
-  })());
+  // Deliberately not pre-seeded from sessionStorage: clerk-sync has to run on
+  // every app load so this device claims the single-session lock. A tab that
+  // synced once used to skip it forever, which left the lock unarmed.
+  const syncedRef = useRef(false);
   const [syncError, setSyncError] = useState(null);
 
   const syncRef = useRef(null);
@@ -231,9 +232,16 @@ const AppContent = () => {
       try { localStorage.setItem('userDiscipline', res.data.discipline || ''); } catch {}
       try { localStorage.setItem('userYear', res.data.year?.toString() || ''); } catch {}
       syncedRef.current = true;
-      try { sessionStorage.setItem('synced', 'true'); } catch {}
     } catch (err) {
       if (axios.isCancel(err)) return;
+      // A repeat sync only refreshes the single-session lock, so it must never
+      // block the app. Only the first sync (no stored profile yet) is critical.
+      let alreadySynced = false;
+      try { alreadySynced = !!localStorage.getItem('userId'); } catch { alreadySynced = false; }
+      if (alreadySynced) {
+        logger.warn({ err }, 'AppContent sync refresh failed — continuing');
+        return;
+      }
       logger.error({ err }, 'AppContent sync failed');
       const msg = err?.response?.data?.message || err?.message || 'Unknown error';
       setSyncError(msg);
