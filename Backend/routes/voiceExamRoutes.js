@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import express from 'express';
 import { body, param } from 'express-validator';
 import multer from 'multer';
+import rateLimit from 'express-rate-limit';
 import path from 'path';
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import VoiceExam from '../models/voiceExamModel.js';
@@ -42,6 +43,29 @@ const handleMulterError = (err, req, res, next) => {
   }
   next(err);
 };
+
+// Audio upload for the transcription fallback (separate from the image
+// upload above). ~10MB ≈ 10 minutes of the webm/opus recordings we produce.
+const audioMime = ['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/x-m4a', 'video/webm', 'video/mp4'];
+const audioUpload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['.webm', '.ogg', '.oga', '.mp4', '.m4a', '.mp3', '.wav'];
+    const ext = '.' + file.originalname.toLowerCase().split('.').pop();
+    if (allowed.includes(ext) && audioMime.includes(file.mimetype)) cb(null, true);
+    else cb(new Error('Only audio files are allowed (webm, ogg, mp4, m4a, mp3, wav)'));
+  },
+  limits: { fileSize: 10 * 1024 * 1024 },
+});
+
+// Cost control: Groq's free tier is 20 RPM shared across the whole app, so
+// per-user headroom must stay well under it.
+const transcribeLimiter = rateLimit({
+  windowMs: 60 * 1000, max: 10,
+  keyGenerator: (req) => req.user?.userId || req.ip,
+  message: { message: 'Too many transcription requests, slow down.' },
+  standardHeaders: true, legacyHeaders: false,
+});
 
 const uploadImagesToR2 = async (files) => {
   const s3 = getR2Client();
@@ -466,6 +490,50 @@ router.get('/voice-exam-results/:userId/:resultId', verifyToken, catchAsync(asyn
   if (req.user.role !== 'admin' && result.userId !== req.params.userId)
     return res.status(403).json({ message: 'Access denied' });
   res.json(result);
+}));
+
+// ── Transcription fallback ──────────────────────────────────────────────────
+// Browser speech recognition ships its own cloud keys — Brave, Samsung
+// Internet and Firefox can't use it at all. Those browsers still record
+// audio, so the frontend sends the blob here when the browser produced no
+// text, and Groq's whisper fills the textarea. Browser-first: this only
+// ever runs as a fallback.
+router.post('/transcribe', transcribeLimiter, audioUpload.single('audio'), handleMulterError, catchAsync(async (req, res) => {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) return res.status(503).json({ code: 'stt_unconfigured' });
+  if (!req.file || !req.file.buffer?.length) return res.status(400).json({ message: 'Audio file is required' });
+
+  const form = new FormData();
+  form.append('file', new Blob([req.file.buffer], { type: req.file.mimetype }), req.file.originalname || 'audio.webm');
+  form.append('model', 'whisper-large-v3-turbo');
+  form.append('language', 'fr');
+  form.append('response_format', 'json');
+
+  const startedAt = Date.now();
+  let groqRes;
+  try {
+    groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+      signal: AbortSignal.timeout(45000),
+    });
+  } catch (err) {
+    logger.error({ err: err?.message || String(err) }, 'Groq transcription request failed');
+    return res.status(502).json({ code: 'stt_failed' });
+  }
+
+  const elapsedMs = Date.now() - startedAt;
+  if (!groqRes.ok) {
+    const detail = await groqRes.text().catch(() => '');
+    logger.error({ status: groqRes.status, detail: detail.slice(0, 300) }, 'Groq transcription rejected');
+    return res.status(502).json({ code: groqRes.status === 429 ? 'stt_rate_limited' : 'stt_failed' });
+  }
+
+  const data = await groqRes.json().catch(() => null);
+  const text = String(data?.text || '').trim();
+  logger.info({ bytes: req.file.size, elapsedMs, chars: text.length }, 'Groq transcription done');
+  res.json({ text });
 }));
 
 export default router;

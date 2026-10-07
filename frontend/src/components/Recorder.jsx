@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
 import { useTranslation } from '../context/LanguageContext';
 import { logger } from '../utils/logger';
+import { API_BASE_URL, fetchWithAuth } from '../config/api';
 
 export default function Recorder({ onAudioReady, onTranscript }) {
   const { t } = useTranslation();
@@ -32,7 +33,9 @@ export default function Recorder({ onAudioReady, onTranscript }) {
   const gotContentThisCycleRef = useRef(false);
   const deadCyclesRef = useRef(0);
   const recorderStartAtRef = useRef(0);
+  const networkErrCountRef = useRef(0);
   const MAX_RESTARTS = 8;
+  const NETWORK_DEAD_AT = 2; // two consecutive network errors = cloud service gone (Brave/Samsung)
   const NO_SPEECH_HINT_AT = 3;
 
   const clearRestartTimer = () => {
@@ -45,6 +48,40 @@ export default function Recorder({ onAudioReady, onTranscript }) {
   const reportRecognitionError = (err, context) => {
     logger.error({ err }, context);
     try { Sentry.captureException(err); } catch { /* telemetry best-effort */ }
+  };
+
+  // Server-side transcription fallback: browsers without Google speech API
+  // keys (Brave, Samsung Internet, Firefox) record audio but never produce
+  // text. Called from the stop handler ONLY when the browser yielded nothing,
+  // so healthy Chrome/Edge sessions never touch the server.
+  const serverTranscribe = async (blob, mySession) => {
+    try {
+      const fd = new FormData();
+      const ext = blob.type.includes('mp4') ? 'm4a' : 'webm';
+      fd.append('audio', blob, `answer.${ext}`);
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/transcribe`, { method: 'POST', body: fd });
+      if (!res.ok) throw new Error(`transcribe HTTP ${res.status}`);
+      const data = await res.json();
+      const text = String(data?.text || '').trim();
+      if (mySession !== sessionRef.current) return; // superseded (re-record/delete)
+      if (!text) {
+        setError(t('voiceExam.recorder.error.serverTranscribe'));
+        return;
+      }
+      finalTranscriptRef.current = text;
+      if (onTranscript) onTranscript(text);
+      setHeardResult(true);
+      heardResultRef.current = true;
+      // Coverage signal still applies to server text (French ≈12-15 chars/s).
+      const seconds = recorderStartAtRef.current ? (Date.now() - recorderStartAtRef.current) / 1000 : 0;
+      setNotice(seconds > 1 && text.length < seconds * 4 ? t('voiceExam.recorder.hint.incomplete') : '');
+      logger.warn('Recorder server transcription applied', { chars: text.length, seconds: +seconds.toFixed(2) });
+    } catch (e) {
+      if (mySession !== sessionRef.current) return;
+      logger.error({ e }, 'Recorder server transcription failed');
+      try { Sentry.captureException(e); } catch { /* telemetry best-effort */ }
+      setError(t('voiceExam.recorder.error.serverTranscribe'));
+    }
   };
 
   const startRecognition = () => {
@@ -90,6 +127,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
         gotContentThisCycleRef.current = true;
         noSpeechCountRef.current = 0;
         restartAttemptsRef.current = 0;
+        networkErrCountRef.current = 0; // live results prove the service is back
         setNotice('');
         setExhausted(false);
         setHeardResult(true);
@@ -116,7 +154,19 @@ export default function Recorder({ onAudioReady, onTranscript }) {
       } else if (event.error === 'audio-capture') {
         setError(t('voiceExam.recorder.error.capture'));
       } else if (event.error === 'network' || event.error === 'service-not-allowed') {
-        setError(t('voiceExam.recorder.error.service'));
+        networkErrCountRef.current += 1;
+        if (networkErrCountRef.current >= NETWORK_DEAD_AT) {
+          // Two in a row with zero content = cloud service is gone for good
+          // (Brave/Samsung ship without speech API keys). Stop the restart
+          // loop; recording continues and the stop handler transcribes
+          // server-side instead.
+          logger.warn({ count: networkErrCountRef.current }, 'Recorder speech service dead — deferring to server transcription');
+          setError('');
+          setNotice(t('voiceExam.recorder.hint.liveOff'));
+          setExhausted(true); // keeps the manual retry button available
+        } else {
+          setError(t('voiceExam.recorder.error.service'));
+        }
       } else {
         setError(t('voiceExam.recorder.error.recognition'));
       }
@@ -144,7 +194,8 @@ export default function Recorder({ onAudioReady, onTranscript }) {
       // counts only CONSECUTIVE result-less restarts (reset on any result),
       // so long answers never exhaust it — only a dead service does.
       const stillListening = wantListeningRef.current;
-      if (stillListening && restartAttemptsRef.current < MAX_RESTARTS) {
+      const serviceDead = networkErrCountRef.current >= NETWORK_DEAD_AT;
+      if (stillListening && !serviceDead && restartAttemptsRef.current < MAX_RESTARTS) {
         const delay = 300 * (restartAttemptsRef.current + 1);
         restartAttemptsRef.current += 1;
         logger.warn({ attempt: restartAttemptsRef.current, delay }, 'Recorder restarting recognition');
@@ -159,12 +210,16 @@ export default function Recorder({ onAudioReady, onTranscript }) {
             reportRecognitionError(e, 'Recorder recognition restart failed');
           }
         }, delay);
-      } else if (stillListening) {
+      } else if (stillListening && !serviceDead) {
         setTranscribing(false);
         setExhausted(true);
         setNotice(t('voiceExam.recorder.hint.exhausted'));
         logger.error('Recorder recognition restarts exhausted without results');
         try { Sentry.captureException(new Error('recognition:restarts-exhausted')); } catch { /* ignore */ }
+      } else if (stillListening) {
+        // Service dead: stay in recording (MediaRecorder still works); the
+        // stop handler falls back to server-side transcription.
+        setTranscribing(false);
       } else {
         setTranscribing(false);
         // No audio recorder in this session: end the session here (with a
@@ -199,6 +254,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
   const retryListening = () => {
     restartAttemptsRef.current = 0;
     noSpeechCountRef.current = 0;
+    networkErrCountRef.current = 0;
     setExhausted(false);
     setNotice('');
     setError('');
@@ -245,6 +301,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
     wantListeningRef.current = true;
     restartAttemptsRef.current = 0;
     noSpeechCountRef.current = 0;
+    networkErrCountRef.current = 0;
     recorderActiveRef.current = false;
     heardResultRef.current = false;
     recorderStartAtRef.current = 0;
@@ -295,7 +352,14 @@ export default function Recorder({ onAudioReady, onTranscript }) {
           const browserChars = finalTranscriptRef.current.trim().length;
           const empty = browserChars === 0;
           logger.warn('Recorder stop decision', { emptyTranscript: empty, blobSize: blob.size, seconds: +seconds.toFixed(2), deadCycles: deadCyclesRef.current, browserChars });
-          if (seconds > 1 && browserChars < seconds * 4) {
+          if (empty && blob.size > 0 && seconds >= 1) {
+            // Browser gave us nothing (Brave/Samsung/Firefox/dead service):
+            // transcribe the recorded audio server-side. Chrome/Edge with
+            // text never reach this branch.
+            logger.warn('Recorder falling back to server transcription', { seconds: +seconds.toFixed(2) });
+            setNotice(t('voiceExam.recorder.serverTranscribing'));
+            serverTranscribe(blob, mySession);
+          } else if (seconds > 1 && browserChars < seconds * 4) {
             setNotice(t('voiceExam.recorder.hint.incomplete'));
           }
         };
