@@ -1456,6 +1456,79 @@ textarea:focus-visible,
   background: rgba(255, 255, 255, 0.2);
 }
 
+/* ── Voice exam answer textarea ── */
+.voice-answer {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 96px;
+  color: var(--text-dark);
+  background: var(--color-bg);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  resize: vertical;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.voice-answer:focus {
+  outline: none;
+  border-color: var(--teal-dark);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal-dark) 18%, transparent);
+}
+.voice-answer--live,
+.voice-answer--idle {
+  border-color: var(--border-light);
+}
+/* Recording, no text yet: gentle teal pulse so the box feels "live" */
+.voice-answer--pending {
+  border-color: color-mix(in srgb, var(--teal-dark) 55%, var(--border-light));
+  animation: voiceAnswerPulse 1.6s ease-in-out infinite;
+}
+.voice-answer--pending::placeholder {
+  color: var(--teal-dark);
+  animation: voiceAnswerPlaceholderPulse 1.6s ease-in-out infinite;
+}
+/* Transcription in flight (server call): steady teal, no pulse */
+.voice-answer--server {
+  border-color: color-mix(in srgb, var(--teal-dark) 55%, var(--border-light));
+  background: color-mix(in srgb, var(--teal-dark) 5%, var(--color-bg));
+}
+/* Nothing transcribed: type manually */
+.voice-answer--failed {
+  border: 1px dashed #e67e22;
+  background: color-mix(in srgb, #e67e22 5%, var(--color-bg));
+}
+.voice-answer--failed::placeholder {
+  color: #e67e22;
+}
+@keyframes voiceAnswerPulse {
+  0%, 100% {
+    border-color: color-mix(in srgb, var(--teal-dark) 55%, var(--border-light));
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--teal-dark) 25%, transparent);
+  }
+  50% {
+    border-color: var(--teal-dark);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--teal-dark) 12%, transparent);
+  }
+}
+@keyframes voiceAnswerPlaceholderPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .voice-answer--pending,
+  .voice-answer--pending::placeholder {
+    animation: none;
+  }
+  .voice-answer {
+    transition: none;
+  }
+}
+
 /* ── Mobile Responsiveness ──────────────────── */
 @media (max-width: 768px) {
   .page-teal {
@@ -1536,6 +1609,14 @@ textarea:focus-visible,
   }
   .voice-exam-question textarea {
     font-size: var(--text-base);
+  }
+  .voice-exam-question .voice-answer {
+    min-height: 88px;
+    /* 16px everywhere ≤768: prevents iOS focus auto-zoom (any input <16px) */
+    font-size: 16px;
+  }
+  .voice-exam-question audio {
+    max-width: 100%;
   }
   .voice-exam-result-box {
     padding: 12px;
@@ -1659,6 +1740,16 @@ textarea:focus-visible,
   .option-row input {
     min-height: 44px;
     font-size: 16px;
+  }
+  /* Voice exam answer box: 16px kills the iOS focus auto-zoom */
+  .voice-exam-question .voice-answer {
+    font-size: 16px;
+    padding: 12px;
+    min-height: 88px;
+  }
+  /* Comfortable touch targets for recorder controls above the textarea */
+  .voice-exam-question button {
+    min-height: 44px;
   }
 }
 

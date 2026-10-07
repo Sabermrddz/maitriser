@@ -5,7 +5,7 @@ import { useTranslation } from '../context/LanguageContext';
 import { logger } from '../utils/logger';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 
-export default function Recorder({ onAudioReady, onTranscript }) {
+export default function Recorder({ onAudioReady, onTranscript, onStatus }) {
   const { t } = useTranslation();
   const [state, setState] = useState('idle');
   const [audioUrl, setAudioUrl] = useState(null);
@@ -37,6 +37,16 @@ export default function Recorder({ onAudioReady, onTranscript }) {
   const MAX_RESTARTS = 8;
   const NETWORK_DEAD_AT = 2; // two consecutive network errors = cloud service gone (Brave/Samsung)
   const NO_SPEECH_HINT_AT = 3;
+  const statusRef = useRef('idle');
+
+  // Surface the transcription state to the parent so the answer textarea can
+  // show the right placeholder: idle → pending (recording, no text yet) →
+  // live (dictation flowing) → server (Groq call) → failed (nothing transcribed).
+  const emit = (s) => {
+    if (statusRef.current === s) return;
+    statusRef.current = s;
+    if (onStatus) onStatus(s);
+  };
 
   const clearRestartTimer = () => {
     if (restartTimerRef.current) {
@@ -65,6 +75,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
       const text = String(data?.text || '').trim();
       if (mySession !== sessionRef.current) return; // superseded (re-record/delete)
       if (!text) {
+        emit('failed');
         setError(t('voiceExam.recorder.error.serverTranscribe'));
         return;
       }
@@ -72,6 +83,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
       if (onTranscript) onTranscript(text);
       setHeardResult(true);
       heardResultRef.current = true;
+      emit('idle');
       // Coverage signal still applies to server text (French ≈12-15 chars/s).
       const seconds = recorderStartAtRef.current ? (Date.now() - recorderStartAtRef.current) / 1000 : 0;
       setNotice(seconds > 1 && text.length < seconds * 4 ? t('voiceExam.recorder.hint.incomplete') : '');
@@ -80,6 +92,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
       if (mySession !== sessionRef.current) return;
       logger.error({ e }, 'Recorder server transcription failed');
       try { Sentry.captureException(e); } catch { /* telemetry best-effort */ }
+      emit('failed');
       setError(t('voiceExam.recorder.error.serverTranscribe'));
     }
   };
@@ -132,6 +145,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
         setExhausted(false);
         setHeardResult(true);
         heardResultRef.current = true;
+        emit('live');
       } else {
         logger.warn('Recorder recognition result was empty');
       }
@@ -164,6 +178,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
           setError('');
           setNotice(t('voiceExam.recorder.hint.liveOff'));
           setExhausted(true); // keeps the manual retry button available
+          if (!heardResultRef.current) emit('pending'); // no live text → textarea keeps "transcription" placeholder
         } else {
           setError(t('voiceExam.recorder.error.service'));
         }
@@ -266,6 +281,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
       try {
         startRecognition();
         setTranscribing(true);
+        emit('pending'); // awaiting first words again
       } catch (e) {
         reportRecognitionError(e, 'Recorder manual retry failed');
         setError(t('voiceExam.recorder.error.service'));
@@ -311,10 +327,12 @@ export default function Recorder({ onAudioReady, onTranscript }) {
     // 1) Transcription starts SYNCHRONOUSLY inside the tap (user gesture).
     //    Mobile browsers may reject recognition.start() issued after an await.
     if (SpeechRecognitionAPI) {
-      if (!startRecognition()) return; // engine unusable — accurate error already shown
+      if (!startRecognition()) { emit('idle'); return; } // engine unusable — accurate error already shown
       setState('recording');
+      emit('pending'); // recording, no text yet — transcription placeholder
     } else {
       setUnsupported(true);
+      emit('pending'); // audio-only capture: text arrives server-side at stop
     }
 
     // 2) Audio capture for listen-back (unchanged behavior).
@@ -357,16 +375,21 @@ export default function Recorder({ onAudioReady, onTranscript }) {
             // transcribe the recorded audio server-side. Chrome/Edge with
             // text never reach this branch.
             logger.warn('Recorder falling back to server transcription', { seconds: +seconds.toFixed(2) });
-            setNotice(t('voiceExam.recorder.serverTranscribing'));
+            emit('server');
             serverTranscribe(blob, mySession);
-          } else if (seconds > 1 && browserChars < seconds * 4) {
-            setNotice(t('voiceExam.recorder.hint.incomplete'));
+          } else {
+            if (seconds > 1 && browserChars < seconds * 4) {
+              setNotice(t('voiceExam.recorder.hint.incomplete'));
+            }
+            // Nothing transcribed and no server call coming → manual typing.
+            emit(browserChars === 0 ? 'failed' : 'idle');
           }
         };
 
         mediaRecorderRef.current.onerror = () => {
           setError(t('voiceExam.recorder.error.recording'));
           setState('idle');
+          emit('idle');
           wantListeningRef.current = false;
           clearRestartTimer();
           if (recognitionRef.current) {
@@ -396,6 +419,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
           recognitionRef.current = null;
         }
         setTranscribing(false);
+        emit('idle');
         setError(t('voiceExam.recorder.error.mic'));
       }
     })();
@@ -463,7 +487,7 @@ export default function Recorder({ onAudioReady, onTranscript }) {
         <>
           {audioUrl && <audio src={audioUrl} controls style={{ height: 36 }} />}
           {!audioUrl && <span style={{ fontSize: 12, color: 'var(--teal-accent)', fontWeight: 600 }}>✓ {t('voiceExam.recorder.done')}</span>}
-          <button type="button" onClick={() => { setState('idle'); setAudioUrl(null); setNotice(''); if (onAudioReady) onAudioReady(null, null); }} aria-label={t('voiceExam.recorder.delete')} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontSize: 11 }}>
+          <button type="button" onClick={() => { setState('idle'); setAudioUrl(null); setNotice(''); emit('idle'); if (onAudioReady) onAudioReady(null, null); }} aria-label={t('voiceExam.recorder.delete')} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontSize: 11 }}>
             ✕ {t('voiceExam.recorder.delete')}
           </button>
           {unsupported && <span style={{ fontSize: 11, color: '#e67e22' }}>{t('voiceExam.recorder.unsupported')}</span>}

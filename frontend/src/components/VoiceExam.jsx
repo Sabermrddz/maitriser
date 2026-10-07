@@ -11,6 +11,7 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
   const questions = exam?.questions || [];
   const STORAGE_KEY = `voice-exam-${exam?._id || 'none'}`;
   const [answers, setAnswers]       = useState(() => (questions).map(() => ({ text: '' })));
+  const [answerStatus, setAnswerStatus] = useState([]); // per-question transcription status from Recorder
   const [result, setResult]         = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError]           = useState('');
@@ -36,6 +37,7 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
       }
     } catch { logger.error({ examId: exam?._id }, 'VoiceExam restoreSession failed') }
     setAnswers(questions.map(() => ({ text: '' })));
+    setAnswerStatus([]);
     setResult(null);
     setError('');
     try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
@@ -88,6 +90,21 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
       next[idx] = { ...next[idx], text };
       return next;
     });
+  };
+
+  const setAnswerStatusAt = (idx, status) => {
+    setAnswerStatus((prev) => {
+      const next = [...prev];
+      next[idx] = status;
+      return next;
+    });
+  };
+
+  const answerPlaceholder = (status) => {
+    if (status === 'pending') return t('voiceExam.placeholderPending');
+    if (status === 'server') return t('voiceExam.placeholderServer');
+    if (status === 'failed') return t('voiceExam.placeholderFailed');
+    return t('voiceExam.placeholder');
   };
 
   const handleSubmit = async (isTimedOut) => {
@@ -181,19 +198,22 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
         )}
       </div>
 
-      {!result && questions.map((q, qi) => (
-        <div key={qi} className="voice-exam-question" style={{ marginBottom: 16, padding: 14, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--border-light)' }}>
-          <p style={{ fontWeight: 600, margin: '0 0 8px' }}>Q{qi + 1}. {q.questionText}</p>
-          <Recorder onTranscript={(text) => setAnswer(qi, text)} />
-          <textarea
-            placeholder={t('voiceExam.placeholder')}
-            value={answers[qi]?.text || ''}
-            onChange={(e) => setAnswer(qi, e.target.value)}
-            rows={4}
-            style={{ width: '100%', padding: 10, border: '1px solid var(--border-light)', borderRadius: 6, fontSize: 14, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box', marginTop: 8, background: 'var(--card-bg)', color: 'var(--text-dark)' }}
-          />
-        </div>
-      ))}
+      {!result && questions.map((q, qi) => {
+        const status = answerStatus[qi] || 'idle';
+        return (
+          <div key={qi} className="voice-exam-question" style={{ marginBottom: 16, padding: 14, background: 'var(--card-bg)', borderRadius: 8, border: '1px solid var(--border-light)' }}>
+            <p style={{ fontWeight: 600, margin: '0 0 8px' }}>Q{qi + 1}. {q.questionText}</p>
+            <Recorder onTranscript={(text) => setAnswer(qi, text)} onStatus={(s) => setAnswerStatusAt(qi, s)} />
+            <textarea
+              className={`voice-answer voice-answer--${status}`}
+              placeholder={answerPlaceholder(status)}
+              value={answers[qi]?.text || ''}
+              onChange={(e) => setAnswer(qi, e.target.value)}
+              rows={4}
+            />
+          </div>
+        );
+      })}
 
       {!result && timedOut && (
         <p style={{ color: '#ef4444', fontWeight: 700, fontSize: 14, marginBottom: 12, textAlign: 'center' }}>
@@ -289,7 +309,7 @@ const VoiceExam = ({ exam, onBack, stationMode, onStationSubmit, submitting: ext
 
           <button
             type="button"
-            onClick={() => { setResult(null); setAnswers(questions.map(() => ({ text: '' }))); setError(''); }}
+            onClick={() => { setResult(null); setAnswers(questions.map(() => ({ text: '' }))); setAnswerStatus([]); setError(''); }}
             style={{ padding: '10px 24px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontWeight: 600 }}
           >
             {t('voiceExam.retry')}
