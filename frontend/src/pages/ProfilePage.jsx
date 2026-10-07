@@ -4,7 +4,6 @@ import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { useToast } from '../components/Toast';
 import { useTranslation } from '../context/LanguageContext';
 import { formatDate } from '../utils/formatDate';
-import { formatYearLabel } from '../utils/formatYear';
 import { logger } from '../utils/logger';
 import useDocumentTitle from '../utils/useDocumentTitle';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler } from 'chart.js';

@@ -4,7 +4,7 @@ import { FaClipboardList, FaStethoscope, FaChevronRight, FaUser, FaChevronDown }
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { useTranslation } from '../context/LanguageContext';
 import { formatDate } from '../utils/formatDate';
-import { formatYearLabel } from '../utils/formatYear';
+import { formatYearOrdinal } from '../utils/formatYear';
 import { logger } from '../utils/logger';
 import { ECOS_YEARS } from '../constants';
 import useDocumentTitle from '../utils/useDocumentTitle';
@@ -210,6 +210,9 @@ const DashboardPage = () => {
   const userName = profile?.name || (() => { try { return localStorage.getItem('userName'); } catch { return ''; } })();
   const userDiscipline = profile?.discipline || discipline || t('dashboard.fallbackDiscipline');
   const userYear = profile?.year || year || '';
+  // Localized discipline label ('Médecine'/'Pharmacie', 'Medicine'/'Pharmacy')
+  // — the raw stored value (e.g. 'medicine') must never reach the UI.
+  const disciplineLabel = t(userDiscipline === 'pharmacy' ? 'profile.discipline.pharmacy' : 'profile.discipline.medicine');
   const subActive = subscription?.status === 'active';
   const isPremium = subActive && new Date(subscription?.endDate) > new Date();
 
@@ -251,7 +254,13 @@ const DashboardPage = () => {
             <section className="dash-hero">
               <div className="dash-hero-welcome">
                 <h1>{t('dashboard.hero.greeting')}{userName ? <span className="dash-hero-accent"> {userName}</span> : ''}</h1>
-                <p className="dash-subtitle">{userYear ? t('dashboard.hero.subtitleYear', { year: formatYearLabel(userYear), discipline: userDiscipline }) : t('dashboard.hero.subtitleDiscipline', { discipline: userDiscipline })}</p>
+                <p className="dash-subtitle">
+                  {!userYear
+                    ? t('dashboard.hero.subtitleDiscipline', { discipline: disciplineLabel })
+                    : Number(userYear) === 7
+                      ? t('dashboard.hero.subtitleResidanat', { discipline: disciplineLabel })
+                      : t('dashboard.hero.subtitleYear', { year: formatYearOrdinal(userYear, lang), discipline: disciplineLabel })}
+                </p>
                 <p className="dash-motivation">{t('dashboard.hero.motivation')}</p>
               </div>
               <div className="dash-hero-progress">

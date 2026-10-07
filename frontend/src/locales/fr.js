@@ -105,8 +105,6 @@ const fr = {
   'customExam.startExam': "Lancer l'examen",
   'customExam.submit': 'Soumettre',
   'customExam.score': 'Votre score : {score}%',
-  'customExam.pass': 'Réussi',
-  'customExam.fail': 'Échoué',
   'customExam.correct': 'Correct',
   'customExam.incorrect': 'Incorrect',
   'customExam.partial': 'Partiellement correct',
@@ -648,6 +646,7 @@ const fr = {
   'voiceExams.noExamsHint': 'Essayez de modifier les filtres ou de sélectionner d\'autres critères.',
   'voiceExams.badge': 'EXAMEN ORAL',
   'voiceExams.yearMeta': 'Année {year} — {module}',
+  'voiceExams.yearMetaResidanat': 'Résidanat — {module}',
   'voiceExams.startSimulation': 'Lancer la simulation',
   'voiceExams.setupTitle': 'Configurer l\'examen',
   'voiceExams.minutesLabel': 'Minutes',
@@ -1082,7 +1081,8 @@ const fr = {
   'admin.dashboard.chartContacts': 'Contacts',
 
   // DashboardPage
-  'dashboard.hero.subtitleYear': 'Étudiant en {year}e année de {discipline}',
+  'dashboard.hero.subtitleYear': 'Étudiant en {year} année en {discipline}',
+  'dashboard.hero.subtitleResidanat': 'Étudiant en Résidanat en {discipline}',
   'dashboard.hero.subtitleDiscipline': 'Étudiant en {discipline}',
   'dashboard.fallbackDiscipline': 'médecine',
   'dashboard.fallbackUser': 'Utilisateur',

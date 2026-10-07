@@ -223,13 +223,6 @@ const QuizSession = ({ quizzes, mode, config, moduleData, layout = 'oneByOne', o
                 {score}%
               </span>
             </div>
-            <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
-              {passed ? (
-                <span style={{ color: 'var(--color-success)' }}>{t('customExam.pass')}</span>
-              ) : (
-                <span style={{ color: 'var(--color-danger)' }}>{t('customExam.fail')}</span>
-              )}
-            </div>
             <div style={{ fontSize: 14, color: 'var(--text-muted)', fontWeight: 500 }}>
               {correctCount}/{answered} {t('customExam.correct').toLowerCase()} · {t('customExam.timeTaken', { time: `${mm}:${ss}` })}
             </div>

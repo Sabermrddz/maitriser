@@ -282,7 +282,9 @@ const VoiceExamPage = () => {
                 <div key={exam._id} className="card-item" role="button" tabIndex={0} onClick={() => handleExamClick(exam)} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleExamClick(exam); } }}>
                   <span style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, color: '#f97316', background: 'rgba(249,115,22,0.1)', padding: '3px 10px', borderRadius: 20, marginBottom: 8, letterSpacing: '0.5px' }}>{t('voiceExams.badge')}</span>
                   <div className="card-title">{exam.title}</div>
-                  <div className="card-meta">{t('voiceExams.yearMeta', { year: formatYearLabel(exam.year), module: exam.moduleId?.name || '' })}</div>
+                  <div className="card-meta">{Number(exam.year) === 7
+            ? t('voiceExams.yearMetaResidanat', { module: exam.moduleId?.name || '' })
+            : t('voiceExams.yearMeta', { year: formatYearLabel(exam.year), module: exam.moduleId?.name || '' })}</div>
                 </div>
               ))}
             </div>
