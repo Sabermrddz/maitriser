@@ -5,7 +5,7 @@ import { useTranslation } from '../context/LanguageContext';
 import { logger } from '../utils/logger';
 
 export default function Recorder({ onAudioReady, onTranscript }) {
-  const { t, lang } = useTranslation();
+  const { t } = useTranslation();
   const [state, setState] = useState('idle');
   const [audioUrl, setAudioUrl] = useState(null);
   const [error, setError] = useState('');
@@ -66,7 +66,8 @@ export default function Recorder({ onAudioReady, onTranscript }) {
     // listening stays uninterrupted (same UX, proven server behavior).
     recognition.continuous = false;
     recognition.interimResults = true;
-    recognition.lang = lang === 'fr' ? 'fr-FR' : 'en-US';
+    // Exams and grading criteria are always French, regardless of UI language.
+    recognition.lang = 'fr-FR';
     logger.warn({ lang: recognition.lang }, 'Recorder recognition started');
 
     recognition.onresult = (event) => {
