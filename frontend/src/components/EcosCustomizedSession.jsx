@@ -327,21 +327,12 @@ export default function EcosCustomizedSession({ exams, stationCount, minutesPerS
               {t('ecosCustomExam.notesLabel')}
             </label>
             <textarea
+              className="ecos-notes"
               value={notes[currentStation] || ''}
               onChange={(e) => setNote(currentStation, e.target.value)}
               placeholder={t('ecosCustomExam.notesPlaceholder')}
               rows={5}
               disabled={timedOut}
-              style={{
-                width: '100%', padding: 12, border: '1px solid var(--border-light)',
-                borderRadius: 8, fontSize: 14, fontFamily: 'inherit',
-                resize: 'vertical', boxSizing: 'border-box',
-                background: timedOut ? 'var(--color-bg)' : 'var(--card-bg)',
-                color: 'var(--text-dark)', outline: 'none',
-                transition: 'border-color 0.15s',
-              }}
-              onFocus={(e) => { if (!timedOut) e.currentTarget.style.borderColor = 'var(--teal-dark)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--border-light)'; }}
             />
           </div>
 

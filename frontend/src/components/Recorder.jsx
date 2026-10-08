@@ -15,6 +15,8 @@ export default function Recorder({ onAudioReady, onTranscript, onStatus }) {
   const [unsupported, setUnsupported] = useState(false);
   const [notice, setNotice] = useState('');
   const [exhausted, setExhausted] = useState(false);
+  const [activity, setActivity] = useState('idle'); // mirrors emit() for the control row
+  const [elapsedSec, setElapsedSec] = useState(0);
   const streamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -38,6 +40,10 @@ export default function Recorder({ onAudioReady, onTranscript, onStatus }) {
   const NETWORK_DEAD_AT = 2; // two consecutive network errors = cloud service gone (Brave/Samsung)
   const NO_SPEECH_HINT_AT = 3;
   const statusRef = useRef('idle');
+  const elapsedTimerRef = useRef(null);
+  const meterFillRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const meterRafRef = useRef(null);
 
   // Surface the transcription state to the parent so the answer textarea can
   // show the right placeholder: idle → pending (recording, no text yet) →
@@ -45,7 +51,76 @@ export default function Recorder({ onAudioReady, onTranscript, onStatus }) {
   const emit = (s) => {
     if (statusRef.current === s) return;
     statusRef.current = s;
+    setActivity(s); // the control row shows the server/failed chips
     if (onStatus) onStatus(s);
+  };
+
+  const clearElapsedTimer = () => {
+    if (elapsedTimerRef.current) {
+      clearInterval(elapsedTimerRef.current);
+      elapsedTimerRef.current = null;
+    }
+  };
+
+  const startElapsedTimer = () => {
+    clearElapsedTimer();
+    setElapsedSec(0);
+    elapsedTimerRef.current = setInterval(() => {
+      if (!recorderStartAtRef.current) return;
+      setElapsedSec(Math.floor((Date.now() - recorderStartAtRef.current) / 1000));
+    }, 1000);
+  };
+
+  // Level meter: answers "is the mic picking me up?" on the browsers that never
+  // transcribe live (Brave, Samsung, Firefox). Decorative only — it writes
+  // straight to the DOM so a 60fps loop never re-renders React, and every
+  // failure path is swallowed so it can never break recording.
+  const stopLevelMeter = () => {
+    if (meterRafRef.current) {
+      cancelAnimationFrame(meterRafRef.current);
+      meterRafRef.current = null;
+    }
+    if (audioCtxRef.current) {
+      try { audioCtxRef.current.close(); } catch { /* already closed */ }
+      audioCtxRef.current = null;
+    }
+    if (meterFillRef.current) meterFillRef.current.style.transform = 'scaleX(0)';
+  };
+
+  const startLevelMeter = (stream, mySession) => {
+    stopLevelMeter();
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      audioCtxRef.current = ctx;
+      if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+      const samples = new Uint8Array(analyser.fftSize);
+      const tick = () => {
+        if (mySession !== sessionRef.current) { meterRafRef.current = null; return; }
+        analyser.getByteTimeDomainData(samples);
+        let sum = 0;
+        for (let i = 0; i < samples.length; i++) {
+          const v = (samples[i] - 128) / 128;
+          sum += v * v;
+        }
+        const rms = Math.sqrt(sum / samples.length);
+        if (meterFillRef.current) {
+          meterFillRef.current.style.transform = `scaleX(${Math.min(1, rms * 3.5).toFixed(3)})`;
+        }
+        meterRafRef.current = requestAnimationFrame(tick);
+      };
+      meterRafRef.current = requestAnimationFrame(tick);
+    } catch { /* decorative: never let it break the recording */ }
+  };
+
+  const stopCaptureFeedback = () => {
+    clearElapsedTimer();
+    stopLevelMeter();
   };
 
   const clearRestartTimer = () => {
@@ -294,6 +369,7 @@ export default function Recorder({ onAudioReady, onTranscript, onStatus }) {
   const startRecording = () => {
     // Tear down any previous session first (retry while a session is active).
     clearRestartTimer();
+    stopCaptureFeedback();
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch {}
       recognitionRef.current = null;
@@ -344,6 +420,7 @@ export default function Recorder({ onAudioReady, onTranscript, onStatus }) {
           return;
         }
         streamRef.current = stream;
+        startLevelMeter(stream, mySession);
         const mime = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
         mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: mime });
 
@@ -390,6 +467,7 @@ export default function Recorder({ onAudioReady, onTranscript, onStatus }) {
           setError(t('voiceExam.recorder.error.recording'));
           setState('idle');
           emit('idle');
+          stopCaptureFeedback();
           wantListeningRef.current = false;
           clearRestartTimer();
           if (recognitionRef.current) {
@@ -402,6 +480,7 @@ export default function Recorder({ onAudioReady, onTranscript, onStatus }) {
         mediaRecorderRef.current.start();
         recorderActiveRef.current = true;
         recorderStartAtRef.current = Date.now();
+        startElapsedTimer();
         // Discount prompt-time noise: the real session starts now.
         restartAttemptsRef.current = 0;
         noSpeechCountRef.current = 0;
@@ -420,6 +499,7 @@ export default function Recorder({ onAudioReady, onTranscript, onStatus }) {
         }
         setTranscribing(false);
         emit('idle');
+        stopCaptureFeedback();
         setError(t('voiceExam.recorder.error.mic'));
       }
     })();
@@ -428,6 +508,7 @@ export default function Recorder({ onAudioReady, onTranscript, onStatus }) {
   const stopRecording = () => {
     wantListeningRef.current = false;
     clearRestartTimer();
+    stopCaptureFeedback(); // freeze the elapsed time and the level meter
     if (recognitionRef.current) {
       try { recognitionRef.current.stop(); } catch {}
       recognitionRef.current = null;
@@ -447,6 +528,8 @@ export default function Recorder({ onAudioReady, onTranscript, onStatus }) {
     return () => {
       wantListeningRef.current = false;
       clearRestartTimer();
+      clearElapsedTimer();
+      stopLevelMeter();
       if (recognitionRef.current) {
         try { recognitionRef.current.stop(); } catch {}
         recognitionRef.current = null;
@@ -462,43 +545,63 @@ export default function Recorder({ onAudioReady, onTranscript, onStatus }) {
     };
   }, []);
 
+  const formatElapsed = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-      {state === 'idle' && (
-        <button type="button" onClick={startRecording} aria-label={t('voiceExam.recorder.record')} style={{ padding: '6px 14px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-          🎤 {t('voiceExam.recorder.record')}
-        </button>
-      )}
-      {state === 'recording' && (
-        <>
-          <button type="button" onClick={stopRecording} aria-label={t('voiceExam.recorder.stop')} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: '#e74c3c', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-            🔴 {t('voiceExam.recorder.stop')}
+    <div className="rec">
+      <div className="rec-bar">
+        {state === 'idle' && (
+          <button type="button" className="rec-btn rec-btn--ghost" onClick={startRecording} aria-label={t('voiceExam.recorder.record')}>
+            <span aria-hidden="true">🎤</span> {t('voiceExam.recorder.record')}
           </button>
-          <span style={{ fontSize: 11, color: transcribing ? 'var(--teal-accent)' : 'var(--text-muted)' }}>
-            {transcribing
-              ? (heardResult
-                ? <><span aria-hidden="true">🎤</span> {t('voiceExam.recorder.transcribing')}</>
-                : <><span aria-hidden="true">🎤</span> {t('voiceExam.recorder.listening')}</>)
-              : <><span aria-hidden="true">⏳</span> {t('voiceExam.recorder.waiting')}</>}
-          </span>
-        </>
-      )}
-      {state === 'done' && (
-        <>
-          {audioUrl && <audio src={audioUrl} controls style={{ height: 36 }} />}
-          {!audioUrl && <span style={{ fontSize: 12, color: 'var(--teal-accent)', fontWeight: 600 }}>✓ {t('voiceExam.recorder.done')}</span>}
-          <button type="button" onClick={() => { setState('idle'); setAudioUrl(null); setNotice(''); emit('idle'); if (onAudioReady) onAudioReady(null, null); }} aria-label={t('voiceExam.recorder.delete')} style={{ padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border-light)', background: 'var(--card-bg)', color: 'var(--text-dark)', cursor: 'pointer', fontSize: 11 }}>
-            ✕ {t('voiceExam.recorder.delete')}
+        )}
+        {state === 'recording' && (
+          <>
+            <button type="button" className="rec-btn rec-btn--stop" onClick={stopRecording} aria-label={t('voiceExam.recorder.stop')}>
+              <span aria-hidden="true">🔴</span> {t('voiceExam.recorder.stop')}
+            </button>
+            <span className="rec-live" aria-hidden="true">
+              <span className="rec-dot" />
+              <span className="rec-time">{formatElapsed(elapsedSec)}</span>
+            </span>
+            <span className="rec-meter" aria-hidden="true">
+              <span className="rec-meter-fill" ref={meterFillRef} />
+            </span>
+            <span className="rec-status" role="status" aria-live="polite">
+              {transcribing
+                ? (heardResult
+                  ? <><span aria-hidden="true">🎤</span> {t('voiceExam.recorder.transcribing')}</>
+                  : <><span aria-hidden="true">🎤</span> {t('voiceExam.recorder.listening')}</>)
+                : <><span aria-hidden="true">⏳</span> {t('voiceExam.recorder.waiting')}</>}
+            </span>
+          </>
+        )}
+        {state === 'done' && (
+          <>
+            {audioUrl && <audio className="rec-audio" src={audioUrl} controls />}
+            {!audioUrl && <span className="rec-ok"><span aria-hidden="true">✓</span> {t('voiceExam.recorder.done')}</span>}
+            {activity === 'server' && (
+              <span className="rec-chip rec-chip--busy">
+                <span className="rec-spin" aria-hidden="true" />
+                {t('voiceExam.recorder.serverBusy')}
+              </span>
+            )}
+            <button type="button" className="rec-btn rec-btn--small rec-btn--ghost" onClick={() => { setState('idle'); setAudioUrl(null); setNotice(''); setElapsedSec(0); stopCaptureFeedback(); emit('idle'); if (onAudioReady) onAudioReady(null, null); }} aria-label={t('voiceExam.recorder.delete')}>
+              <span aria-hidden="true">✕</span> {t('voiceExam.recorder.delete')}
+            </button>
+          </>
+        )}
+        {state !== 'done' && (exhausted || error) && (
+          <button type="button" className="rec-btn rec-btn--primary" onClick={exhausted ? retryListening : startRecording} aria-label={t('voiceExam.recorder.retry')}>
+            <span aria-hidden="true">↻</span> {t('voiceExam.recorder.retry')}
           </button>
-          {unsupported && <span style={{ fontSize: 11, color: '#e67e22' }}>{t('voiceExam.recorder.unsupported')}</span>}
-        </>
-      )}
-      {error && <span style={{ color: '#e74c3c', fontSize: 12 }}>{error}</span>}
-      {notice && !error && <span style={{ color: '#e67e22', fontSize: 12 }}>{notice}</span>}
-      {state !== 'done' && (exhausted || error) && (
-        <button type="button" onClick={exhausted ? retryListening : startRecording} aria-label={t('voiceExam.recorder.retry')} style={{ padding: '6px 14px', borderRadius: 6, border: 'none', background: 'var(--teal-dark)', color: '#fff', cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-          ↻ {t('voiceExam.recorder.retry')}
-        </button>
+        )}
+      </div>
+
+      {error && <p className="rec-msg rec-msg--error">{error}</p>}
+      {notice && !error && <p className="rec-msg rec-msg--warn">{notice}</p>}
+      {unsupported && state === 'done' && !error && !notice && (
+        <p className="rec-msg rec-msg--warn">{t('voiceExam.recorder.unsupported')}</p>
       )}
     </div>
   );
