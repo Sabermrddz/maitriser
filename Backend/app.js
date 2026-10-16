@@ -19,6 +19,7 @@ import bookmarkRoutes from './routes/bookmarkRoutes.js';
 import userAuthRoutes from './routes/userAuthRoutes.js';
 import emailAuthRoutes from './routes/emailAuthRoutes.js';
 import clerkRoutes from './routes/clerkRoutes.js';
+import clerkProxyRoutes from './routes/clerkProxyRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import feedbackRoutes from './routes/feedbackRoutes.js';
 import pdfDocumentRoutes from './routes/pdfDocumentRoutes.js';
@@ -67,6 +68,10 @@ app.use(helmet({
 }));
 app.use(compression());
 app.use(httpLogger);
+
+// Clerk Frontend API proxy. Mounted ahead of CORS and the Origin guard below
+// because it answers its own preflight and sets its own CORS headers.
+app.use(clerkProxyRoutes);
 
 // Block non-browser (no Origin) unsafe methods before CORS + Private Network Access header
 app.use((req, res, next) => {
