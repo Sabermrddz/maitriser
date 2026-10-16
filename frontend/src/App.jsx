@@ -26,7 +26,6 @@ import useClerkToken from './hooks/useClerkToken';
 const CLERK_PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 // When set, ClerkJS routes every Frontend API call through this path instead of
 // the clerk.<domain> host. Used where that host has no DNS record.
-const CLERK_PROXY_URL = import.meta.env.VITE_CLERK_PROXY_URL;
 
 const About = lazy(() => import('./pages/About'));
 const Contact = lazy(() => import('./pages/Contact'));
@@ -311,7 +310,7 @@ const AppContent = () => {
 
 const App = () => {
   return (
-    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} proxyUrl={CLERK_PROXY_URL || undefined}>
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY}>
       <ThemeProvider>
         <LanguageProvider>
         <SoundProvider>
