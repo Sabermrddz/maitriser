@@ -7,6 +7,7 @@ import Case from '../models/caseModel.js';
 import { getPagination, paginatedResponse } from '../utils/paginate.js';
 import { catchAsync } from '../utils/asyncHandler.js';
 import { escapeRegex } from '../utils/escapeRegex.js';
+import { parseCourseFilter, parseCount, wantsRandom } from '../utils/quizQuery.js';
 import { checkSubscription } from '../middleware/requireSubscription.js';
 import { genQuizId } from '../utils/idGenerator.js';
 import { PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
@@ -30,12 +31,42 @@ export const listQuizzes = catchAsync(async (req, res) => {
   const isResidanat = Number(req.query.year) === 7 && req.query.discipline === 'medicine';
   if (!isResidanat) filter.year = Number(req.query.year);
   const rawModuleId = req.query.moduleId ? (Array.isArray(req.query.moduleId) ? String(req.query.moduleId[0]) : String(req.query.moduleId)) : '';
-  if (rawModuleId && mongoose.Types.ObjectId.isValid(rawModuleId)) filter.moduleId = rawModuleId;
-  if (req.query.course) filter.course = String(req.query.course);
+  if (rawModuleId && mongoose.Types.ObjectId.isValid(rawModuleId)) filter.moduleId = new mongoose.Types.ObjectId(rawModuleId);
+  const courseFilter = parseCourseFilter(req.query.course);
+  if (courseFilter) filter.course = courseFilter;
   if (req.query.search) filter.$or = [
     { quizId: { $regex: escapeRegex(req.query.search), $options: 'i' } },
     { 'question.questionText': { $regex: escapeRegex(req.query.search), $options: 'i' } },
   ];
+
+  // Exam mode: caller asks for an exact number of questions instead of a page.
+  // Bypasses the 200-row pagination clamp and, with random=true, samples
+  // uniformly across the whole filtered pool.
+  const count = parseCount(req.query);
+  if (count !== null) {
+    const total = await Quiz.countDocuments(filter);
+    const size = Math.min(count, total);
+    if (size === 0) return res.json(paginatedResponse([], total, 1, count));
+
+    let quizzes;
+    if (wantsRandom(req.query)) {
+      const ids = (await Quiz.aggregate([{ $match: filter }, { $sample: { size } }, { $project: { _id: 1 } }]))
+        .map((doc) => doc._id);
+      const docs = await Quiz.find({ _id: { $in: ids } })
+        .populate('moduleId', 'name year')
+        .populate('caseId', 'title');
+      const byId = new Map(docs.map((doc) => [String(doc._id), doc]));
+      quizzes = ids.map((id) => byId.get(String(id))).filter(Boolean);
+    } else {
+      quizzes = await Quiz.find(filter)
+        .populate('moduleId', 'name year')
+        .populate('caseId', 'title')
+        .sort({ createdAt: -1 })
+        .limit(size);
+    }
+    return res.json(paginatedResponse(quizzes.map(stripAnswers), total, 1, count));
+  }
+
   const { skip, limit, page } = getPagination(req.query);
   const [quizzes, total] = await Promise.all([
     Quiz.find(filter).populate('moduleId', 'name year').populate('caseId', 'title').sort({ createdAt: -1 }).skip(skip).limit(limit),

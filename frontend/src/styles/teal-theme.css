@@ -3291,17 +3291,6 @@ textarea:focus-visible,
   gap: 10px;
 }
 
-.pdf-console-link {
-  color: #fff;
-  font-size: 12px;
-  text-decoration: underline;
-  opacity: 0.85;
-}
-
-.pdf-console-link:hover {
-  opacity: 1;
-}
-
 .pdf-console-close {
   background: transparent;
   border: none;

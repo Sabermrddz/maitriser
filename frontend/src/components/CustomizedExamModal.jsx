@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+/* eslint-disable react/prop-types */
+import { useState } from 'react';
 import { useTranslation } from '../context/LanguageContext';
 
-const CustomizedExamModal = ({ maxQuestions, onStart, onClose }) => {
+const CustomizedExamModal = ({ maxQuestions, onStart, onClose, starting = false }) => {
   const { t } = useTranslation();
-  const [questionCount, setQuestionCount] = useState(Math.min(maxQuestions, 10));
+  const [questionCount, setQuestionCount] = useState(Math.max(1, Math.min(maxQuestions, 10)));
   const [passingScore, setPassingScore] = useState(60);
   const [random, setRandom] = useState(true);
   const [layout, setLayout] = useState('oneByOne');
 
   const handleStart = () => {
+    if (starting) return;
     onStart({ questionCount: Math.min(questionCount, maxQuestions), passingScore, random, layout });
   };
 
@@ -82,10 +84,10 @@ const CustomizedExamModal = ({ maxQuestions, onStart, onClose }) => {
         </div>
 
         <div className="ecos-modal-actions">
-          <button type="button" className="btn-primary" onClick={handleStart}>
-            ▶ {t('customExam.startExam')}
+          <button type="button" className="btn-primary" onClick={handleStart} disabled={starting}>
+            {starting ? t('customExam.loading') : `▶ ${t('customExam.startExam')}`}
           </button>
-          <button type="button" className="btn-ghost" onClick={onClose}>
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={starting}>
             {t('cancel')}
           </button>
         </div>

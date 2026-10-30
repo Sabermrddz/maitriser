@@ -1,14 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
+import { fetchAllQuizzes } from '../utils/fetchAllQuizzes';
 import { SkeletonModuleGrid } from '../components/LoadingSkeleton';
 import { useTranslation } from '../context/LanguageContext';
+import { useToast } from '../components/Toast.jsx';
 import CustomizedExamModal from '../components/CustomizedExamModal';
 import CoursePickerModal from '../components/CoursePickerModal';
 import QuizSession from '../components/QuizSession';
 import '../styles/teal-theme.css';
 import { logger } from '../utils/logger';
 import useDocumentTitle from '../utils/useDocumentTitle';
+
+// Mirror of Backend/utils/quizQuery.js MAX_QUESTIONS.
+const MAX_CUSTOM_QUESTIONS = 500;
+
+const readScope = () => {
+  let discipline = '', year = '';
+  try { discipline = localStorage.getItem('userDiscipline') || ''; year = localStorage.getItem('userYear') || ''; } catch { /* localStorage unavailable */ }
+  return { discipline, year };
+};
 
 const QuizPage = () => {
   const [view, setView] = useState('modules');
@@ -21,6 +32,9 @@ const QuizPage = () => {
   const [showStartModal, setShowStartModal] = useState(false);
   const [quizCounts, setQuizCounts] = useState({});
   const [courseQuizzes, setCourseQuizzes] = useState([]);
+  const [sessionQuizzes, setSessionQuizzes] = useState([]);
+  const [customPool, setCustomPool] = useState(null);
+  const [startingCustom, setStartingCustom] = useState(false);
   const [sessionConfig, setSessionConfig] = useState(null);
   const [sessionMode, setSessionMode] = useState('start');
   const [sessionLayout, setSessionLayout] = useState('oneByOne');
@@ -36,6 +50,7 @@ const QuizPage = () => {
   const [showCoursePicker, setShowCoursePicker] = useState(false);
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const notify = useToast();
   useDocumentTitle(t('nav.qcm'));
 
   const loadSubscription = useCallback(async () => {
@@ -113,14 +128,11 @@ const QuizPage = () => {
   const fetchCourseQuizzes = async (courseName) => {
     setLoadingQuizzes(true);
     try {
-      let discipline = '', year = '';
-      try { discipline = localStorage.getItem('userDiscipline') || ''; year = localStorage.getItem('userYear') || ''; } catch { /* localStorage unavailable */ }
-      let url = `${API_BASE_URL}/api/quizzes?limit=100&discipline=${discipline}&year=${year}&moduleId=${selectedModuleId}`;
-      if (courseName) url += `&course=${encodeURIComponent(courseName)}`;
-      const res = await fetchWithAuth(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const d = await res.json();
-      const items = d.data || (Array.isArray(d) ? d : []);
+      const { discipline, year } = readScope();
+      const params = new URLSearchParams({ discipline, year });
+      if (selectedModuleId) params.set('moduleId', selectedModuleId);
+      if (courseName) params.set('course', courseName);
+      const items = await fetchAllQuizzes(params);
       setCourseQuizzes(items);
       return items;
     } catch (err) {
@@ -146,12 +158,34 @@ const QuizPage = () => {
     setView('session');
   };
 
-  const handleCustomStart = (cfg) => {
-    setShowCustomModal(false);
-    setSessionMode('custom');
-    setSessionConfig({ ...cfg, passingScore: cfg.passingScore || 60 });
-    setSessionLayout(cfg.layout || 'oneByOne');
-    setView('session');
+  const handleCustomStart = async (cfg) => {
+    if (!customPool) return;
+    setStartingCustom(true);
+    try {
+      const { discipline, year } = readScope();
+      const params = new URLSearchParams({ discipline, year, count: String(cfg.questionCount) });
+      if (cfg.random) params.set('random', 'true');
+      customPool.courses.forEach((name) => params.append('course', name));
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/quizzes?${params.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      const items = d.data || (Array.isArray(d) ? d : []);
+      if (items.length === 0) {
+        notify(t('quiz.noQuizzes'), 'warning');
+        return;
+      }
+      setSessionQuizzes(items);
+      setSessionMode('custom');
+      setSessionConfig({ ...cfg, questionCount: items.length, passingScore: cfg.passingScore || 60 });
+      setSessionLayout(cfg.layout || 'oneByOne');
+      setShowCustomModal(false);
+      setView('session');
+    } catch (err) {
+      logger.error({ err }, 'quizPage custom start failed');
+      notify(t('quiz.startError'), 'error');
+    } finally {
+      setStartingCustom(false);
+    }
   };
 
   const handleOpenCoursePicker = () => {
@@ -160,34 +194,34 @@ const QuizPage = () => {
 
   const handleCoursesSelected = async (courseNames) => {
     setShowCoursePicker(false);
-    const selectedSet = new Set(courseNames);
-    const allQuizzes = [];
-    for (const mod of filteredModules) {
-      const modCourseNames = (mod.courses || []).map((c) => (typeof c === 'string' ? c : c.name || ''));
-      const hasSelected = modCourseNames.some((name) => selectedSet.has(name));
-      if (!hasSelected) continue;
-      try {
-        let discipline = '', year = '';
-        try { discipline = localStorage.getItem('userDiscipline') || ''; year = localStorage.getItem('userYear') || ''; } catch { /* localStorage unavailable */ }
-        const url = `${API_BASE_URL}/api/quizzes?limit=200&discipline=${discipline}&year=${year}&moduleId=${mod._id}`;
-        const res = await fetchWithAuth(url);
-        if (res.ok) {
-          const d = await res.json();
-          const items = d.data || (Array.isArray(d) ? d : []);
-          allQuizzes.push(...items.filter((q) => selectedSet.has(q.course)));
-        }
-      } catch (err) {
-        logger.error({ err, module: mod.name }, 'quizPage fetchModuleQuizzes failed');
+    const courses = (courseNames || []).filter(Boolean);
+    if (courses.length === 0) return;
+    try {
+      const { discipline, year } = readScope();
+      const params = new URLSearchParams({ limit: '1', discipline, year });
+      courses.forEach((name) => params.append('course', name));
+      const res = await fetchWithAuth(`${API_BASE_URL}/api/quizzes?${params.toString()}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d = await res.json();
+      const total = Number(d.total) || 0;
+      if (total === 0) {
+        notify(t('quiz.noQuizzes'), 'warning');
+        return;
       }
+      setCustomPool({ courses, total });
+      setShowCustomModal(true);
+    } catch (err) {
+      logger.error({ err }, 'quizPage pool count failed');
+      notify(t('quiz.startError'), 'error');
     }
-    setCourseQuizzes(allQuizzes);
-    setShowCustomModal(true);
   };
 
   const handleBackToCourses = () => {
     setView('courses');
     setSelectedCourse(null);
     setCourseQuizzes([]);
+    setSessionQuizzes([]);
+    setCustomPool(null);
   };
 
   const isSubActive = subscription?.status === 'active' && (!subscription.endDate || new Date(subscription.endDate) > new Date());
@@ -204,9 +238,10 @@ const QuizPage = () => {
       )}
       {showCustomModal && (
         <CustomizedExamModal
-          maxQuestions={courseQuizzes.length}
+          maxQuestions={Math.min(customPool?.total || 0, MAX_CUSTOM_QUESTIONS)}
           onStart={handleCustomStart}
           onClose={() => setShowCustomModal(false)}
+          starting={startingCustom}
         />
       )}
       {showStartModal && (
@@ -234,7 +269,7 @@ const QuizPage = () => {
     return (
       <>
         <QuizSession
-          quizzes={courseQuizzes}
+          quizzes={sessionMode === 'custom' ? sessionQuizzes : courseQuizzes}
           mode={sessionMode}
           layout={sessionLayout}
           config={sessionConfig}

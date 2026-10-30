@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from '../context/LanguageContext';
 import { API_BASE_URL, fetchWithAuth } from '../config/api';
 import { SkeletonModuleGrid } from '../components/LoadingSkeleton';
+import QuizTags from '../components/QuizTags';
+import { fetchAllQuizzes } from '../utils/fetchAllQuizzes';
 import { logger } from '../utils/logger';
 import useDocumentTitle from '../utils/useDocumentTitle';
 import '../styles/teal-theme.css';
@@ -18,7 +20,6 @@ const CourseViewPage = () => {
 
   const [moduleName, setModuleName] = useState('');
   const [quizzes, setQuizzes] = useState([]);
-  const [pdfUrl, setPdfUrl] = useState(null);
   const [pdfBlobUrl, setPdfBlobUrl] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingQuizzes, setLoadingQuizzes] = useState(true);
@@ -38,7 +39,6 @@ const CourseViewPage = () => {
         const mod = await modRes.json();
         setModuleName(mod.name || '');
 
-        let resolvedUrl = null;
         let blobUrl = null;
         const courses = mod?.courses || [];
         const match = courses.find((c) => (typeof c === 'string' ? c : c.name || '') === decodedName);
@@ -51,21 +51,15 @@ const CourseViewPage = () => {
             const filename = docs.find((d) => d.pdfId === pdfId)?.filename;
             if (filename) {
               try {
-                const presignRes = await fetchWithAuth(`${API_BASE_URL}/api/course-pdfs/${encodeURIComponent(filename)}`);
-                if (presignRes.ok) {
-                  const { url } = await presignRes.json();
-                  resolvedUrl = url;
-                  const blobRes = await fetchWithAuth(`${API_BASE_URL}/api/course-pdfs/${encodeURIComponent(filename)}/content`);
-                  if (blobRes.ok) {
-                    const blob = await blobRes.blob();
-                    blobUrl = URL.createObjectURL(blob);
-                  }
+                const blobRes = await fetchWithAuth(`${API_BASE_URL}/api/course-pdfs/${encodeURIComponent(filename)}/content`);
+                if (blobRes.ok) {
+                  const blob = await blobRes.blob();
+                  blobUrl = URL.createObjectURL(blob);
                 }
               } catch (e) { logger.error({ e }, 'CourseViewPage PDF blob fetch failed'); }
             }
           }
         }
-        setPdfUrl(resolvedUrl);
         setPdfBlobUrl(blobUrl);
       } catch (err) {
         logger.error({ err, moduleId }, 'CourseViewPage load failed');
@@ -82,13 +76,9 @@ const CourseViewPage = () => {
       try {
         let discipline = '', year = '';
         try { discipline = localStorage.getItem('userDiscipline') || ''; year = localStorage.getItem('userYear') || ''; } catch {}
-        const params = new URLSearchParams({ limit: '200', discipline, year, moduleId });
+        const params = new URLSearchParams({ discipline, year, moduleId });
         if (decodedName) params.set('course', decodedName);
-        const res = await fetchWithAuth(`${API_BASE_URL}/api/quizzes?${params.toString()}`);
-        if (res.ok) {
-          const d = await res.json();
-          setQuizzes(d.data || (Array.isArray(d) ? d : []));
-        }
+        setQuizzes(await fetchAllQuizzes(params));
       } catch (err) {
         logger.error({ err }, 'CourseViewPage fetchQuizzes failed');
       } finally {
@@ -129,11 +119,6 @@ const CourseViewPage = () => {
             <span className="pdf-console-dot" />
             <span className="pdf-console-title">{decodedName}</span>
             <div className="pdf-console-actions">
-              {pdfUrl && (
-                <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="pdf-console-link">
-                  {t('courseView.openTab')}
-                </a>
-              )}
               <button className="pdf-console-close" onClick={() => navigate('/quizPage')} aria-label={t('courseView.close')}>
                 ×
               </button>
@@ -181,6 +166,7 @@ const CourseViewPage = () => {
                       {q.question?.questionText?.substring(0, 150) || t('quizcard.notFound')}
                     </div>
                   </div>
+                  <QuizTags tags={q.tags} />
                   <button className="btn-primary" style={{ fontSize: 13, width: '100%', marginTop: 10 }} onClick={() => navigate(`/quiz/${q._id}`)}>
                     ▶ {t('courseView.start')}
                   </button>

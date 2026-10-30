@@ -7,6 +7,7 @@ import { useToast } from './Toast.jsx';
 import { useSound } from '../context/SoundContext';
 import { useTranslation } from '../context/LanguageContext';
 import PremiumGateModal from './PremiumGateModal';
+import QuizTags from './QuizTags';
 import { SkeletonQuizItem } from './LoadingSkeleton';
 import { logger } from '../utils/logger';
 import '../styles/teal-theme.css';
@@ -263,13 +264,7 @@ const QuizCard = () => {
           )}
         </div>
 
-        {quizData.tags && quizData.tags.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-            {quizData.tags.map((tag, i) => (
-              <span key={i} style={{ padding: '2px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600, background: 'rgba(251,146,60,0.1)', color: '#ea580c' }}>{tag}</span>
-            ))}
-          </div>
-        )}
+        <QuizTags tags={quizData.tags} style={{ marginTop: 0, marginBottom: 12 }} />
 
         {studyMode && <div style={{ fontSize: 'var(--text-sm)', color: 'var(--text-light)', marginBottom: '10px' }}>🔍 {t('quizcard.studyMode')}</div>}
 
